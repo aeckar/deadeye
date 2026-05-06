@@ -1,24 +1,67 @@
-// 'vscode' contains VS Code extensibility API
-import * as vscode from 'vscode';
+import * as vscode from 'vscode'; // Visual Studio Code API
+import Tape from './tape';
+import lineCompletions from './line_completions';
 
-// called when your extension is activated
-// extension is activated the very first time the command is executed
+// manual insertion and snippet with $0 is negligible perf diff
+// fallbacks for top-level completions as scoped after some whitespace
+
+// top-level functions should use `function` notation
+
+// props: trigger charset
+// params: line-tape
+// returns: how far back to replace, snippet
+/*
+    for scoped:
+    params: +scope tree w/ rich info, 
+*/
+
+// called on first time command is executed
 export function activate(context: vscode.ExtensionContext) {
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "hot-snips" is now active!');
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeTextDocument(async event => {
+            // editor.selection.active is stale here
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('hot-snips.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from hotsnips!');
-	});
-
-	context.subscriptions.push(disposable);
+            const change = event.contentChanges[0];
+            if (!change) {
+                return;
+            }
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                return;
+            }
+            await handleLineCompletion(change, editor);
+        }),
+    );
 }
 
-// This method is called when your extension is deactivated
+async function handleLineCompletion(
+    change: vscode.TextDocumentContentChangeEvent,
+    editor: vscode.TextEditor,
+): Promise<boolean> {
+    const pos = change.range.start.translate(0, change.text.length);
+    const langId = editor.document.languageId;
+    const line = editor.document.lineAt(pos.line).text;
+    if (!line) {
+        // ensure line is not empty before passing to handlers
+        return false;
+    }
+    for (const handler of lineCompletions[langId]) {
+        let res = handler(Tape.over(line), pos.character);
+        if (!res) {
+            continue;
+        }
+        const range = new vscode.Range(
+            pos.with(undefined, pos.character - res.length),
+            pos,
+        );
+        await editor.insertSnippet(
+            new vscode.SnippetString(res.snippet),
+            range,
+        );
+        return true;
+    }
+    return false;
+}
+
+// called when extension is deactivated
 export function deactivate() {}

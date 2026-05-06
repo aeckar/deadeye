@@ -1,24 +1,116 @@
+function check(flags: string, query: string): boolean {
+    return flags.toLowerCase().includes(query);
+}
+
 /**
  * A lightweight cursor over a string for non-linear parsing.
  *
  * Supports backtracking, lookahead, and paragraph-aware scanning.
  * Clone the tape to snapshot state and try a parsing branch cheaply.
  *
+ * Whether a given instance iterates over the original string in reverse
+ * is kept as an internal flag. This allows bidirectional parsing of character clusters. 
+ * 
  * Translated from [`tape.rs`](https://github.com/aeckar/draft/blob/main/crates/draft-core/src/tape.rs)
  * by Claude Sonnet 4.6.
  */
-export class Tape {
+export default class Tape {
     readonly raw: string;
+    private readonly isReversed: boolean;
     pos: number;
 
-    constructor(raw: string, pos = 0) {
+    /** Returns a new reversed instance over the original string with a mirrored pos. */
+    static reverse(raw: string, pos = 0) {
+        return new Tape(raw, raw.length - 1 - pos, true);
+    }
+
+    /** Returns a new instance over the original string. */
+    static of(raw: string, pos = 0) {
+        return new Tape(raw, pos, false);
+    }
+
+    private constructor(raw: string, pos: number, isReversed: boolean) {
         this.raw = raw;
         this.pos = pos;
+        this.isReversed = isReversed;
+    }
+
+    [Symbol.iterator](): Iterator<string> {
+        let pos = this.pos;
+        const raw = this.raw;
+        return {
+            next(): IteratorResult<string> {
+                if (pos >= raw.length) {
+                    return { value: undefined, done: true };
+                }
+                return { value: raw[pos++], done: false };
+            },
+        };
+    }
+
+    /** The length of the remaining portion of the tape. */
+    public get length(): number {
+        return Math.max(0, this.raw.length - this.pos);
+    }
+
+    /**
+     * Consumes the next letter cluster from the current position
+     * with clearance and a capital letter in the lowest absolute position.
+     */
+    consumeCapitalized(): string {
+
+    }
+
+    /**
+     * Consumes the next character cluster from the current position
+     * with clearance discernable using the Rust specification.
+     */
+    consumeRustTarget(): string {
+        
+    }
+
+    /** Returns a new reversed instance over the original string, with a mirrored pos. */
+    reversed(): Tape {
+        return Tape.reverse(this.raw, this.pos);
+    }
+
+    //todo
+    // if multiple flags matched, are ordered according to decl
+    // flags can be multiple
+    // flags can have multiple representations
+    // range by prepend -
+    consumeFlags(
+        flags: [string | string[], string][],
+    ): [number, [number, string][]] {}
+
+    consumeMatch(strings: [string, string][]): [string, string] | undefined {
+        for (const [key, value] of strings) {
+            if (this.isAt(key)) {
+                this.pos += key.length;
+                return [key, value];
+            }
+        }
+        return undefined;
+    }
+
+    /** Returns true if the remaining portion and the string are equal. */
+    is(query: string): boolean {
+        return this.raw === query;
+    }
+
+    /** Returns the first character, assuming it exists. */
+    head(): string {
+        return this.raw[0];
+    }
+
+    /** Returns the character at the given index. */
+    get(idx: number): string {
+        return this.raw[idx];
     }
 
     /** Returns a snapshot of this cursor. */
     clone(): Tape {
-        return new Tape(this.raw, this.pos);
+        return new Tape(this.raw, this.pos, this.isReversed);
     }
 
     /** Returns a substring over the original slice from the current position. */
@@ -26,9 +118,14 @@ export class Tape {
         return this.raw.slice(this.pos);
     }
 
-    /** Advances the current position by 1 character. */
+    /**
+     * Advances the current position by 1 character.
+     *
+     * Returns true if this results in the tape being exhausted.
+     */
     adv() {
         this.pos += 1;
+        return this.length === 0;
     }
 
     /** Decrements the current position by 1 character. */
@@ -100,7 +197,7 @@ export class Tape {
     consume(pred: (ch: string, pos: number) => boolean): string {
         const end = this.poll((ch, pos) => !pred(ch, pos));
         if (end === undefined) {
-            return "";
+            return '';
         }
         const res = this.raw.slice(this.pos, end);
         this.pos = end;
@@ -117,7 +214,7 @@ export class Tape {
     putBack(pred: (ch: string, pos: number) => boolean): string {
         const end = this.pollBack((ch, pos) => !pred(ch, pos));
         if (end === undefined) {
-            return "";
+            return '';
         }
         const res = this.raw.slice(this.pos, end);
         this.pos = end;
@@ -179,20 +276,26 @@ export class Tape {
         return true;
     }
 
-    private isWs(ch: string): boolean {
-        return ch === " " || ch === "\t";
+    /** Returns true if the given character is space or tab. */
+    static isWs(ch: string): boolean {
+        return ch === ' ' || ch === '\t';
+    }
+
+    /** Consumes the next, possibly empty, sequence of whitespace characters. */
+    consumeWs(): string {
+        return this.consume((ch, _) => Tape.isWs(ch));
     }
 
     /** Returns true if the character at the given position has clearance on its left side. */
     isLeftClear(pos: number): boolean {
         const ch = this.raw[pos - 1];
-        return ch === undefined || this.isWs(ch);
+        return ch === undefined || Tape.isWs(ch);
     }
 
     /** Returns true if the character at the given position has clearance on its right side. */
     isRightClear(pos: number): boolean {
         const ch = this.raw[pos + 1];
-        return ch === undefined || this.isWs(ch);
+        return ch === undefined || Tape.isWs(ch);
     }
 
     /**
@@ -212,10 +315,10 @@ export class Tape {
     isPrefix(pos: number): boolean {
         for (let i = pos - 1; i >= 0; i--) {
             const ch = this.raw[i];
-            if (ch === "\n") {
+            if (ch === '\n') {
                 return true;
             }
-            if (!this.isWs(ch)) {
+            if (!Tape.isWs(ch)) {
                 return false;
             }
         }
@@ -239,14 +342,14 @@ export class Tape {
      * Counts the number of tabs or the number of space characters divided by 4 (floored).
      */
     countIndent(): number {
-        const lineStart = this.pollBack((ch) => ch === "\n") ?? 0;
+        const lineStart = this.pollBack(ch => ch === '\n') ?? 0;
         const ws = this.raw.slice(lineStart, this.pos);
         let tabs = 0,
             spaces = 0;
         for (const ch of ws) {
-            if (ch === "\t") {
+            if (ch === '\t') {
                 tabs++;
-            } else if (ch === " ") {
+            } else if (ch === ' ') {
                 spaces++;
             }
         }
