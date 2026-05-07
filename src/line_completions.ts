@@ -54,6 +54,7 @@ const lineCompletions: Record<string, LineCompletionHandler[]> = {
             return {
                 length: pub ? 2 : 1,
                 snippet: pre + kword + ' ',
+                lineBreak: 0,
             };
         },
 
@@ -63,7 +64,7 @@ const lineCompletions: Record<string, LineCompletionHandler[]> = {
             if (rev.next() !== 's') {
                 return undefined;
             }
-            const [flagCount, flags] = rev.consumeFlags([
+            const flags = rev.consumeFlags([
                 ['r', '&'],
                 ['-ad', "'{} "], // if given but no b, assume b
                 ['m', 'mut '],
@@ -75,14 +76,15 @@ const lineCompletions: Record<string, LineCompletionHandler[]> = {
             if (!target) {
                 return undefined;
             }
-            let pre = flags.map(res => res[1]).join('');
+            let pre = flags.map(e => e[1]).join('');
             if (pre && pre[0] !== '&') {
                 // only `m` flag OR missing `r` flag
                 pre = '&' + pre;
             }
             return {
-                length: target.length + flagCount + 1,
+                length: target.length + flags.length + 1,
                 snippet: pre + '[' + target + ']',
+                lineBreak: 0,
             };
         },
 
@@ -93,7 +95,7 @@ const lineCompletions: Record<string, LineCompletionHandler[]> = {
             if (rev.next() !== 's') {
                 return undefined;
             }
-            const [flagCount, flags] = rev.consumeFlags([
+            const flags = rev.consumeFlags([
                 ['p', 'pub '],
                 ['!', 'unsafe '],
             ]);
@@ -101,10 +103,11 @@ const lineCompletions: Record<string, LineCompletionHandler[]> = {
                 // not at start of line
                 return undefined;
             }
-            let pre = flags.map(res => res[1]).join('');
+            let pre = flags.map(e => e[1]).join('');
             return {
-                length: flagCount + 1,
+                length: flags.length + 1,
                 snippet: pre + 'extern ',
+                lineBreak: 0,
             };
         },
 
@@ -113,15 +116,24 @@ const lineCompletions: Record<string, LineCompletionHandler[]> = {
             return {
                 length: 1,
                 snippet: '#[$0]',
+                lineBreak: 0,
             }
         },
 
         // expand #[must_use]
         (tape, idx) => {
-            
+            const trigger = 'must use';
+            const length = trigger.length;
+            const pre = tape.consumeWs();
+            const parts = tape.consumeChunks(['#', '[', 'must', 'use', ']']);
+            const post = tape.consumeWs();
+            if (!tape.isExhausted()) {
+                return undefined;
+            }
             return {
-                length: 'must use'.length,
+                length,
                 snippet: 'must_use',
+                lineBreak: 1,
             }
         }
 
