@@ -1,3 +1,5 @@
+import { isLowerLetter, isUpperLetter } from "./utils";
+
 function check(flags: string, query: string): boolean {
     return flags.toLowerCase().includes(query);
 }
@@ -9,8 +11,8 @@ function check(flags: string, query: string): boolean {
  * Clone the tape to snapshot state and try a parsing branch cheaply.
  *
  * Whether a given instance iterates over the original string in reverse
- * is kept as an internal flag. This allows bidirectional parsing of character clusters. 
- * 
+ * is kept as an internal flag. This allows bidirectional parsing of character clusters.
+ *
  * Translated from [`tape.rs`](https://github.com/aeckar/draft/blob/main/crates/draft-core/src/tape.rs)
  * by Claude Sonnet 4.6.
  */
@@ -19,9 +21,9 @@ export default class Tape {
     private readonly isReversed: boolean;
     pos: number;
 
-    /** Returns a new reversed instance over the original string with a mirrored pos. */
+    /** Returns a new instance over the original string, reversed. */
     static reverse(raw: string, pos = 0) {
-        return new Tape(raw, raw.length - 1 - pos, true);
+        return new Tape(raw.split('').reverse().join(''), pos, true);
     }
 
     /** Returns a new instance over the original string. */
@@ -58,18 +60,51 @@ export default class Tape {
      * with clearance and a capital letter in the lowest absolute position.
      */
     consumeCapitalized(): string {
+        if (this.isReversed) {
+            let rest = this.consume(ch => isLowerLetter(ch));
+            let first = this.cur();
+            if (!first || !isUpperLetter(first)) {
+                return '';
+            }
+            this.adv();
+            return first + rest;
+        }
+        let first = this.cur();
+        if (!first || !isUpperLetter(first)) {
+            return '';
+        }
+        this.adv();
+        let rest = this.consume(ch => isLowerLetter(ch));
+        return first + rest;
+    }
 
+    /** Returns a new instance over a slice over the original string. */
+    slice(start: number, end = this.raw.length): Tape {
+        return Tape.of(this.raw.slice(start, end));
     }
 
     /**
      * Consumes the next character cluster from the current position
      * with clearance discernable using the Rust specification.
      */
+    // todo check for edge cases
     consumeRustTarget(): string {
+        // : . greedy, then lookbehind
+        // can be just delims
+        // skip over insides
+        // stop at: = , ( [ { <letter after skipped ws>
+        // skip ws if after closer after skip of insides
+        // also this prefixes (stop here): & &mut *
+        const post = ['<>()[]:.'];
+        const 
         
+        if (this.isReversed) {
+            
+        }
+        return 'TODO';
     }
 
-    /** Returns a new reversed instance over the original string, with a mirrored pos. */
+    /** Returns a new instance over the original string, reversed. */
     reversed(): Tape {
         return Tape.reverse(this.raw, this.pos);
     }
@@ -80,7 +115,7 @@ export default class Tape {
     // flags can have multiple representations
     // range by prepend -
     consumeFlags(
-        flags: [string | string[], string][],
+        flags: [string, string][],
     ): [number, [number, string][]] {}
 
     consumeMatch(strings: [string, string][]): [string, string] | undefined {
@@ -96,11 +131,6 @@ export default class Tape {
     /** Returns true if the remaining portion and the string are equal. */
     is(query: string): boolean {
         return this.raw === query;
-    }
-
-    /** Returns the first character, assuming it exists. */
-    head(): string {
-        return this.raw[0];
     }
 
     /** Returns the character at the given index. */

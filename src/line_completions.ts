@@ -18,6 +18,9 @@ function hasStop(snippet: String): boolean {
 //     ['b', '&'],
 // },
 
+// Elements with no identation from start of line need not have their scope checked,
+// as we can assume they are top-level
+
 const lineCompletions: Record<string, LineCompletionHandler[]> = {
     typescript: [
         // top-level element marker
@@ -25,13 +28,12 @@ const lineCompletions: Record<string, LineCompletionHandler[]> = {
             line.is('i') ? { length: 1, snippet: 'import $0' } : undefined,
     ],
     rust: [
-        // strictly top-level elements
-        // these elements have no identation, so no need to check scope
+        // declare strictly top-level element
         (tape, _) => {
             if (tape.length > 2) {
                 return undefined;
             }
-            const pub = rust.flags.pub(tape.head());
+            const pub = rust.flags.pub(tape.get(0));
             if (pub && !tape.adv()) {
                 return undefined;
             }
@@ -51,49 +53,81 @@ const lineCompletions: Record<string, LineCompletionHandler[]> = {
             }
             return {
                 length: pub ? 2 : 1,
-                snippet: `${pre}${kword} `,
+                snippet: pre + kword + ' ',
             };
         },
 
-        //slice
+        // wrap as slice
         (tape, idx) => {
-            const rev = tape.reversed();
+            const rev = tape.slice(0, idx + 1).reversed();
             if (rev.next() !== 's') {
                 return undefined;
             }
-            let [flagCount, flags] = rev.consumeFlags([
+            const [flagCount, flags] = rev.consumeFlags([
                 ['r', '&'],
                 ['-ad', "'{} "], // if given but no b, assume b
-                [['mr', 'm', 'rm'], 'mut '],
+                ['m', 'mut '],
             ]);
             if (tape.next() !== '.') {
                 return undefined;
             }
-            let target = tape.consumeRustTarget();
+            const target = tape.consumeRustTarget();
             if (!target) {
                 return undefined;
             }
             let pre = flags.map(res => res[1]).join('');
-            if (tape.next() !== 's' || !tape.isExhausted()) {
-                return undefined;
+            if (pre && pre[0] !== '&') {
+                // only `m` flag OR missing `r` flag
+                pre = '&' + pre;
             }
             return {
                 length: target.length + flagCount + 1,
-                snippet: `${pre}[${target}]`,
+                snippet: pre + '[' + target + ']',
             };
         },
 
-        // extern
+        // declare extern
         (tape, idx) => {
             // x !x px !px p!x
+            const rev = tape.slice(0, idx + 1).reversed();
+            if (rev.next() !== 's') {
+                return undefined;
+            }
+            const [flagCount, flags] = rev.consumeFlags([
+                ['p', 'pub '],
+                ['!', 'unsafe '],
+            ]);
+            if (!rev.isExhausted()) {
+                // not at start of line
+                return undefined;
+            }
+            let pre = flags.map(res => res[1]).join('');
+            return {
+                length: flagCount + 1,
+                snippet: pre + 'extern ',
+            };
         },
 
         // top-level attribute/proc macro
         (tape, idx) => {
-            line.head();
+            return {
+                length: 1,
+                snippet: '#[$0]',
+            }
         },
 
-        // unsafe by !
+        // expand #[must_use]
+        (tape, idx) => {
+            
+            return {
+                length: 'must use'.length,
+                snippet: 'must_use',
+            }
+        }
+
+        // common attribute options
+        
+
         // smart attributes: link() cfg() `no mangle`
 
         // top-level function

@@ -46,7 +46,7 @@ async function handleLineCompletion(
         return false;
     }
     for (const handler of lineCompletions[langId]) {
-        let res = handler(Tape.over(line), pos.character);
+        let res = handler(Tape.of(line), pos.character);
         if (!res) {
             continue;
         }
