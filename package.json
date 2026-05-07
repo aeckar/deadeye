@@ -1,5 +1,5 @@
 {
-    "name": "hot-snips",
+    "name": "autoinsert",
     "displayName": "hotsnips",
     "description": "dunno",
     "version": "0.0.1",
@@ -16,7 +16,7 @@
     "contributes": {
         "commands": [
             {
-                "command": "hot-snips.helloWorld",
+                "command": "autoinsert.helloWorld",
                 "title": "Hello World"
             }
         ]
