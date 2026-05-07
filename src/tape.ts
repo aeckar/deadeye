@@ -1,4 +1,9 @@
-import { isLowerLetter, isUpperLetter } from "./utils";
+import {
+    isLetter,
+    isLowerLetter,
+    isUpperLetter,
+    NonEmptyString,
+} from './utils';
 
 function check(flags: string, query: string): boolean {
     return flags.toLowerCase().includes(query);
@@ -96,10 +101,8 @@ export default class Tape {
         // skip ws if after closer after skip of insides
         // also this prefixes (stop here): & &mut *
         const post = ['<>()[]:.'];
-        const 
-        
+
         if (this.isReversed) {
-            
         }
         return 'TODO';
     }
@@ -116,7 +119,17 @@ export default class Tape {
     // range by prepend -
     consumeFlags(
         flags: [string, string][],
-    ): [number, [number, string][]] {}
+        //
+    ): [number, string][] {
+        let expansions: [number, string][] = [];
+        while (!this.isExhausted()) {
+            for (const [flag, expansion] of flags) {
+                if (this.get(0) === flag) {
+                }
+            }
+        }
+        return expansions;
+    }
 
     consumeMatch(strings: [string, string][]): [string, string] | undefined {
         for (const [key, value] of strings) {
@@ -309,6 +322,42 @@ export default class Tape {
     /** Returns true if the given character is space or tab. */
     static isWs(ch: string): boolean {
         return ch === ' ' || ch === '\t';
+    }
+
+    /** Consumes the query starting at this position, or returns an empty string. */
+    consumeAt(query: NonEmptyString): string {
+        if (!this.isAt(query)) {
+            return '';
+        }
+        this.pos += query.length;
+        return query;
+    }
+
+    /**
+     * Consumes the next chunks, with whitespace possibly in betweeen them.
+     *
+     * Chunks with adjacent letters must have whitespace between them.
+     */
+    consumeChunks(chunks: NonEmptyString[]): string[] {
+        const start = this.pos;
+        let parts = [];
+        for (const [idx, chunk] of chunks.entries()) {
+            let next = this.consumeAt(chunk);
+            if (
+                !next ||
+                (parts.length != 0 &&
+                    isLetter(next[0]) &&
+                    isLetter(parts.at(-1)!.at(-1)!))
+            ) {
+                this.pos = start;
+                return [];
+            }
+            parts.push(next);
+            if (idx !== chunks.length - 1) {
+                parts.push(this.consumeWs());
+            }
+        }
+        return parts;
     }
 
     /** Consumes the next, possibly empty, sequence of whitespace characters. */

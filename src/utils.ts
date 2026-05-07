@@ -1,7 +1,4 @@
-export type Replacement = {
-    length: number;
-    snippet: string;
-};
+import * as vscode from 'vscode'
 
 type FormatterRegistry = {
     [key: string]: (chunks: string[]) => string;
@@ -13,6 +10,13 @@ function capitalize(s: string): string {
     }
     return s[0].toUpperCase() + s.slice(1);
 }
+
+export type Replacement = {
+    target: vscode.Range;
+    expansion: string;
+};
+
+export type NonEmptyString = `${any}${string}`;
 
 export const format: FormatterRegistry = {
     pascal: chunks => chunks.map(capitalize).join(''),
