@@ -1,4 +1,6 @@
+import { Position } from 'vscode';
 import {
+    Flag,
     isLetter,
     isLowerLetter,
     isUpperLetter,
@@ -89,6 +91,14 @@ export default class Tape {
     }
 
     /**
+     * Returns a new instance in reverse order over the substring from the current position to
+     * the position of the cursor.
+     */
+    before(cursor: Position): Tape {
+        return this.slice(0, cursor.character + 1).reversed();
+    }
+
+    /**
      * Consumes the next character cluster from the current position
      * with clearance discernable using the Rust specification.
      */
@@ -112,25 +122,52 @@ export default class Tape {
         return Tape.reverse(this.raw, this.pos);
     }
 
-    //todo
-    // if multiple flags matched, are ordered according to decl
-    // flags can be multiple
-    // flags can have multiple representations
-    // range by prepend -
-    consumeFlags(
-        flags: [string, string][],
-        //
-    ): [number, string][] {
+    /**
+     * Consumes a string of flag characters from the current position according to the given
+     * flag-expansion pairs.
+     *
+     * Returns the pairs whose flag was matched.
+     *
+     * If more than one flag is matched, the returned array is ordered according to
+     * how they were given. If a flag appears more than once, `undefined` is returned.
+     */
+    consumeFlags(flags: [Flag, string][]): [Flag, string][] | undefined {
         let expansions: [number, string][] = [];
         while (!this.isExhausted()) {
-            for (const [flag, expansion] of flags) {
-                if (this.get(0) === flag) {
+            let found = false;
+            for (const [idx, [flag, expansion]] of flags.entries()) {
+                if (flag[0] === '-') {
+                    // flag is range
+                    if (this.cur()! >= flag[1] || this.cur()! <= flag[2]) {
+                        found = true;
+                    }
+                } else if (this.cur() === flag) {
+                    found = true;
+                }
+                if (found) {
+                    this.adv();
+                    expansions.push([idx, expansion]);
+                    break;
+                }
+            }
+            if (!found) {
+                if (expansions.length !== 0) {
+                    break;
+                } else {
+                    return undefined;
                 }
             }
         }
-        return expansions;
+        return expansions
+            .sort(([idx1, _1], [idx2, _2]) => idx1 - idx2)
+            .map(([idx, e]) => [flags[idx][0], e]);
     }
 
+    /**
+     * Consumes the first key that matches from the list of key-value pairs.
+     *
+     * Returns the pair whose key matched, or `undefined` if none did.
+     */
     consumeMatch(strings: [string, string][]): [string, string] | undefined {
         for (const [key, value] of strings) {
             if (this.isAt(key)) {
@@ -337,20 +374,23 @@ export default class Tape {
      * Consumes the next chunks, with whitespace possibly in betweeen them.
      *
      * Chunks with adjacent letters must have whitespace between them.
+     *
+     * Returns the matches to each chunks, as well as any whitespace between them.
+     * If a match to any chunk fails, `undefined` is returned.
      */
-    consumeChunks(chunks: NonEmptyString[]): string[] {
+    consumeChunks(chunks: NonEmptyString[]): string[] | undefined {
         const start = this.pos;
         let parts = [];
         for (const [idx, chunk] of chunks.entries()) {
             let next = this.consumeAt(chunk);
             if (
                 !next ||
-                (parts.length != 0 &&
+                (parts.length !== 0 &&
                     isLetter(next[0]) &&
                     isLetter(parts.at(-1)!.at(-1)!))
             ) {
                 this.pos = start;
-                return [];
+                return undefined;
             }
             parts.push(next);
             if (idx !== chunks.length - 1) {

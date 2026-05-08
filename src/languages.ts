@@ -1,20 +1,49 @@
-// keys are accessed often in handlers, so keep names short!
+// language-specific utilities
 
-type Language = {
-    // prefer 2-arrays over Record
-    // $0 is right after unless specified
-    hot?: [string, string][];
-    [extra: string]: any;
-};
+import Tape from './tape';
 
-export const rust: Language = {
+// flags: {
+//     ['p', 'pub'],
+//     ['m', 'mut'],
+//     ['a', 'async'],
+//     ['b', '&'],
+// },
+
+export const rust = {
+    pubFlag(tape: Tape): string {
+        if (tape.isAt('p')) {
+            tape.adv();
+            return 'pub ';
+        }
+        return '';
+    },
+    mutFlag(tape: Tape): string {
+        if (tape.isAt('m')) {
+            tape.adv();
+            return 'mut ';
+        }
+        return '';
+    },
+    asyncFlag(tape: Tape): string {
+        if (tape.isAt('a')) {
+            tape.adv();
+            return 'async ';
+        }
+        return '';
+    },
+    borrowFlag(tape: Tape): string {
+        if (tape.isAt('b')) {
+            tape.adv();
+            return '&';
+        }
+        return '';
+    },
     // ['ls', 'static'], // `mut ` comes after
 
     // first in line, top-level or struct/enum scope
-        // ['t', 'type'],
-        // ['lc', 'const'],
-        // ['a', '#[$0]'],
-
+    // ['t', 'type'],
+    // ['lc', 'const'],
+    // ['a', '#[$0]'],
 
     // non-exportable top-level elements
     // nonPubItems: new Map([['i', 'impl$0']]),
@@ -27,7 +56,7 @@ export const rust: Language = {
     // },
 };
 
-export const ts: Language = {
+export const ts = {
     // flags: {
     //     export: flags => (check(flags, 'e') ? 'export ' : ''),
     //     default: flags => (check(flags, 'd') ? 'default ' : ''),

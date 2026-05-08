@@ -1,6 +1,16 @@
-import * as vscode from 'vscode'; // Visual Studio Code API
+import {
+    Position,
+    workspace,
+    ExtensionContext,
+    window,
+    TextDocumentContentChangeEvent,
+    TextEditor,
+    SnippetString,
+} from 'vscode'; // Visual Studio Code API
 import Tape from './tape';
 import lineCompletions from './line_completions';
+
+// todo config api
 
 // manual insertion and snippet with $0 is negligible perf diff
 // fallbacks for top-level completions as scoped after some whitespace
@@ -16,27 +26,31 @@ import lineCompletions from './line_completions';
 */
 
 // called on first time command is executed
-export function activate(context: vscode.ExtensionContext) {
+export function activate(context: ExtensionContext) {
     context.subscriptions.push(
-        vscode.workspace.onDidChangeTextDocument(async event => {
+        workspace.onDidChangeTextDocument(async event => {
             // editor.selection.active is stale here
 
             const change = event.contentChanges[0];
-            if (!change) {
+            if (
+                !change ||
+                change.text.length === 0 || // deletion, backspace, cut
+                change.text.length > 1 // paste, autocomplete, programmatic insertion
+            ) {
                 return;
             }
-            const editor = vscode.window.activeTextEditor;
+            const editor = window.activeTextEditor;
             if (!editor) {
                 return;
             }
-            await handleLineCompletion(change, editor);
+            await insertFromCursor(change, editor);
         }),
     );
 }
 
-async function handleLineCompletion(
-    change: vscode.TextDocumentContentChangeEvent,
-    editor: vscode.TextEditor,
+async function insertFromCursor(
+    change: TextDocumentContentChangeEvent,
+    editor: TextEditor,
 ): Promise<boolean> {
     const pos = change.range.start.translate(0, change.text.length);
     const langId = editor.document.languageId;
@@ -46,22 +60,12 @@ async function handleLineCompletion(
         return false;
     }
     for (const handler of lineCompletions[langId]) {
-        let res = handler(Tape.of(line), pos.character);
+        let res = handler(Tape.of(line), pos);
         if (!res) {
             continue;
         }
-        const range = new vscode.Range(
-            pos.with(undefined, pos.character - res.length),
-            pos,
-        );
-        await editor.insertSnippet(
-            new vscode.SnippetString(res.snippet),
-            range,
-        );
+        await editor.insertSnippet(new SnippetString(res.snippet), res.target);
         return true;
     }
     return false;
 }
-
-// called when extension is deactivated
-export function deactivate() {}

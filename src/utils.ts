@@ -1,4 +1,4 @@
-import * as vscode from 'vscode'
+import * as vscode from 'vscode';
 
 type FormatterRegistry = {
     [key: string]: (chunks: string[]) => string;
@@ -13,8 +13,44 @@ function capitalize(s: string): string {
 
 export type Replacement = {
     target: vscode.Range;
-    expansion: string;
+    snippet: string;
 };
+
+export type Letter =
+    | 'a'
+    | 'b'
+    | 'c'
+    | 'd'
+    | 'e'
+    | 'f'
+    | 'g'
+    | 'h'
+    | 'i'
+    | 'j'
+    | 'k'
+    | 'l'
+    | 'm'
+    | 'n'
+    | 'o'
+    | 'p'
+    | 'q'
+    | 'r'
+    | 's'
+    | 't'
+    | 'u'
+    | 'v'
+    | 'w'
+    | 'x'
+    | 'y'
+    | 'z'
+    | '!';
+
+/**
+ * A flag for some shorthand, representing a single lowercase letter or symbol.
+ * 
+ * Can represent a range of characters by prepending a '-' and declaring two characters.
+ */
+export type Flag = Letter | `-${Letter}${Letter}`;
 
 export type NonEmptyString = `${any}${string}`;
 
