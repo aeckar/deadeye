@@ -1,10 +1,12 @@
+//! Cursor data structure.
 import { Position } from 'vscode';
+
 import {
     Flag,
+    NonEmptyString,
     isLetter,
     isLowerLetter,
     isUpperLetter,
-    NonEmptyString,
 } from './utils';
 
 function check(flags: string, query: string): boolean {
@@ -126,7 +128,7 @@ export default class Tape {
      * Consumes a string of flag characters from the current position according to the given
      * flag-expansion pairs.
      *
-     * Returns the pairs whose flag was matched.
+     * @return the pairs whose flag was matched.
      *
      * If more than one flag is matched, the returned array is ordered according to
      * how they were given. If a flag appears more than once, `undefined` is returned.
@@ -166,7 +168,7 @@ export default class Tape {
     /**
      * Consumes the first key that matches from the list of key-value pairs.
      *
-     * Returns the pair whose key matched, or `undefined` if none did.
+     * @return the pair whose key matched, or `undefined` if none did.
      */
     consumeMatch(strings: [string, string][]): [string, string] | undefined {
         for (const [key, value] of strings) {
@@ -201,7 +203,7 @@ export default class Tape {
     /**
      * Advances the current position by 1 character.
      *
-     * Returns true if this results in the tape being exhausted.
+     * @return true if this results in the tape being exhausted.
      */
     adv() {
         this.pos += 1;
@@ -272,7 +274,7 @@ export default class Tape {
      * current position.
      *
      * Leaves `pos` pointing at the matching character (or at `raw.length` when none matched).
-     * Returns the substring iterated over.
+     * @return the substring iterated over.
      */
     consume(pred: (ch: string, pos: number) => boolean): string {
         const end = this.poll((ch, pos) => !pred(ch, pos));
@@ -289,7 +291,7 @@ export default class Tape {
      * current position.
      *
      * Leaves `pos` pointing at the matching character (or at `raw.length` when none matched).
-     * Returns the substring iterated over.
+     * @return the substring iterated over.
      */
     putBack(pred: (ch: string, pos: number) => boolean): string {
         const end = this.pollBack((ch, pos) => !pred(ch, pos));
@@ -304,7 +306,7 @@ export default class Tape {
     /**
      * Advances `pos` to the first index where `pred` is true.
      *
-     * Returns `true` if found and `pos` is left pointing at the match,
+     * @return `true` if found and `pos` is left pointing at the match,
      * or `false` and `pos` is restored to its original value.
      */
     seek(pred: (ch: string, pos: number) => boolean): boolean {
@@ -319,7 +321,7 @@ export default class Tape {
     /**
      * Decrements `pos` to the first index where `pred` is true.
      *
-     * Returns `true` if found and `pos` is left pointing at the match,
+     * @return `true` if found and `pos` is left pointing at the match,
      * or `false` and `pos` is restored to its original value.
      */
     seekBack(pred: (ch: string, pos: number) => boolean): boolean {
@@ -342,10 +344,8 @@ export default class Tape {
     /**
      * Advances `pos` to where `query` is found.
      *
-     * Returns `true` if found and `pos` is left pointing at the match,
+     * @return `true` if found and `pos` is left pointing at the match,
      * or `false` and `pos` is restored to its original value.
-     *
-     * Optimized using Two-Way search algorithm.
      */
     seekAt(query: string): boolean {
         const idx = this.raw.indexOf(query, this.pos);
@@ -375,7 +375,7 @@ export default class Tape {
      *
      * Chunks with adjacent letters must have whitespace between them.
      *
-     * Returns the matches to each chunks, as well as any whitespace between them.
+     * @return the matches to each chunks, as well as any whitespace between them.
      * If a match to any chunk fails, `undefined` is returned.
      */
     consumeChunks(chunks: NonEmptyString[]): string[] | undefined {

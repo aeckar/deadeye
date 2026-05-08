@@ -1,31 +1,28 @@
+//! Extension entry point.
 import {
-    Position,
-    workspace,
     ExtensionContext,
-    window,
+    SnippetString,
     TextDocumentContentChangeEvent,
     TextEditor,
-    SnippetString,
-} from 'vscode'; // Visual Studio Code API
-import Tape from './tape';
+    window,
+    workspace,
+} from 'vscode';
+
 import lineCompletions from './line_completions';
+import Tape from './tape';
 
-// todo config api
+/* # Implementation Notes
+ * 
+ * - Manual text insertion and snippet injection have a negligible performance difference,
+ * so the latter is chosen for ergonomics
+ * - Scoped completions may fall back to a line-based form to promote better performance
+ * 
+ * # Style Guide
+ * 
+ * - Top-level functions should use `function` notation over arrow function constants
+ */
 
-// manual insertion and snippet with $0 is negligible perf diff
-// fallbacks for top-level completions as scoped after some whitespace
-
-// top-level functions should use `function` notation
-
-// props: trigger charset
-// params: line-tape
-// returns: how far back to replace, snippet
-/*
-    for scoped:
-    params: +scope tree w/ rich info, 
-*/
-
-// called on first time command is executed
+/** Extension initializer. */
 export function activate(context: ExtensionContext) {
     context.subscriptions.push(
         workspace.onDidChangeTextDocument(async event => {
@@ -43,12 +40,18 @@ export function activate(context: ExtensionContext) {
             if (!editor) {
                 return;
             }
-            await insertFromCursor(change, editor);
+            (await runLineCompletions(change, editor)) ||
+                (await runScopedCompletions(change, editor));
         }),
     );
 }
 
-async function insertFromCursor(
+/**
+ * Runs every line-based completion for the current language.
+ *
+ * @return `true` if a line-based shorthand was expanded.
+ */
+async function runLineCompletions(
     change: TextDocumentContentChangeEvent,
     editor: TextEditor,
 ): Promise<boolean> {
@@ -68,4 +71,17 @@ async function insertFromCursor(
         return true;
     }
     return false;
+}
+
+/**
+ * Runs ever
+ *
+ * @return `true` if a scope-based shorthand was expanded.
+ */
+async function runScopedCompletions(
+    change: TextDocumentContentChangeEvent,
+    editor: TextEditor,
+): Promise<boolean> {
+    //params: +scope tree w/ rich info,
+    return true;
 }

@@ -1,10 +1,11 @@
-import { Replacement } from './utils';
-import Tape from './tape';
+//! List of line-based completions for all implemented languages.
+import { Position, Range } from 'vscode';
+
 import { rust } from './languages';
+import Tape from './tape';
+import { Replacement } from './utils';
 
-import { Range, Position } from 'vscode';
-
-type LineCompletionHandler = (
+type LineCompletion = (
     tape: Tape,
     cursor: Position,
 ) => Replacement | undefined;
@@ -42,7 +43,24 @@ function back(fromCh: number, cursor: Position): Range {
 // Elements with no identation from start of line need not have their scope checked,
 // as we can assume they are top-level
 
-const lineCompletions: Record<string, LineCompletionHandler[]> = {
+// ['ls', 'static'], // `mut ` comes after
+
+// first in line, top-level or struct/enum scope
+// ['t', 'type'],
+// ['lc', 'const'],
+// ['a', '#[$0]'],
+
+// non-exportable top-level elements
+// nonPubItems: new Map([['i', 'impl$0']]),
+
+// lifetimes(flags) {
+//     return (
+//         [...flags.toLowerCase()].find(ch => ch >= 'a' && ch <= 'd') ??
+//         ''
+//     );
+// },
+
+const lineCompletions: Record<string, LineCompletion[]> = {
     // typescript: [
     //     // top-level element marker
     //     (tape, cursor) =>

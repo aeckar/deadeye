@@ -1,22 +1,7 @@
+//! Miscellaneous utilities.
 import * as vscode from 'vscode';
 
-type FormatterRegistry = {
-    [key: string]: (chunks: string[]) => string;
-};
-
-function capitalize(s: string): string {
-    if (!s) {
-        return '';
-    }
-    return s[0].toUpperCase() + s.slice(1);
-}
-
-export type Replacement = {
-    target: vscode.Range;
-    snippet: string;
-};
-
-export type Letter =
+type FlagChar =
     | 'a'
     | 'b'
     | 'c'
@@ -47,23 +32,46 @@ export type Letter =
 
 /**
  * A flag for some shorthand, representing a single lowercase letter or symbol.
- * 
+ *
  * Can represent a range of characters by prepending a '-' and declaring two characters.
  */
-export type Flag = Letter | `-${Letter}${Letter}`;
+export type Flag = FlagChar | `-${FlagChar}${FlagChar}`;
 
 export type NonEmptyString = `${any}${string}`;
 
-export const format: FormatterRegistry = {
-    pascal: chunks => chunks.map(capitalize).join(''),
-    scream: chunks => chunks.map(s => s.toUpperCase()).join('_'),
-    snake: chunks => chunks.map(s => s.toLowerCase).join('_'),
-    camel: chunks =>
-        chunks
-            .map((s, idx) => (idx === 0 ? s.toLowerCase() : capitalize(s)))
-            .join(''),
-    kebab: chunks => chunks.map(s => s.toLowerCase()).join(''),
+export type Replacement = {
+    target: vscode.Range;
+    snippet: string;
 };
+
+export function pascal(chunks: string[]): string {
+    return chunks.map(capitalize).join('');
+}
+
+export function scream(chunks: string[]): string {
+    return chunks.map(s => s.toUpperCase()).join('_');
+}
+
+export function snake(chunks: string[]): string {
+    return chunks.map(s => s.toLowerCase()).join('_');
+}
+
+export function camel(chunks: string[]): string {
+    return chunks
+        .map((s, idx) => (idx === 0 ? s.toLowerCase() : capitalize(s)))
+        .join('');
+}
+
+export function kebab(chunks: string[]): string {
+    return chunks.map(s => s.toLowerCase()).join('-');
+}
+
+export function capitalize(s: string): string {
+    if (!s) {
+        return '';
+    }
+    return s[0].toUpperCase() + s.slice(1);
+}
 
 export function isUpperLetter(ch: string): boolean {
     return ch >= 'A' && ch <= 'Z';
