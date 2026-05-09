@@ -1,24 +1,32 @@
 //! Extension entry point.
-import {
-    ExtensionContext,
-    SnippetString,
-    TextDocumentContentChangeEvent,
-    TextEditor,
-    window,
-    workspace,
-} from 'vscode';
+import { ExtensionContext, Position, Range, Selection, SnippetString, TextDocumentContentChangeEvent, TextEditor, window, workspace } from 'vscode';
 
-import lineCompletions from './line_completions';
+
+
+import lineCompletions from './completions';
 import Tape from './tape';
+import { Replacement } from './utils';
+import { getScopeCached } from './scopes';
+
+
+
+
+
+
+
+
+
+
+
 
 /* # Implementation Notes
- * 
+ *
  * - Manual text insertion and snippet injection have a negligible performance difference,
  * so the latter is chosen for ergonomics
  * - Scoped completions may fall back to a line-based form to promote better performance
- * 
+ *
  * # Style Guide
- * 
+ *
  * - Top-level functions should use `function` notation over arrow function constants
  */
 
@@ -40,8 +48,7 @@ export function activate(context: ExtensionContext) {
             if (!editor) {
                 return;
             }
-            (await runLineCompletions(change, editor)) ||
-                (await runScopedCompletions(change, editor));
+            await runLineCompletions(change, editor);
         }),
     );
 }
@@ -62,26 +69,39 @@ async function runLineCompletions(
         // ensure line is not empty before passing to handlers
         return false;
     }
-    for (const handler of lineCompletions[langId]) {
-        let res = handler(Tape.of(line), pos);
-        if (!res) {
+    const scopes = await getScopeCached(editor.document, pos);
+    for (const completion of lineCompletions[langId]) {
+        let repl = completion(Tape.of(line), pos, scopes);
+        if (!repl) {
             continue;
         }
-        await editor.insertSnippet(new SnippetString(res.snippet), res.target);
+        applyReplacement(editor, repl);
         return true;
     }
     return false;
 }
 
-/**
- * Runs ever
- *
- * @return `true` if a scope-based shorthand was expanded.
- */
-async function runScopedCompletions(
-    change: TextDocumentContentChangeEvent,
-    editor: TextEditor,
-): Promise<boolean> {
-    //params: +scope tree w/ rich info,
-    return true;
+async function applyReplacement(editor: TextEditor, repl: Replacement) {
+    await editor.insertSnippet(new SnippetString(repl.snippet), repl.target);
+    if (!repl.displacement) {
+        return;
+    }
+    const { line: lineDelta, char: charDelta } = repl.displacement;
+    const current = editor.selection.active;
+    const targetLine = current.line + (lineDelta ?? 0);
+    const targetChar = Math.max(0, current.character + (charDelta ?? 0));
+    if (targetLine >= editor.document.lineCount) {
+        const linesToAdd = targetLine - (editor.document.lineCount - 1);
+        await editor.edit(e => {
+            const lastLine = editor.document.lineAt(
+                editor.document.lineCount - 1,
+            );
+            e.insert(lastLine.range.end, '\n'.repeat(linesToAdd));
+        });
+    }
+    const lineLength = editor.document.lineAt(targetLine).text.length;
+    const clampedChar = Math.min(targetChar, lineLength);
+    const newPos = new Position(targetLine, clampedChar);
+    editor.selection = new Selection(newPos, newPos);
+    editor.revealRange(new Range(newPos, newPos));
 }

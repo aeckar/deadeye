@@ -1,14 +1,11 @@
 //! List of line-based completions for all implemented languages.
 import { Position, Range } from 'vscode';
 
-import { rust } from './languages';
 import Tape from './tape';
 import { Replacement } from './utils';
+import { ScopeInfo } from './scopes';
 
-type LineCompletion = (
-    tape: Tape,
-    cursor: Position,
-) => Replacement | undefined;
+type LineCompletion = (tape: Tape, cursor: Position, scopes: ScopeInfo[]) => Replacement | undefined;
 
 function hasStop(snippet: String): boolean {
     return snippet.includes('$0');
@@ -26,14 +23,14 @@ function range(
     );
 }
 
-function before(cursor: Position): Range {
+function lineBeforePos(cursor: Position): Range {
     return new Range(
         new Position(cursor.line, 0),
         new Position(cursor.line, cursor.character),
     );
 }
 
-function back(fromCh: number, cursor: Position): Range {
+function beforePos(fromCh: number, cursor: Position): Range {
     return new Range(
         new Position(cursor.line, cursor.character - fromCh),
         new Position(cursor.line, cursor.character),
@@ -60,6 +57,54 @@ function back(fromCh: number, cursor: Position): Range {
 //     );
 // },
 
+//rust
+// ts
+// javaScript
+// c
+// cpp
+// java
+// kotlin
+// dart
+// html
+// css
+// yaml
+// toml
+// json
+// md
+
+const builtins = /str|bool|char|[ui]([8136][624][8]?|size)|f[36][24]/g;
+
+const subsitutitons = {
+    rust: [
+        // literals
+        ['bstof', 'b"$0"'],
+        ['bchof', "b'$0'"],
+        ['stof', '"$0"'],
+        ['chof', "'$0'"],
+        ['evec', 'vec![]'],
+
+        // types
+        ['string', 'String'],
+        ['mapof', 'HashMap<$0,>'],
+        ['vecof', 'Vec<$0>'],
+        ['setof', 'HashSet<$0>'],
+
+        // modifiers
+        ['pfn', 'pub $0fn'],
+        ['xfn', 'extern "${1:C}" $0fn'],
+        ['cfn', 'const $0fn'],
+        ['pstruct', 'pub $0struct'],
+        ['penum', 'pub $0enum'],
+
+        // todo seperate
+        ['reprenum', '#[repr($1)]\n$0enum'],
+        // derive basic
+        // derive value type
+
+        // .<space> => :: after capitalized target or builtin-type or ')'
+    ],
+};
+
 const lineCompletions: Record<string, LineCompletion[]> = {
     // typescript: [
     //     // top-level element marker
@@ -67,40 +112,46 @@ const lineCompletions: Record<string, LineCompletion[]> = {
     //         line.is('i') ? { length: 1, snippet: 'import $0' } : undefined,
     // ],
     rust: [
+        // pcrate psuper pself
+        // defer (pub in ..)
+    
+        // reprc reprt reprp repraN
+    
+        // function signature
+    
+        // use specials
+        
         // declare strictly top-level element
         // eg: ps => 'pub struct '
-        (tape, cursor) => {
-            if (tape.length > 2) {
-                return undefined;
-            }
-            const pub = rust.pubFlag(tape);
-            if (tape.isExhausted()) {
-                return undefined;
-            }
-            const res = tape.consumeMatch([
+        (tape, cursor, _) => {
+            const rev = tape.before(cursor);
+            const match = rev.consumeMatch([
                 ['u', 'use'],
                 ['s', 'struct'],
                 ['e', 'enum'],
                 ['m', 'macro_rules!'],
             ]);
-            if (!res || !tape.isExhausted()) {
-                // ensures cursor is at trigger after insertion of trigger
+            if (!match) {
                 return undefined;
             }
-            const [trigger, kword] = res;
+            const pub = rev.consumeAt('p') ? 'pub ' : '';
+            if (tape.isExhausted()) {
+                return undefined;
+            }
+            const [trigger, kword] = match;
             let pre = '';
             if (pub) {
                 pre = trigger === 'm' ? '#[macro_export]\n' : pub;
             }
             return {
-                target: before(cursor),
+                target: lineBeforePos(cursor),
                 snippet: pre + kword + ' ',
             };
         },
 
         // wrap as slice
         // eg: u8.amrs => '&'a [u8]'
-        (tape, cursor) => {
+        (tape, cursor, _) => {
             const rev = tape.before(cursor);
             if (rev.next() !== 's') {
                 return undefined;
@@ -123,14 +174,14 @@ const lineCompletions: Record<string, LineCompletion[]> = {
                 pre = '&' + pre;
             }
             return {
-                target: back(rev.pos, cursor),
+                target: beforePos(rev.pos, cursor),
                 snippet: pre + '[' + target + ']',
             };
         },
 
         // declare extern
         // eg: !px => 'unsafe pub extern '
-        (tape, cursor) => {
+        (tape, cursor, scopes) => {
             const rev = tape.before(cursor);
             if (rev.next() !== 'x') {
                 return undefined;
@@ -145,36 +196,54 @@ const lineCompletions: Record<string, LineCompletion[]> = {
             }
             let pre = flags.map(e => e[1]).join('');
             return {
-                target: back(rev.pos, cursor),
+                target: beforePos(rev.pos, cursor),
                 snippet: pre + 'extern ',
             };
         },
 
-        // // top-level attribute/proc macro
-        // (tape, cursor) => {
-        //     return {
-        //         length: 1,
-        //         snippet: '#[$0]',
-        //         lineBreak: 0,
-        //     }
-        // },
+        // top-level attribute/proc macro
+        // eg: a => #[]'
+        (tape, cursor, scopes) => {
+            if (!tape.is('a')) {
+                return undefined;
+            }
+            return {
+                target: lineBeforePos(cursor),
+                snippet: '#[$0]',
+            };
+        },
 
         // expand #[must_use]
-        // (tape, cursor) => {
-        //     const trigger = 'must use';
-        //     const length = trigger.length;
-        //     const pre = tape.consumeWs();
-        //     const parts = tape.consumeChunks(['#', '[', 'must', 'use', ']']);
-        //     const post = tape.consumeWs();
-        //     if (!tape.isExhausted()) {
-        //         return undefined;
-        //     }
-        //     return {
-        //         length,
-        //         snippet: 'must_use',
-        //         lineBreak: 1,
-        //     }
-        // }
+        // eg: #[mustuse] => #[must_use] <next line>
+        (tape, cursor, scopes) => {
+            tape.consumeWs();
+            const parts = tape.consumeChunks(['#', '[', 'must', 'use']);
+            if (!parts || cursor.character !== tape.pos) {
+                return undefined;
+            }
+            const length = parts
+                .slice(-4) // include whitespace before 'must'
+                .reduce((sum, e) => sum + e.length, 0);
+            return {
+                target: beforePos(length, cursor),
+                snippet: 'must_use',
+                displacement: {
+                    line: 1,
+                },
+            };
+        },
+
+        // scoped function signature
+        // eg: 
+        (tape, cursor, scopes) => {
+            let indent = tape.consumeWs();
+            
+            return {
+                target: ,
+                snippet: ,
+            };
+        }
+
 
         // common attribute options
 
@@ -186,6 +255,16 @@ const lineCompletions: Record<string, LineCompletion[]> = {
         // (tape, cursor) => {
         //     let item: string = rust.nonPubItems[line.get()];
         // },
+
+        // space-space or ; or jj or ff are all valid triggers
+
+        (tape, cursor) => { 
+
+        },
+        (tape, cursor) => { },
+        (tape, cursor) => { },
+        (tape, cursor) => { },
+        (tape, cursor) => {},
     ],
     // etc.
 };

@@ -9,10 +9,6 @@ import {
     isUpperLetter,
 } from './utils';
 
-function check(flags: string, query: string): boolean {
-    return flags.toLowerCase().includes(query);
-}
-
 /**
  * A lightweight cursor over a string for non-linear parsing.
  *
@@ -182,7 +178,7 @@ export default class Tape {
 
     /** Returns true if the remaining portion and the string are equal. */
     is(query: string): boolean {
-        return this.raw === query;
+        return this.raw.slice(this.pos) === query;
     }
 
     /** Returns the character at the given index. */
@@ -310,7 +306,8 @@ export default class Tape {
      * or `false` and `pos` is restored to its original value.
      */
     seek(pred: (ch: string, pos: number) => boolean): boolean {
-        const found = this.poll(pred);
+        const found = this.poll();
+        for ()
         if (found === undefined) {
             return false;
         }
@@ -373,8 +370,6 @@ export default class Tape {
     /**
      * Consumes the next chunks, with whitespace possibly in betweeen them.
      *
-     * Chunks with adjacent letters must have whitespace between them.
-     *
      * @return the matches to each chunks, as well as any whitespace between them.
      * If a match to any chunk fails, `undefined` is returned.
      */
@@ -383,12 +378,7 @@ export default class Tape {
         let parts = [];
         for (const [idx, chunk] of chunks.entries()) {
             let next = this.consumeAt(chunk);
-            if (
-                !next ||
-                (parts.length !== 0 &&
-                    isLetter(next[0]) &&
-                    isLetter(parts.at(-1)!.at(-1)!))
-            ) {
+            if (!next) {
                 this.pos = start;
                 return undefined;
             }

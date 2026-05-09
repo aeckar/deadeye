@@ -39,9 +39,20 @@ export type Flag = FlagChar | `-${FlagChar}${FlagChar}`;
 
 export type NonEmptyString = `${any}${string}`;
 
+/**
+ * Displacement of the cursor.
+ * 
+ * If any property is omitted, it is interpreted as being 0.
+ */
+export type Displacement = {
+    line?: number;
+    char?: number;
+};
+
 export type Replacement = {
     target: vscode.Range;
     snippet: string;
+    displacement?: Displacement;
 };
 
 export function pascal(chunks: string[]): string {
