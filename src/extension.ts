@@ -1,23 +1,20 @@
 //! Extension entry point.
-import { ExtensionContext, Position, Range, Selection, SnippetString, TextDocumentContentChangeEvent, TextEditor, window, workspace } from 'vscode';
+import {
+    ExtensionContext,
+    Position,
+    Range,
+    Selection,
+    SnippetString,
+    TextDocumentContentChangeEvent,
+    TextEditor,
+    window,
+    workspace,
+} from 'vscode';
 
-
-
-import lineCompletions from './completions';
+import completions from './completions';
+import { getScopeCached } from './scopes/rust';
 import Tape from './tape';
 import { Replacement } from './utils';
-import { getScopeCached } from './scopes';
-
-
-
-
-
-
-
-
-
-
-
 
 /* # Implementation Notes
  *
@@ -70,7 +67,7 @@ async function runLineCompletions(
         return false;
     }
     const scopes = await getScopeCached(editor.document, pos);
-    for (const completion of lineCompletions[langId]) {
+    for (const completion of completions[langId]) {
         let repl = completion(Tape.of(line), pos, scopes);
         if (!repl) {
             continue;
@@ -82,7 +79,7 @@ async function runLineCompletions(
 }
 
 async function applyReplacement(editor: TextEditor, repl: Replacement) {
-    await editor.insertSnippet(new SnippetString(repl.snippet), repl.target);
+    await editor.insertSnippet(new SnippetString(repl.snippet), repl.replace);
     if (!repl.displacement) {
         return;
     }

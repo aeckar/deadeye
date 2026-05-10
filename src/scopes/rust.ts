@@ -6,13 +6,8 @@ import {
     commands,
 } from 'vscode';
 
-/**
- * A Rust scope, used to determine the context around the cursor.
- *
- * An empty string represents the top-level scope.
- */
-export type RustScope =
-    | ''
+export type Scope =
+    | 'toplevel'
     | 'struct'
     | 'impl'
     | 'fn'
@@ -21,7 +16,7 @@ export type RustScope =
     | 'mod';
 
 export type ScopeInfo = {
-    kind: RustScope;
+    kind: Scope;
     name: string;
     symbol: DocumentSymbol;
 };
@@ -51,7 +46,7 @@ export function innerScope(scopes: ScopeInfo[]): ScopeInfo | undefined {
     return scopes.at(-1);
 }
 
-export function inScope(scopes: ScopeInfo[], kind: RustScope): boolean {
+export function inScope(scopes: ScopeInfo[], kind: Scope): boolean {
     return scopes.some(s => s.kind === kind);
 }
 
@@ -78,8 +73,12 @@ function walkSymbols(symbols: DocumentSymbol[], pos: Position): ScopeInfo[] {
             continue;
         }
 
-        const scope = toRustScope(sym.kind);
-        const current: ScopeInfo = { kind: scope, name: sym.name, symbol: sym };
+        const scope = toScope(sym.kind);
+        const current: ScopeInfo = {
+            kind: scope,
+            name: sym.name,
+            symbol: sym,
+        };
 
         // recurse into children to get the full stack
         const children = walkSymbols(sym.children, pos);
@@ -88,7 +87,7 @@ function walkSymbols(symbols: DocumentSymbol[], pos: Position): ScopeInfo[] {
     return [];
 }
 
-function toRustScope(kind: SymbolKind): RustScope {
+function toScope(kind: SymbolKind): Scope {
     switch (kind) {
         case SymbolKind.Struct:
             return 'struct';
@@ -104,6 +103,6 @@ function toRustScope(kind: SymbolKind): RustScope {
         case SymbolKind.Class:
             return 'impl';
         default:
-            return '';
+            return 'toplevel';
     }
 }

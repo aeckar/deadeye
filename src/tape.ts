@@ -26,11 +26,6 @@ export default class Tape {
     private readonly isReversed: boolean;
     pos: number;
 
-    /** Returns a new instance over the original string, reversed. */
-    static reverse(raw: string, pos = 0) {
-        return new Tape(raw.split('').reverse().join(''), pos, true);
-    }
-
     /** Returns a new instance over the original string. */
     static of(raw: string, pos = 0) {
         return new Tape(raw, pos, false);
@@ -115,9 +110,9 @@ export default class Tape {
         return 'TODO';
     }
 
-    /** Returns a new instance over the original string, reversed. */
+    /** Returns a new instance over the remaining string, reversed. */
     reversed(): Tape {
-        return Tape.reverse(this.raw, this.pos);
+        return new Tape(this.rest().split('').reverse().join(''), 0, true);
     }
 
     /**
@@ -177,8 +172,12 @@ export default class Tape {
     }
 
     /** Returns true if the remaining portion and the string are equal. */
-    is(query: string): boolean {
-        return this.raw.slice(this.pos) === query;
+    is(query: string | RegExp): boolean {
+        if (typeof query === 'string') {
+            return this.rest() === query;
+        }
+        const anchored = new RegExp('^' + query.source + '$', query.flags);
+        return anchored.test(this.rest());
     }
 
     /** Returns the character at the given index. */

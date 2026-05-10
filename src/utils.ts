@@ -41,7 +41,7 @@ export type NonEmptyString = `${any}${string}`;
 
 /**
  * Displacement of the cursor.
- * 
+ *
  * If any property is omitted, it is interpreted as being 0.
  */
 export type Displacement = {
