@@ -2,12 +2,12 @@
 import { Position } from 'vscode';
 
 import {
-    Flag,
     NonEmptyString,
     isLetter,
     isLowerLetter,
     isUpperLetter,
 } from './utils';
+import { Flag } from './completion_utils';
 
 /**
  * A lightweight cursor over a string for non-linear parsing.
@@ -23,7 +23,7 @@ import {
  */
 export default class Tape {
     readonly raw: string;
-    private readonly isReversed: boolean;
+    readonly isReversed: boolean;
     pos: number;
 
     /** Returns a new instance over the original string. */
@@ -89,25 +89,6 @@ export default class Tape {
      */
     before(cursor: Position): Tape {
         return this.slice(0, cursor.character + 1).reversed();
-    }
-
-    /**
-     * Consumes the next character cluster from the current position
-     * with clearance discernable using the Rust specification.
-     */
-    // todo check for edge cases
-    consumeRustTarget(): string {
-        // : . greedy, then lookbehind
-        // can be just delims
-        // skip over insides
-        // stop at: = , ( [ { <letter after skipped ws>
-        // skip ws if after closer after skip of insides
-        // also this prefixes (stop here): & &mut *
-        const post = ['<>()[]:.'];
-
-        if (this.isReversed) {
-        }
-        return 'TODO';
     }
 
     /** Returns a new instance over the remaining string, reversed. */
@@ -305,8 +286,7 @@ export default class Tape {
      * or `false` and `pos` is restored to its original value.
      */
     seek(pred: (ch: string, pos: number) => boolean): boolean {
-        const found = this.poll();
-        for ()
+        const found = this.poll(pred);
         if (found === undefined) {
             return false;
         }

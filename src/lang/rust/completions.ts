@@ -1,8 +1,8 @@
-import { Position, Range, TextEditor } from 'vscode';
+import { Position, Range, TextDocument, TextEditor } from 'vscode';
 
-import Tape from '../tape';
-import { Replacement } from '../utils';
-import { ScopeInfo } from '../scopes/rust';
+import Tape from '../../tape';
+import { Replacement } from '../../utils';
+import { Scope } from './scopes';
 
 type Completion = (ctx: CompletionContext) => Replacement | undefined;
 
@@ -10,9 +10,9 @@ class CompletionContext {
     line: Tape;
     cursor: Position;
     editor: TextEditor;
-    scopes: ScopeInfo[];
+    scopes: Scope[];
 
-    constructor(curLine: Tape, cursor: Position, editor: TextEditor, scopes: ScopeInfo[]) {
+    constructor(curLine: Tape, cursor: Position, editor: TextEditor, scopes: Scope[]) {
         this.line = curLine;
         this.cursor = cursor;
         this.editor = editor;
@@ -148,15 +148,15 @@ const subsitutitons = {
     ],
 };
 
-const I = / *?i /;
-const LM = / *?l(m?) /;
-const TL_P = /(p?)/;
+const WS_I = / *?i /;
+const WS_L_MFLAG = / *?l(m?) /;
+const PFLAG = /(p?)/;
 
 const completions: Completion[] = [    
     // if-statement
     // eg: 'i ' => 'if $0 {}' 
     (ctx) => {
-        if (!ctx.line.is(I)) {
+        if (!ctx.line.is(WS_I)) {
             return undefined;
         }
         return {
@@ -164,11 +164,20 @@ const completions: Completion[] = [
             snippet: 'if $0 {}',
         };
     },
+
+    // else
+    // eg: 'if { else }' => 'if {} else { $0 }' (sic)
+    (ctx) => {
+        
+        return {
+
+        };
+    }
     
     // declare local variable
     // eg: 'lm ' => 'let mut '
     (ctx) => {
-        const match = LM.exec(ctx.line.raw);
+        const match = WS_L_MFLAG.exec(ctx.line.raw);
         if (!match) {
             return undefined;
         }
@@ -195,7 +204,7 @@ const completions: Completion[] = [
         if (!type) {
             return undefined;
         }
-        const rest = TL_P.exec(rev.reversed().raw);
+        const rest = PFLAG.exec(rev.reversed().raw);
         if (!rest) {
             return undefined;
         }

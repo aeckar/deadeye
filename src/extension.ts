@@ -12,7 +12,7 @@ import {
 } from 'vscode';
 
 import completions from './completions';
-import { getScopeCached } from './scopes/rust';
+import { getScopeCached } from './lang/rust/scopes';
 import Tape from './tape';
 import { Replacement } from './utils';
 

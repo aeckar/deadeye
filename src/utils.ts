@@ -1,59 +1,6 @@
-//! Miscellaneous utilities.
-import * as vscode from 'vscode';
-
-type FlagChar =
-    | 'a'
-    | 'b'
-    | 'c'
-    | 'd'
-    | 'e'
-    | 'f'
-    | 'g'
-    | 'h'
-    | 'i'
-    | 'j'
-    | 'k'
-    | 'l'
-    | 'm'
-    | 'n'
-    | 'o'
-    | 'p'
-    | 'q'
-    | 'r'
-    | 's'
-    | 't'
-    | 'u'
-    | 'v'
-    | 'w'
-    | 'x'
-    | 'y'
-    | 'z'
-    | '!';
-
-/**
- * A flag for some shorthand, representing a single lowercase letter or symbol.
- *
- * Can represent a range of characters by prepending a '-' and declaring two characters.
- */
-export type Flag = FlagChar | `-${FlagChar}${FlagChar}`;
+//! General utilities.
 
 export type NonEmptyString = `${any}${string}`;
-
-/**
- * Displacement of the cursor.
- *
- * If any property is omitted, it is interpreted as being 0.
- */
-export type Displacement = {
-    line?: number;
-    char?: number;
-};
-
-export type Replacement = {
-    target: vscode.Range;
-    snippet: string;
-    displacement?: Displacement;
-};
 
 export function pascal(chunks: string[]): string {
     return chunks.map(capitalize).join('');
