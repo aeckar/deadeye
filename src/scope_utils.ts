@@ -1,9 +1,4 @@
-import {
-    DocumentSymbol,
-    Position,
-    TextDocument,
-    commands,
-} from 'vscode';
+import { DocumentSymbol, Position, TextDocument, commands } from 'vscode';
 
 type ScopeTranslator<K extends string> = (symbol: DocumentSymbol) => Scope<K>;
 
@@ -18,11 +13,16 @@ let lastFetch = 0;
 
 const SCOPE_TTL = 150;
 
-export function innerScope<K extends string>(scopes: Scope<K>[]): Scope<K> | undefined {
+export function innerScope<K extends string>(
+    scopes: Scope<K>[],
+): Scope<K> | undefined {
     return scopes.at(-1);
 }
 
-export function isInScope<K extends string>(scopes: Scope<K>[], kind: string): boolean {
+export function isInScope<K extends string>(
+    scopes: Scope<K>[],
+    kind: string,
+): boolean {
     return scopes.some(s => s.kind === kind);
 }
 

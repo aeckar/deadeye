@@ -6,6 +6,14 @@
 			"ES2022",
 			"DOM"
 		],
+		"paths": {
+			"@/*": [
+				"./src/*"
+			],
+			"@@/*": [
+				"./src/lang/*"
+			],
+		},
 		"sourceMap": true,
 		"rootDir": "src",
 		"outDir": "./dist",

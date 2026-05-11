@@ -1,28 +1,8 @@
 import { Position, Range, TextDocument, TextEditor } from 'vscode';
 
-import Tape from '../../tape';
-import { Replacement } from '../../utils';
-import { Scope } from './scopes';
-
-type Completion = (ctx: CompletionContext) => Replacement | undefined;
-
-class CompletionContext {
-    line: Tape;
-    cursor: Position;
-    editor: TextEditor;
-    scopes: Scope[];
-
-    constructor(curLine: Tape, cursor: Position, editor: TextEditor, scopes: Scope[]) {
-        this.line = curLine;
-        this.cursor = cursor;
-        this.editor = editor;
-        this.scopes = scopes;
-    }
-
-    downFromCursor(): Tape {
-        return this.line.before(this.cursor);
-    }
-};
+import dedent from 'dedent-js';
+import { Completion } from '@/completion_utils';
+import { RustScope, RustScope } from '@@/rust/scopes';
 
 function hasStop(snippet: String): boolean {
     return snippet.includes('$0');
@@ -152,76 +132,140 @@ const WS_I = / *?i /;
 const WS_L_MFLAG = / *?l(m?) /;
 const PFLAG = /(p?)/;
 
-const completions: Completion[] = [    
-    // if-statement
-    // eg: 'i ' => 'if $0 {}' 
-    (ctx) => {
-        if (!ctx.line.is(WS_I)) {
-            return undefined;
-        }
-        return {
-            target: selectBefore(2, ctx.cursor),
-            snippet: 'if $0 {}',
-        };
-    },
+//step 1: match to completion
+// step 2: if trigger is next change, execute stored completion--otherwise, toss
 
-    // else
-    // eg: 'if { else }' => 'if {} else { $0 }' (sic)
-    (ctx) => {
+//todo maybe highlight code examples in docs (or maybe just $0...)
+//todo append scope information to docs
+// todo highlight and color and underline completions/chords ready to be triggered
+
+// todo
+//      completions -> shorthands
+//      chords -> motions
+//      actions -> modes
+
+// for ambigous min-lb expressions, just give a number
+
+/* keyed by minimum lookbehind--not including trigger--, or NaN if unknown (includes trigger, if applicable) */
+const shorthands: Completion<RustScope>[] = [
+    {
+        docs: dedent`
+        Inserts an if-statement.
         
-        return {
-
-        };
-    }
-    
-    // declare local variable
-    // eg: 'lm ' => 'let mut '
-    (ctx) => {
-        const match = WS_L_MFLAG.exec(ctx.line.raw);
-        if (!match) {
-            return undefined;
-        }
-        const mut = match[1] ? 'mut ' : '';
-        return {
-            target: selectBefore(mut ? 3 : 2, ctx.cursor),
-            snippet: 'let ' + mut,
-        };
+        \`i \` → \`if $0 {}\`
+        `,
+        minLookbehind: 'i'.length,
+        scope: ['fn'],
+        match(ctx) {
+            if (!ctx.line.is(WS_I)) {
+                return undefined;
+            }
+            return {
+                name: 'If-statement',
+                target: selectBefore(2, ctx.cursor),
+                snippet: 'if $0 {}',
+            };
+        },
     },
+    {
+        docs: dedent`
+        Declares a local variable, possibly mutable.
 
-    // declare strictly top-level element
-    // eg: 'ps ' => 'pub struct '
-    (ctx) => {
-        const rev = ctx.downFromCursor();
-        if (!rev.consumeAt(' ')) {
-            return undefined;
-        }
-        const type = rev.consumeMatch([
-            ['u', 'use'],
-            ['s', 'struct'],
-            ['e', 'enum'],
-            ['m', 'macro_rules!'],
-        ]);
-        if (!type) {
-            return undefined;
-        }
-        const rest = PFLAG.exec(rev.reversed().raw);
-        if (!rest) {
-            return undefined;
-        }
-        const pub = rest[1] ? 'pub ' : '';
-        if (!rev.isExhausted()) {   // ensure first in line
-            return undefined;
-        }
-        const [trigger, kword] = type;
-        let pre = '';
-        if (pub) {
-            pre = trigger === 'm' ? '#[macro_export]\n' : pub;
-        }
-        return {
-            target: selectLineBefore(ctx.cursor),
-            snippet: pre + kword + ' ',
-        };
+        \`lm \` → \`let mut \`
+        `,
+        minLookbehind: 'l'.length,
+        scope: ['fn'],
+        match(ctx) {
+            const match = WS_L_MFLAG.exec(ctx.line.raw);
+            if (!match) {
+                return undefined;
+            }
+            const mut = match[1] ? 'mut ' : '';
+            return {
+                name: "Local variable",
+                target: selectBefore(mut ? 3 : 2, ctx.cursor),
+                snippet: 'let ' + mut,
+            };
+        },
     },
+    {
+        docs: dedent`
+            Inserts an else block or else-if block after the enclosing if-statement.
+
+            \`\`\`
+            if {
+                ...
+                elif//← press trigger to expand!
+            }
+            \`\`\`
+            →
+            \`\`\`
+            if {
+                ...
+            } else if {
+                //← stop here
+            }
+            \`\`\`
+        `,
+        minLookbehind: 4,
+        scope: ['fn'],
+        match(ctx) {
+            //todo
+            return {
+                name: "Else block"
+            };
+        },
+    },
+    {
+        docs: dedent`
+        Inserts a top-level element marker.
+
+        This shorthand handles elements that only exist in the top-level scope.
+
+        \`ps \` → \`pub struct \`
+        `,
+        minLookbehind: 1,
+        scope: ['toplevel'],
+        exactScope: true,
+        match(ctx) {
+            const rev = ctx.downFromCursor();
+            if (!rev.consumeAt(' ')) {
+                return undefined;
+            }
+            const type = rev.consumeMatch([
+                ['u', 'use'],
+                ['s', 'struct'],
+                ['e', 'enum'],
+                ['m', 'macro_rules!'],
+            ]);
+            if (!type) {
+                return undefined;
+            }
+            const rest = PFLAG.exec(rev.reversed().raw);
+            if (!rest) {
+                return undefined;
+            }
+            const pub = rest[1] ? 'pub ' : '';
+            if (!rev.isExhausted()) {   // ensure first in line
+                return undefined;
+            }
+            const [trigger, kword] = type;
+            let pre = '';
+            if (pub) {
+                pre = trigger === 'm' ? '#[macro_export]\n' : pub;
+            }
+            return {
+                name: "Declare top-level element",
+                target: selectLineBefore(ctx.cursor),
+                snippet: pre + kword + ' ',
+            };
+        }
+    },
+    {
+
+    },
+];
+
 
     // wrap as slice
     // eg: 'u8.amrs ' => '&'a [u8]'
@@ -338,4 +382,4 @@ const completions: Completion[] = [
 
 ];
 
-export default completions;
+export default shorthands;

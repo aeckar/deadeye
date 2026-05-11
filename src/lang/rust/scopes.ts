@@ -1,8 +1,7 @@
+import { Scope } from '@/scope_utils';
 import { DocumentSymbol, SymbolKind } from 'vscode';
 
-import { Scope as IScope } from '../../scope_utils';
-
-export type ScopeKind =
+export type RustScope =
     | 'toplevel'
     | 'struct'
     | 'impl'
@@ -11,9 +10,7 @@ export type ScopeKind =
     | 'trait'
     | 'mod';
 
-export type Scope = IScope<ScopeKind>;
-
-function rust(symbol: DocumentSymbol): Scope {
+function rust(symbol: DocumentSymbol): Scope<RustScope> {
     const kind = (() => {
         switch (symbol.kind) {
             case SymbolKind.Struct:
