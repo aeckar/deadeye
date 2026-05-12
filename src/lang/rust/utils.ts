@@ -5,7 +5,7 @@
 import Tape from '@/tape';
 
 // todo check for edge cases
-function consumeRustTarget(tape: Tape): string {
+export function consumeRustTarget(tape: Tape): string {
     // : . greedy, then lookbehind
     // can be just delims
     // skip over insides

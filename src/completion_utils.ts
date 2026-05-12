@@ -1,6 +1,10 @@
-import { Position, Range, TextEditor } from 'vscode';
+import {
+    MarkdownString as Markdown,
+    Position,
+    Range,
+    TextEditor,
+} from 'vscode';
 
-import { Scope } from './scope_utils';
 import Tape from './tape';
 
 type FlagChar =
@@ -32,7 +36,6 @@ type FlagChar =
     | 'z'
     | '!';
 
-// todo Put cords in a separate file. Especially when you want to give hints before a trigger
 /**
  * A flag for some shorthand, representing a single lowercase letter or symbol.
  *
@@ -40,28 +43,56 @@ type FlagChar =
  */
 export type Flag = FlagChar | `-${FlagChar}${FlagChar}`;
 
-/* todo doc 
-docs are in markdown
-name is resolved dynamically once completion is matched
+/**
+ * A shorthand for a programming language element.
+ * 
+ * Once a shorthand is detected, the user must key in a trigger (space, by default) to replace the
+ * shorthand with its completion.
+ * 
+ * Unlike chords or motions, shorthands always recognize a trigger. If the user has configured
+ * the trigger to be an empty string, the default is used. This is due to the large vocabulary
+ * of language-level shorthands, which makes collisions almost guaranteed. 
+ * 
+ * @param docs A short description in Markdown, generated dynamically
+ * to explain to user exactly what the shorthand does when triggered. This documentation appears
+ * next to the cursor shortly after the shorthand is detected but before it is triggered.
+ * @param minLookbehind The minimum number of previous, consecutive character insertions
+ * for a match to this shorthand to be valid. This is an optimization, often the minimum number
+ * of characters for the base case.
+ * @param scope A 
+ * @param exactScope
+ *
 requiretrigger: always true for language chords, toggle for motions, toggle for actions
 scope: if not provided, scope doesnt matter (not total scope stack, just any combo, in order)
 exactscope: defaults to false;; expects scope to be defined
-*/
-export type Completion<K extends string> = {
-    docs: string;
+ */
+export type Shorthand<K extends string> = {
+    docs: Markdown;
     minLookbehind: number;
     scope?: K[];
     exactScope?: boolean;
-    match: (ctx: CompletionContext) => Replacement | undefined;
+    match: (ctx: CompletionContext) => Completion | undefined;
 };
 
-/** todo doc */
-export type Replacement = {
-    name: string;
+/**
+ * todo
+ */
+export type Completion = {
+    shortDescription: string;
     target: Range;
     snippet: string;
     insertAt?: Position;
     newCursorPos?: Position;
+};
+
+/**
+ * todo
+ */
+export type Substitition = {
+    shortDescription: string;
+    docs: Markdown;
+    shorthand: string;
+    snippet: string;
 };
 
 export class CompletionContext {

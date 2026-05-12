@@ -1,13 +1,32 @@
 //! Cursor data structure.
 import { Position } from 'vscode';
 
-import {
-    NonEmptyString,
-    isLetter,
-    isLowerLetter,
-    isUpperLetter,
-} from './utils';
+
+
 import { Flag } from './completion_utils';
+import { NonEmptyString, isLetter, isLowerLetter, isUpperLetter } from './utils';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /**
  * A lightweight cursor over a string for non-linear parsing.
@@ -376,12 +395,18 @@ export default class Tape {
 
     /** Returns true if the character at the given position has clearance on its left side. */
     isLeftClear(pos: number): boolean {
+        if (this.isReversed) {
+            return this.isRightClear(pos);
+        }
         const ch = this.raw[pos - 1];
         return ch === undefined || Tape.isWs(ch);
     }
 
     /** Returns true if the character at the given position has clearance on its right side. */
     isRightClear(pos: number): boolean {
+        if (this.isReversed) {
+            return this.isLeftClear(pos);
+        }
         const ch = this.raw[pos + 1];
         return ch === undefined || Tape.isWs(ch);
     }
@@ -392,7 +417,7 @@ export default class Tape {
      * (has clearance on either side).
      */
     isAnyClear(start: number): boolean {
-        return !this.isLeftClear(start) || this.isRightClear(this.pos);
+        return this.isLeftClear(start) || this.isRightClear(this.pos);
     }
 
     /**
@@ -401,7 +426,19 @@ export default class Tape {
      * itself if it is a newline.
      */
     isPrefix(pos: number): boolean {
-        for (let i = pos - 1; i >= 0; i--) {
+        if (this.isReversed) {
+            for (let i = pos; i < this.raw.length; i++) {
+                const ch = this.raw[i];
+                if (ch === '\n') {
+                    return true;
+                }
+                if (!Tape.isWs(ch)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        for (let i = pos; i >= 0; i--) {
             const ch = this.raw[i];
             if (ch === '\n') {
                 return true;
@@ -422,25 +459,5 @@ export default class Tape {
      */
     isCurPrefix(): boolean {
         return this.isPrefix(this.pos);
-    }
-
-    /**
-     * Returns the number of times the current line is indented.
-     *
-     * Counts the number of tabs or the number of space characters divided by 4 (floored).
-     */
-    countIndent(): number {
-        const lineStart = this.pollBack(ch => ch === '\n') ?? 0;
-        const ws = this.raw.slice(lineStart, this.pos);
-        let tabs = 0,
-            spaces = 0;
-        for (const ch of ws) {
-            if (ch === '\t') {
-                tabs++;
-            } else if (ch === ' ') {
-                spaces++;
-            }
-        }
-        return tabs + Math.floor(spaces / 4);
     }
 }

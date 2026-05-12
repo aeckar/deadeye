@@ -1,8 +1,10 @@
-import { Position, Range, TextDocument, TextEditor } from 'vscode';
+import { MarkdownString as Markdown, Position, Range } from 'vscode';
 
 import dedent from 'dedent-js';
-import { Completion } from '@/completion_utils';
-import { RustScope, RustScope } from '@@/rust/scopes';
+import { Shorthand } from '@/completion_utils';
+import { RustScope } from '@@/rust/scopes';
+import { consumeRustTarget } from './utils';
+import { isLetter } from '@/utils';
 
 function hasStop(snippet: String): boolean {
     return snippet.includes('$0');
@@ -20,7 +22,7 @@ function range(
     );
 }
 
-function selectLineBefore(cursor: Position): Range {
+function selectAllBefore(cursor: Position): Range {
     return new Range(
         new Position(cursor.line, 0),
         new Position(cursor.line, cursor.character),
@@ -83,27 +85,35 @@ function selectBefore(fromCh: number, cursor: Position): Range {
 
 const builtins = /str|bool|char|[ui]([8136][624][8]?|size)|f[36][24]/g;
 
+// todo pre compile docs to markdown
+
+
+
 const subsitutitons = {
     rust: [
-        // literals
+        // Inserts a literal.
         ['bstof', 'b"$0"'],
         ['bchof', "b'$0'"],
         ['stof', '"$0"'],
         ['chof', "'$0'"],
         ['evec', 'vec![]'],
 
-        // types
+        // Inserts a type.
         ['string', 'String'],
         ['mapof', 'HashMap<$0,>'],
         ['vecof', 'Vec<$0>'],
         ['setof', 'HashSet<$0>'],
 
-        // modifiers
-        ['pfn', 'pub $0fn'],
-        ['xfn', 'extern "${1:C}" $0fn'],
-        ['cfn', 'const $0fn'],
-        ['pstruct', 'pub $0struct'],
-        ['penum', 'pub $0enum'],
+        // Inserts an attribute/proc-macro.
+        ['prm', '#[$0]'],
+
+        // Prefixes the scope with a modifier. 
+        ['p |fn', 'pub $0fn'],
+        ['x |fn', 'extern "${1:C}" $0fn'],
+        ['c |fn', 'const $0fn'],
+        ['p |struct', 'pub $0struct'],
+        ['p |enum', 'pub $0enum'],
+        ['prm |..'],
 
         // todo seperate
         ['reprenum', '#[repr|]\n$0enum'],
@@ -128,8 +138,6 @@ const subsitutitons = {
     ],
 };
 
-const WS_I = / *?i /;
-const WS_L_MFLAG = / *?l(m?) /;
 const PFLAG = /(p?)/;
 
 //step 1: match to completion
@@ -147,50 +155,69 @@ const PFLAG = /(p?)/;
 // for ambigous min-lb expressions, just give a number
 
 /* keyed by minimum lookbehind--not including trigger--, or NaN if unknown (includes trigger, if applicable) */
-const shorthands: Completion<RustScope>[] = [
+const shorthands: Shorthand<RustScope>[] = [
     {
-        docs: dedent`
-        Inserts an if-statement.
-        
-        \`i \` → \`if $0 {}\`
-        `,
+        docs: new Markdown(dedent`
+            Inserts an if-statement.
+            
+            **Base case:** \`if\`
+            **Constraints:**
+                - Whole word
+
+            \`if \` → \`if /* stop here */ {}\`
+        `),
         minLookbehind: 'i'.length,
-        scope: ['fn'],
         match(ctx) {
-            if (!ctx.line.is(WS_I)) {
+            let rev = ctx.downFromCursor();
+            if (!rev.consumeAt('fi') || isLetter(rev.cur() ?? 'a')) {
                 return undefined;
             }
             return {
-                name: 'If-statement',
+                shortDescription: 'If-statement',
                 target: selectBefore(2, ctx.cursor),
                 snippet: 'if $0 {}',
             };
         },
     },
     {
-        docs: dedent`
-        Declares a local variable, possibly mutable.
+        docs: new Markdown(dedent`
+            Declares a local variable.
 
-        \`lm \` → \`let mut \`
-        `,
+            **Base case:** \`l\`\\
+            **Suffixes:**
+                - \`m\`: Declare as mutable
+            **Constraints:**
+                - In function scope
+                - First word in line
+
+            \`lm \` → \`let mut \`
+        `),
         minLookbehind: 'l'.length,
         scope: ['fn'],
         match(ctx) {
-            const match = WS_L_MFLAG.exec(ctx.line.raw);
-            if (!match) {
+            const left = ctx.line.before(ctx.cursor);
+            left.consumeWs();
+            if (!left.consumeAt('l')) {
                 return undefined;
             }
-            const mut = match[1] ? 'mut ' : '';
+            const mut = left.consumeAt('m') ? 'mut ' : '';
+            if (!left.isExhausted()) {
+                // not at cursor
+                return undefined;
+            }
             return {
-                name: "Local variable",
+                shortDescription: "Local variable",
                 target: selectBefore(mut ? 3 : 2, ctx.cursor),
                 snippet: 'let ' + mut,
             };
         },
     },
     {
-        docs: dedent`
+        docs: new Markdown(dedent`
             Inserts an else block or else-if block after the enclosing if-statement.
+
+            **Base cases:** \`else\`, \`elif\`\\
+            **Scope:** \`\`
 
             \`\`\`
             if {
@@ -206,32 +233,40 @@ const shorthands: Completion<RustScope>[] = [
                 //← stop here
             }
             \`\`\`
-        `,
+        `),
         minLookbehind: 4,
         scope: ['fn'],
         match(ctx) {
             //todo
             return {
-                name: "Else block"
+                shortDescription: "Else block",
+                target:
             };
         },
     },
     {
-        docs: dedent`
-        Inserts a top-level element marker.
+        docs: new Markdown(dedent`
+            Inserts a top-level element marker.
 
-        This shorthand handles elements that only exist in the top-level scope.
+            This shorthand handles elements that only exist in the top-level scope.
+            Elements can be made public by prefixing the completion with \`p\`.
+            Macros with \`p\` are declared as \`#[macro_export]\`), and are hoisted
+            to the top-level scope of the parent crate.
 
-        \`ps \` → \`pub struct \`
-        `,
+            | Shorthand | Expansion    |
+            | :-------- | :----------- |
+            | u         | use          |
+            | s         | struct       |
+            | e         | enum         |
+            | m         | macro_rules! |
+
+            \`ps \` → \`pub struct \`
+        `),
         minLookbehind: 1,
         scope: ['toplevel'],
         exactScope: true,
         match(ctx) {
             const rev = ctx.downFromCursor();
-            if (!rev.consumeAt(' ')) {
-                return undefined;
-            }
             const type = rev.consumeMatch([
                 ['u', 'use'],
                 ['s', 'struct'],
@@ -252,90 +287,97 @@ const shorthands: Completion<RustScope>[] = [
             const [trigger, kword] = type;
             let pre = '';
             if (pub) {
+                // since we are at the margin, no need to prepend indent
                 pre = trigger === 'm' ? '#[macro_export]\n' : pub;
             }
             return {
-                name: "Declare top-level element",
-                target: selectLineBefore(ctx.cursor),
+                shortDescription: "Declare top-level element",
+                target: selectAllBefore(ctx.cursor),
                 snippet: pre + kword + ' ',
             };
         }
     },
     {
+        docs: new Markdown(dedent`
+            Wraps the preceding element as a slice type, or a reference to one.
 
+            The target must be preceded by \`:\`.
+
+            \`u8.amrs \` → \`&'a mut [u8]\`
+        `),
+        minLookbehind: '.s'.length,
+        match(ctx) {
+            const rev = ctx.downFromCursor();
+            if (rev.next() !== 's') {
+                return undefined;
+            }
+            const flags = rev.consumeFlags([
+                ['r', '&'],
+                ['-ad', "'{} "],
+                ['m', 'mut '],
+            ]);
+            if (!flags || rev.next() !== '.') {
+                return undefined;
+            }
+            const target = consumeRustTarget(rev);
+            if (!target) {
+                return undefined;
+            }
+            let pre = flags.map(e => e[1]).join('');
+            if (pre && pre[0] !== '&') {
+                // only `m` flag || missing `r` flag
+                pre = '&' + pre;
+            }
+            return {
+                shortDescription: 'Wrap as slice type',
+                target: selectBefore(rev.pos, ctx.cursor),
+                snippet: pre + '[' + target + ']',
+            };
+        },
     },
+    {
+        docs: new Markdown(dedent`
+            Inserts an \`extern\` block to declare functions from FFI.
+
+            \`\`\`
+            x//← press trigger to expand!
+            \`\`\`
+            →
+            \`\`\`
+            unsafe extern "/* placeholder 1 */" {
+                /* stop here */
+            }
+            \`\`\`
+        `),
+        minLookbehind: 'x'.length,
+        scope: ['toplevel'],
+        exactScope: true,
+        match(ctx) {
+            //todo
+        },
+    },
+    {
+        docs: new Markdown(dedent`
+            Inserts an attribute/proc-macro.
+
+            \`prm \` → \`#[/* stop here */]\`
+        `),
+        minLookbehind: 'prm'.length,
+        match(ctx) {
+            if (!ctx.line.is('prm')) {
+                return undefined;
+            }
+            return {
+                shortDescription: "Attribute",
+                target: selectAllBefore(ctx.cursor),
+                snippet: '#[$0]',
+            };
+        },
+    }
+
 ];
-
-
-    // wrap as slice
-    // eg: 'u8.amrs ' => '&'a [u8]'
-    (ctx) => {
-        const rev = ctx.downFromCursor();
-        if (!rev.consumeAt(' ')) {
-            return undefined;
-        }
-        if (rev.next() !== 's') {
-            return undefined;
-        }
-        const flags = rev.consumeFlags([
-            ['r', '&'],
-            ['-ad', "'{} "],
-            ['m', 'mut '],
-        ]);
-        if (!flags || rev.next() !== '.') {
-            return undefined;
-        }
-        const target = rev.consumeRustTarget();
-        if (!target) {
-            return undefined;
-        }
-        let pre = flags.map(e => e[1]).join('');
-        if (pre && pre[0] !== '&') {
-            // only `m` flag || missing `r` flag
-            pre = '&' + pre;
-        }
-        return {
-            target: selectBefore(rev.pos, ctx.cursor),
-            snippet: pre + '[' + target + ']',
-        };
-    },
-
-    // declare extern
-    // eg: !px => 'unsafe pub extern '
-    (ctx) => {
-        const rev = ctx.downFromCursor();
-        if (rev.next() !== 'x') {
-            return undefined;
-        }
-        const flags = rev.consumeFlags([
-            ['p', 'pub '],
-            ['!', 'unsafe '],
-        ]);
-        if (!flags || !rev.isExhausted()) {
-            // not at start of line
-            return undefined;
-        }
-        let pre = flags.map(e => e[1]).join('');
-        return {
-            target: selectBefore(rev.pos, ctx.cursor),
-            snippet: pre + 'extern ',
-        };
-    },
-
-    // top-level attribute/proc macro
-    // eg: 'a ' => #[]'
-    (ctx) => {
-        if (!ctx.line.is('a ')) {
-            return undefined;
-        }
-        return {
-            target: selectLineBefore(ctx.cursor),
-            snippet: '#[$0]',
-        };
-    },
-
-    // expand #[must_use]
-    // eg: #[mustuse ] => #[must_use] <next line>
+    // Inserts a `#[must_use]` attribute.
+    // eg: \`mustuse \` => \`#[must_use]\`
     (ctx) => {
         ctx.line.consumeWs();
         const parts = ctx.line.consumeChunks(['#', '[', 'must', 'use ']); // triggered by space
@@ -360,26 +402,24 @@ const shorthands: Completion<RustScope>[] = [
         if (ctx.scopes) {
             let indent = ctx.line.consumeWs();
         
-        return {
-            target: ,
-            snippet: ,
-        };
+            return {
+                target: ,
+                snippet: ,
+            };
+        }
     }
 
+// common attribute options
 
-    // common attribute options
+// smart attributes: link() cfg() `no mangle`
 
-    // smart attributes: link() cfg() `no mangle`
+// top-level function
 
-    // top-level function
+// top-level element marker with implied visibility
+// (tape, cursor) => {
+//     let item: string = rust.nonPubItems[line.get()];
+// },
 
-    // top-level element marker with implied visibility
-    // (tape, cursor) => {
-    //     let item: string = rust.nonPubItems[line.get()];
-    // },
-
-    // space-space or ; or jj or ff are all valid triggers
-
-];
+// space-space or ; or jj or ff are all valid triggers
 
 export default shorthands;
