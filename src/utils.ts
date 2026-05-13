@@ -1,6 +1,20 @@
 //! General utilities.
+import dedent from 'dedent-js';
+import { MarkdownString, Position, Range } from 'vscode';
 
 export type NonEmptyString = `${any}${string}`;
+
+export function before(cursor: Position, count?: number): Range {
+    const from = count === undefined ? 0 : cursor.character - count;
+    return new Range(
+        new Position(cursor.line, from),
+        new Position(cursor.line, cursor.character),
+    );
+}
+
+export function markdown(s: string): MarkdownString {
+    return new MarkdownString(dedent(s));
+}
 
 export function pascal(chunks: string[]): string {
     return chunks.map(capitalize).join('');

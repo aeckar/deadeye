@@ -1,9 +1,4 @@
-import {
-    MarkdownString as Markdown,
-    Position,
-    Range,
-    TextEditor,
-} from 'vscode';
+import { MarkdownString, Position, Range, TextEditor } from 'vscode';
 
 import Tape from './tape';
 
@@ -45,31 +40,30 @@ export type Flag = FlagChar | `-${FlagChar}${FlagChar}`;
 
 /**
  * A shorthand for a programming language element.
- * 
+ *
  * Once a shorthand is detected, the user must key in a trigger (space, by default) to replace the
  * shorthand with its completion.
- * 
+ *
  * Unlike chords or motions, shorthands always recognize a trigger. If the user has configured
  * the trigger to be an empty string, the default is used. This is due to the large vocabulary
- * of language-level shorthands, which makes collisions almost guaranteed. 
- * 
+ * of language-level shorthands, which makes collisions almost guaranteed.
+ *
  * @param docs A short description in Markdown, generated dynamically
  * to explain to user exactly what the shorthand does when triggered. This documentation appears
  * next to the cursor shortly after the shorthand is detected but before it is triggered.
  * @param minLookbehind The minimum number of previous, consecutive character insertions
  * for a match to this shorthand to be valid. This is an optimization, often the minimum number
- * of characters for the base case.
- * @param scope A 
- * @param exactScope
- *
-requiretrigger: always true for language chords, toggle for motions, toggle for actions
-scope: if not provided, scope doesnt matter (not total scope stack, just any combo, in order)
-exactscope: defaults to false;; expects scope to be defined
+ * of characters for the base case. Can be assigned `NaN` so this shorthand is always checked.
+ * @param scope The scope or nested scope required for this shorthand to match. Nested scopes
+ * are not required to be adjacent; they must simply be present in the same order. If not provided,
+ * this matches in all scopes.
+ * @param exactScope If true, the entire scope stack must equal `scope`, not just a part of it.
+ * If not provided, behaves as if it were `false`.
  */
 export type Shorthand<K extends string> = {
-    docs: Markdown;
+    docs: MarkdownString;
     minLookbehind: number;
-    scope?: K[];
+    scope?: K[][];
     exactScope?: boolean;
     match: (ctx: CompletionContext) => Completion | undefined;
 };
@@ -90,7 +84,7 @@ export type Completion = {
  */
 export type Substitition = {
     shortDescription: string;
-    docs: Markdown;
+    docs: MarkdownString;
     shorthand: string;
     snippet: string;
 };
@@ -106,11 +100,12 @@ export class CompletionContext {
         this.editor = editor;
     }
 
-    downFromCursor(): Tape {
+    /** Returns a tape moving left from the cursor over the current line. */
+    leftOfCursor(): Tape {
         return this.line.before(this.cursor);
     }
 
-    findPrecedingClosingBrace(): Position | undefined {
+    openCurlyPos(): Position | undefined {
         let braceDepth = 0;
         for (let i = this.cursor.line; i >= 0; i--) {
             const text = this.editor.document.lineAt(i).text;
@@ -119,13 +114,13 @@ export class CompletionContext {
 
             for (let j = end - 1; j >= 0; j--) {
                 const ch = text[j];
-                if (ch === '}') {
+                if (ch === '{') {
                     if (braceDepth === 0) {
                         return new Position(i, j + 1);
                     }
-                    braceDepth++;
-                } else if (ch === '{') {
                     braceDepth--;
+                } else if (ch === '}') {
+                    braceDepth++;
                 }
             }
         }

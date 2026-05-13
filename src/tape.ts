@@ -103,11 +103,11 @@ export default class Tape {
     }
 
     /**
-     * Returns a new instance in reverse order over the substring from the current position to
+     * Returns a new instance over the substring from the current position to
      * the position of the cursor.
      */
     before(cursor: Position): Tape {
-        return this.slice(0, cursor.character + 1).reversed();
+        return this.slice(0, cursor.character + 1);
     }
 
     /** Returns a new instance over the remaining string, reversed. */
@@ -169,15 +169,6 @@ export default class Tape {
             }
         }
         return undefined;
-    }
-
-    /** Returns true if the remaining portion and the string are equal. */
-    is(query: string | RegExp): boolean {
-        if (typeof query === 'string') {
-            return this.rest() === query;
-        }
-        const anchored = new RegExp('^' + query.source + '$', query.flags);
-        return anchored.test(this.rest());
     }
 
     /** Returns the character at the given index. */
