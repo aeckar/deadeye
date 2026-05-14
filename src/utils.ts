@@ -4,16 +4,56 @@ import { MarkdownString, Position, Range } from 'vscode';
 
 export type NonEmptyString = `${any}${string}`;
 
-export function before(cursor: Position, count?: number): Range {
-    const from = count === undefined ? 0 : cursor.character - count;
+export const ALL_BRACKETS = ['()', '{}', '[]', '<>'] as const;
+export type Brackets = (typeof ALL_BRACKETS)[number];
+
+export function findWord(s: string, query: NonEmptyString): number {
+    if (!query) {
+        return -1;
+    }
+    let index = s.indexOf(query);
+    while (index !== -1) {
+        let isMatch = true;
+
+        // Check boundary before match
+        if (isLetter(query[0])) {
+            const prevCharIndex = index - 1;
+            if (prevCharIndex >= 0 && isLetter(s[prevCharIndex])) {
+                isMatch = false;
+            }
+        }
+
+        // Check boundary after match
+        if (isMatch && isLetter(query[query.length - 1])) {
+            const nextCharIndex = index + query.length;
+            if (nextCharIndex < s.length && isLetter(s[nextCharIndex])) {
+                isMatch = false;
+            }
+        }
+
+        if (isMatch) {
+            return index;
+        }
+
+        // Move past current index to find next occurrence
+        index = s.indexOf(query, index + 1);
+    }
+    return -1;
+}
+
+export function rangeBefore(cursor: Position, from: number = 0): Range {
     return new Range(
         new Position(cursor.line, from),
         new Position(cursor.line, cursor.character),
     );
 }
 
-export function markdown(s: string): MarkdownString {
-    return new MarkdownString(dedent(s));
+export function after(cursor: Position, skip: number = 0): Position {
+    return new Position(cursor.line, cursor.character + skip + 1);
+}
+
+export function markdown(s: string | TemplateStringsArray, ...values: any[]): MarkdownString {
+    return new MarkdownString(dedent(s, values));
 }
 
 export function pascal(chunks: string[]): string {

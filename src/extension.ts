@@ -11,10 +11,9 @@ import {
     workspace,
 } from 'vscode';
 
-import completions from './completions';
-import { getScopeCached } from './lang/rust/scopes';
+import scopeResolvers from './lang/scope_resolvers';
+import shorthands from './lang/shorthands';
 import Tape from './tape';
-import { Replacement } from './utils';
 
 /* # Implementation Notes
  *
@@ -67,7 +66,7 @@ async function runLineCompletions(
         return false;
     }
     const scopes = await getScopeCached(editor.document, pos);
-    for (const completion of completions[langId]) {
+    for (const completion of shorthands[langId]) {
         let repl = completion(Tape.of(line), pos, scopes);
         if (!repl) {
             continue;

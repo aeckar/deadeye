@@ -10,9 +10,6 @@
 			"@/*": [
 				"./src/*"
 			],
-			"@@/*": [
-				"./src/lang/*"
-			],
 		},
 		"sourceMap": true,
 		"rootDir": "src",

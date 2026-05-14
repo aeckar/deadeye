@@ -1,21 +1,14 @@
-import { Position, Range } from 'vscode';
+import { MAX_LINE_SEEK, Shorthand } from '@/completion_utils';
+import {
+    after,
+    findWord,
+    isLetter,
+    markdown as md,
+    rangeBefore,
+} from '@/utils';
 
-import { Shorthand } from '@/completion_utils';
-import { RustScope } from '@@/rust/scopes';
+import { RustScope } from './scopes';
 import { consumeRustTarget } from './utils';
-import { before, isLetter, markdown } from '@/utils';
-
-function range(
-    fromLine: number,
-    fromCh: number,
-    toLine: number,
-    toCh: number,
-): Range {
-    return new Range(
-        new Position(fromLine, fromCh),
-        new Position(toLine, toCh),
-    );
-}
 
 // Elements with no identation from start of line need not have their scope checked,
 // as we can assume they are top-level
@@ -52,17 +45,17 @@ function range(
 // json
 // md
 
-    // pcrate psuper pself
-    // defer (pub in ..)
+// pcrate psuper pself
+// defer (pub in ..)
 
-    // reprc reprt reprp repraN    
-    // function signature
-    // use specials
-    
-    // are all triggered by space
-    
-    // need both raw and regex's for most robust archiecture
-    // use space instead of \s
+// reprc reprt reprp repraN
+// function signature
+// use specials
+
+// are all triggered by space
+
+// need both raw and regex's for most robust archiecture
+// use space instead of \s
 
 const builtins = /str|bool|char|[ui]([8136][624][8]?|size)|f[36][24]/g;
 
@@ -84,7 +77,7 @@ const subsitutitons = {
         // Inserts an attribute/proc-macro.
         ['prm', '#[$0]'],
 
-        // Prefixes the scope with a modifier. 
+        // Prefixes the scope with a modifier.
         ['p |fn', 'pub $0fn'],
         ['x |fn', 'extern "${1:C}" $0fn'],
         ['c |fn', 'const $0fn'],
@@ -146,65 +139,70 @@ const subsitutitons = {
 // append links to non-trivial concepts
 // basic forms only if multiple forms
 
-const shorthands: Shorthand<RustScope>[] = [
+const rust: Shorthand<RustScope>[] = [
     {
-        docs: markdown(`
+        docs: md`
             Inserts an if-statement.
 
             \`if \` → \`if /* stop here */ {}\`
 
             **Constraints:**
+
             - Whole word
-        `),
+        `,
         minLookbehind: 'if'.length,
-        match(ctx) {
+        resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
             if (!tape.consumeAt('fi') || isLetter(tape.cur() ?? 'a')) {
                 return undefined;
             }
             return {
                 shortDescription: 'If-statement',
-                target: before(ctx.cursor, 2),
+                target: rangeBefore(ctx.cursor, 2),
                 snippet: 'if $0 {}',
             };
         },
     },
     {
-        docs: markdown(`
+        docs: md`
             Declares a local variable.
-            
+
             \`lm \` → \`let mut \`
 
             **Basic form:** \`l\`
 
             **Suffixes:**
+
             - \`m\`: Declare as mutable
 
             **Constraints:**
+
             - Function scope
             - First word in line
-        `),
+        `,
         minLookbehind: 'l'.length,
         scope: [['fn']],
-        match(ctx) {
+        resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
             if (!tape.consumeAt('l')) {
                 return undefined;
             }
             const mut = tape.consumeAt('m') ? 'mut ' : '';
-            if (!tape.isExhausted()) {  // ensure first in line
+            if (!tape.isExhausted()) {
+                // ensure first in line
                 return undefined;
             }
             return {
-                shortDescription: "Local variable",
-                target: before(ctx.cursor, mut ? 3 : 2),
+                shortDescription: 'Local variable',
+                target: rangeBefore(ctx.cursor, mut ? 3 : 2),
                 snippet: 'let ' + mut,
             };
         },
     },
     {
-        docs: markdown(`
+        //fixme false positive match if doing `if if {}...`, good enough for now
+        docs: md`
             Inserts an else block or else-if block after the enclosing if-statement.
             
             \`\`\`
@@ -226,24 +224,40 @@ const shorthands: Shorthand<RustScope>[] = [
             
             **Constraints:**
             - In an if-statement
-        `),
+            - \`if\` keyword not farther than ${MAX_LINE_SEEK} lines away
+        `,
         minLookbehind: 4,
-        match(ctx) {
-            //todo
+        resolver(ctx) {
+            const tape = ctx.leftOfCursor().reversed();
+            const includeIf = tape.isAt('file');
+            if (!includeIf && !tape.isAt('esle')) {
+                return undefined;
+            }
+            const openPos = ctx.seekOpener('{}');
+            const doc = ctx.editor.document;
+            if (!openPos || findWord(doc.lineAt(openPos).text, 'if') === -1) {
+                return undefined;
+            }
+            const closePos = ctx.seekCloser('{}');
+            if (!closePos) {
+                return undefined;
+            }
             return {
-                shortDescription: "Else block",
-                target:
+                shortDescription: 'Else block',
+                target: rangeBefore(ctx.cursor), //todo include previous newline as well
+                insertAt: after(ctx.cursor),
+                snippet: includeIf ? ' else if {\n$0\n}' : ' else {\n$0\n}',
             };
         },
     },
     {
-        docs: markdown(`
+        docs: md`
             Inserts a top-level element marker.
 
             \`ps \` → \`pub struct \`
 
             Elements can be made public by prefixing the completion with \`p\`.
-            Macros with \`p\` are declared as \`#[macro_export]\`), and are hoisted
+            Macros with \`p\` are declared as \`#[macro_export]\`, and are hoisted
             to the top-level scope of the parent crate.
 
             | Basic Form | Expansion    |
@@ -252,15 +266,16 @@ const shorthands: Shorthand<RustScope>[] = [
             | s          | struct       |
             | e          | enum         |
             | m          | macro_rules! |
-            
+
             **Constraints:**
+
             - Top-level scope
             - First word in line
-        `),
+        `,
         minLookbehind: 1,
         scope: [['toplevel']],
         exactScope: true,
-        match(ctx) {
+        resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
             const type = tape.consumeMatch([
                 ['u', 'use'],
@@ -272,7 +287,8 @@ const shorthands: Shorthand<RustScope>[] = [
                 return undefined;
             }
             let pub = tape.consumeAt('p') ? 'pub ' : '';
-            if (!tape.isExhausted()) {   // ensure first in line
+            if (!tape.isExhausted()) {
+                // ensure first in line
                 return undefined;
             }
             const [command, kword] = type;
@@ -281,26 +297,27 @@ const shorthands: Shorthand<RustScope>[] = [
                 pub = '#[macro_export]\n';
             }
             return {
-                shortDescription: "Declare top-level element",
-                target: before(ctx.cursor),
+                shortDescription: 'Declare top-level element',
+                target: rangeBefore(ctx.cursor),
                 snippet: pub + kword + ' ',
             };
-        }
+        },
     },
     {
-        docs: markdown(`
+        docs: md`
             Wraps the preceding element as a slice type, or a reference to one.
-            
+
             \`u8.amrs \` → \`&'a mut [u8]\`
 
             **Basic form:** \`.s\`
 
             **Constraints:**
+
             - Shorthand must be
             - Target preceded by \`:\`
-        `),
+        `,
         minLookbehind: '.s'.length,
-        match(ctx) {
+        resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
             if (!tape.consumeAt('s')) {
                 return undefined;
@@ -325,73 +342,77 @@ const shorthands: Shorthand<RustScope>[] = [
             }
             return {
                 shortDescription: 'Wrap as slice type',
-                target: before(ctx.cursor, length),
+                target: rangeBefore(ctx.cursor, length),
                 snippet: pre + '[' + target + ']',
             };
         },
     },
     {
-        docs: markdown(`
+        docs: md`
             Inserts an \`extern\` block to declare functions from FFI.
 
-            \`\`\`
+            ~~~
             x//← press trigger to expand!
-            \`\`\`
+            ~~~
+
             →
-            \`\`\`
+
+            ~~~
             unsafe extern "/* placeholder 1 */" {
                 /* stop here */
             }
-            \`\`\`
+            ~~~
 
             For more info, see https://doc.rust-lang.org/std/keyword.extern.html.
 
             **Constraints:**
+
             - Top-level scope
             - First word in line
-        `),
+        `,
         minLookbehind: 'x'.length,
         scope: [['toplevel']],
         exactScope: true,
-        match(ctx) {
+        resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
             if (!tape.consumeAt('x') || !tape.isExhausted()) {
                 return undefined;
             }
             return {
-                shortDescription: "Local variable",
-                target: before(ctx.cursor, 1),
+                shortDescription: 'Local variable',
+                target: rangeBefore(ctx.cursor, 1),
                 snippet: 'extern "${1:C}" $0',
             };
         },
     },
     {
-        docs: markdown(`
+        docs: md`
             Inserts an attribute/proc-macro.
 
             \`at \` → \`#[/* stop here */]\`
 
             **Constraints:**
+
             - Whole word
-        `),
+        `,
         minLookbehind: 'at'.length,
-        match(ctx) {
+        resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
             if (!tape.consumeAt('ta') || isLetter(tape.cur() ?? 'a')) {
                 return undefined;
             }
             return {
-                shortDescription: "Attribute",
-                target: before(ctx.cursor, 3),
+                shortDescription: 'Attribute',
+                target: rangeBefore(ctx.cursor, 3),
                 snippet: '#[$0]',
             };
         },
     },
     {
-        docs: markdown(`
+        docs: md`
             Inserts a \`#[must_use]\` attribute.
-            
+
             \`mustuse \` → \`#[must_use]\`
 
             This attribute marks a function such that discarding the return value
@@ -401,59 +422,67 @@ const shorthands: Shorthand<RustScope>[] = [
             For more info, see https://doc.rust-lang.org/std/hint/fn.must_use.html.
 
             **Constraints:**
+
             - Top-level or impl scope
             - First word in line
-        `),
+        `,
         minLookbehind: 'mustuse'.length,
-        scope: [
-            ['toplevel'],
-            ['impl'],
-        ],
-        match(ctx) {
+        scope: [['toplevel'], ['impl']],
+        resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
             if (!tape.consumeAt('esutsum') || !tape.isExhausted()) {
                 return undefined;
             }
             return {
-                shortDescription: "Non-discardable return value",
-                target: before(ctx.cursor, 7),
+                shortDescription: 'Non-discardable return value',
+                target: rangeBefore(ctx.cursor, 7),
                 snippet: '#[must_use]',
             };
         },
     },
     {
-        docs: markdown(`
+        docs: md`
             Inserts an \`#[inline]\` attribute.
-            
+
             This attribute marks a function such that it can be inlined across crate boundaries.
             This is useful in library development to encourage inlining for small, non-generic
             functions.
 
             For more info, see https://nnethercote.github.io/perf-book/inlining.html.
-            
+
             **Constraints:**
+
             - Top-level or impl scope
             - First word in line
-        `),
+        `,
         minLookbehind: 'inline'.length,
-        scope: [
-            ['toplevel'],
-            ['impl'],
-        ],
-        match(ctx) {
+        scope: [['toplevel'], ['impl']],
+        resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
             if (!tape.consumeAt('enilni') || !tape.isExhausted()) {
                 return undefined;
             }
             return {
-                shortDescription: "Suggest inlining",
-                target: before(ctx.cursor, 6),
+                shortDescription: 'Suggest inlining',
+                target: rangeBefore(ctx.cursor, 6),
                 snippet: '#[inline]',
             };
         },
-    }
+    },
+    {
+        docs: md``,
+        minLookbehind: ' '.length,
+        scope: [['fn']],
+        resolver(ctx) {},
+    },
 ];
 
-export default shorthands;
+/* 
+    },  perhaps on \n after auto-{}?
+    {
+        
+    },
+*/
+export default rust;

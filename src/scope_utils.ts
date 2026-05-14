@@ -1,6 +1,6 @@
 import { DocumentSymbol, Position, TextDocument, commands } from 'vscode';
 
-type ScopeTranslator<K extends string> = (symbol: DocumentSymbol) => Scope<K>;
+export type ScopeResolver<K extends string> = (symbol: DocumentSymbol) => Scope<K>;
 
 export type Scope<K extends string> = {
     kind: K;
@@ -29,7 +29,7 @@ export function isInScope<K extends string>(
 export async function getCachedScopes<K extends string>(
     document: TextDocument,
     pos: Position,
-    translator: ScopeTranslator<K>,
+    resolver: ScopeResolver<K>,
 ): Promise<Scope<K>[]> {
     const now = Date.now();
     const lineChanged = pos.line !== cachedLine;
@@ -37,7 +37,7 @@ export async function getCachedScopes<K extends string>(
     if (!lineChanged && !expired) {
         return cachedScope;
     }
-    cachedScope = await getScopes(document, pos, translator);
+    cachedScope = await getScopes(document, pos, resolver);
     cachedLine = pos.line;
     lastFetch = now;
     return cachedScope;
@@ -46,7 +46,7 @@ export async function getCachedScopes<K extends string>(
 export async function getScopes<K extends string>(
     document: TextDocument,
     pos: Position,
-    translator: ScopeTranslator<K>,
+    resolver: ScopeResolver<K>,
 ): Promise<Scope<K>[]> {
     const symbols = await commands.executeCommand<DocumentSymbol[]>(
         'vscode.executeDocumentSymbolProvider',
@@ -58,22 +58,22 @@ export async function getScopes<K extends string>(
 
     // return full stack of scopes containing pos
     // e.g. [Mod, Impl, Function] if you're inside a method
-    return walkSymbols(symbols, pos, translator);
+    return walkSymbols(symbols, pos, resolver);
 }
 
 function walkSymbols<K extends string>(
     symbols: DocumentSymbol[],
     pos: Position,
-    translator: ScopeTranslator<K>,
+    resolver: ScopeResolver<K>,
 ): Scope<K>[] {
     for (const symbol of symbols) {
         if (!symbol.range.contains(pos)) {
             continue;
         }
-        const scope = translator(symbol);
+        const scope = resolver(symbol);
 
         // recurse into children to get full stack
-        const children = walkSymbols(symbol.children, pos, translator);
+        const children = walkSymbols(symbol.children, pos, resolver);
         return [scope, ...children];
     }
     return [];

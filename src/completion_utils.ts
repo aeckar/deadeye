@@ -1,6 +1,7 @@
 import { MarkdownString, Position, Range, TextEditor } from 'vscode';
 
 import Tape from './tape';
+import { ALL_BRACKETS, Brackets } from './utils';
 
 type FlagChar =
     | 'a'
@@ -65,7 +66,7 @@ export type Shorthand<K extends string> = {
     minLookbehind: number;
     scope?: K[][];
     exactScope?: boolean;
-    match: (ctx: CompletionContext) => Completion | undefined;
+    resolver: (ctx: CompletionContext) => Completion | undefined;
 };
 
 /**
@@ -89,6 +90,12 @@ export type Substitition = {
     snippet: string;
 };
 
+//todo space after function in js -- insert smart parentheses
+
+export type BracketType = 'curly' | 'square' | 'round' | 'angle';
+
+export const MAX_LINE_SEEK = 50;
+
 export class CompletionContext {
     line: Tape;
     cursor: Position;
@@ -105,22 +112,126 @@ export class CompletionContext {
         return this.line.before(this.cursor);
     }
 
-    openCurlyPos(): Position | undefined {
-        let braceDepth = 0;
-        for (let i = this.cursor.line; i >= 0; i--) {
-            const text = this.editor.document.lineAt(i).text;
-            const end =
-                i === this.cursor.line ? this.cursor.character : text.length;
+    seekOpener(brackets: Brackets): Position | undefined {
+        return this.seekOpenerRecursive(brackets, this.cursor, true);
+    }
 
-            for (let j = end - 1; j >= 0; j--) {
-                const ch = text[j];
-                if (ch === '{') {
-                    if (braceDepth === 0) {
-                        return new Position(i, j + 1);
+    private static OTHER_BRACKETS: Record<string, string> = {
+        ')': '}]>',
+        '}': ')]>',
+        ']': ')}>',
+        '>': ')}]',
+        '(': '{[<',
+        '{': '([<',
+        '[': '({<',
+        '<': '({[',
+    };
+
+    private seekOpenerRecursive(
+        brackets: Brackets,
+        start: Position,
+        recur: boolean,
+    ): Position | undefined {
+        let depth = 0;
+        let lineLookbehind = 0;
+        const [open, closed] = brackets;
+        for (let line = start.line; line >= 0; line--, lineLookbehind++) {
+            if (lineLookbehind > MAX_LINE_SEEK) {
+                return undefined;
+            }
+            const text = this.editor.document.lineAt(line).text;
+            const end = line === start.line ? start.character : text.length;
+            for (let character = end - 1; character >= 0; character--) {
+                const ch = text[character];
+                if (recur) {
+                    if (CompletionContext.OTHER_BRACKETS[open].includes(ch)) {
+                        // missing closer for other type of bracket
+                        return undefined;
                     }
-                    braceDepth--;
-                } else if (ch === '}') {
-                    braceDepth++;
+                    if (CompletionContext.OTHER_BRACKETS[closed].includes(ch)) {
+                        const openPos = this.seekOpenerRecursive(
+                            (ch === ')'
+                                ? '('
+                                : String.fromCharCode(
+                                      ch.charCodeAt(0) - 2,
+                                  )) as Brackets,
+                            new Position(line, character),
+                            false,
+                        );
+                        if (!openPos) {
+                            return undefined;
+                        }
+                        line = openPos.line;
+                        character = openPos.character;
+                        continue;
+                    }
+                } else if (ch === open) {
+                    if (depth === 0) {
+                        return new Position(line, character + 1);
+                    }
+                    depth--;
+                } else if (ch === closed) {
+                    depth++;
+                }
+            }
+        }
+        return undefined;
+    }
+
+    seekCloser(brackets: Brackets): Position | undefined {
+        return this.seekCloserRecursive(brackets, this.cursor, true);
+    }
+
+    private seekCloserRecursive(
+        brackets: Brackets,
+        start: Position,
+        recur: boolean,
+    ): Position | undefined {
+        let depth = 0;
+        let lineLookbehind = 0;
+        const doc = this.editor.document;
+        const [open, closed] = brackets;
+        for (
+            let line = start.line;
+            line < doc.lineCount;
+            line++, lineLookbehind++
+        ) {
+            if (lineLookbehind > MAX_LINE_SEEK) {
+                return undefined;
+            }
+            const text = doc.lineAt(line).text;
+            const end = line === start.line ? start.character : text.length;
+            for (let character = 0; character < end; character++) {
+                const ch = text[character];
+                if (recur) {
+                    if (CompletionContext.OTHER_BRACKETS[closed].includes(ch)) {
+                        // missing closer for other type of bracket
+                        return undefined;
+                    }
+                    if (CompletionContext.OTHER_BRACKETS[open].includes(ch)) {
+                        const closedPos = this.seekCloserRecursive(
+                            (ch === ')'
+                                ? '('
+                                : String.fromCharCode(
+                                      ch.charCodeAt(0) - 2,
+                                  )) as Brackets,
+                            new Position(line, character),
+                            false,
+                        );
+                        if (!closedPos) {
+                            return undefined;
+                        }
+                        line = closedPos.line;
+                        character = closedPos.character;
+                        continue;
+                    }
+                } else if (ch === closed) {
+                    if (depth === 0) {
+                        return new Position(line, character + 1);
+                    }
+                    depth--;
+                } else if (ch === open) {
+                    depth++;
                 }
             }
         }
