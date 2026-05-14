@@ -472,10 +472,14 @@ const rust: Shorthand<RustScope>[] = [
         },
     },
     {
-        docs: md``,
+        docs: md`
+            
+        `,
         minLookbehind: ' '.length,
         scope: [['fn']],
-        resolver(ctx) {},
+        resolver(ctx) {
+            
+        },
     },
 ];
 
