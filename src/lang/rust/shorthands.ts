@@ -353,10 +353,11 @@ const rust: Shorthand<RustScope>[] = [
                 // since we are at the margin, no need to prepend indent
                 pub = '#[macro_export]\n';
             }
+            const snippet = pub + kword;
             return {
-                title: 'Declare top-level element',
+                title: md`Inserts \`${snippet}\`.`,
                 target: rangeBefore(ctx.cursor),
-                snippet: pub + kword + ' ',
+                snippet: snippet + ' ',
             };
         },
     },

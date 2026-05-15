@@ -12,6 +12,7 @@
 import {
     ExtensionContext,
     Hover,
+    MarkdownString,
     Position,
     Range,
     Selection,
@@ -37,8 +38,9 @@ import { getCachedScopes } from './scope_utils';
 import Tape from './tape';
 
 let completionStrategy: CompletionStrategy | undefined;
+let decorationSyncId: number | undefined; // todo store by window/lang
 
-const shorthandDecoration = window.createTextEditorDecorationType({
+const decoration = window.createTextEditorDecorationType({
     borderColor: new ThemeColor('editorInfo.foreground'),
     border: '1px solid',
     borderRadius: '3px',
@@ -46,17 +48,44 @@ const shorthandDecoration = window.createTextEditorDecorationType({
 });
 
 function cancelCompletion(editor: TextEditor) {
+    if (
+        completionStrategy &&
+        editor.selection.active.isEqual(completionStrategy.position)
+    ) {
+        // waiting for insertion of pressed key
+        return;
+    }
     completionStrategy = undefined;
-    editor.setDecorations(shorthandDecoration, []);
+    editor.setDecorations(decoration, []);
 }
 
-function startShorthandHighlightSync(): {
-    setInterval();
-};
+function startDecorationSync() {
+    console.log('hello\n');
 
-function stopShorthandHighlightSync(): {
-    setInterval();
-};
+    if (decorationSyncId !== undefined) {
+        return decorationSyncId;
+    }
+    decorationSyncId = setInterval(() => {
+        syncDecoration();
+    }, 500);
+}
+
+function stopDecorationSync() {
+    clearInterval(decorationSyncId);
+    decorationSyncId = undefined;
+}
+
+function syncDecoration() {
+    const editor = window.activeTextEditor;
+    if (!editor || !completionStrategy) {
+        return;
+    }
+    const completion = completionStrategy.completion;
+    const position = editor.selection.active;
+    if (completionStrategy.position !== position) {
+        completion.target = new Range(completion.target.start, position);
+    }
+}
 
 /** Extension initializer. */
 export function activate(context: ExtensionContext) {
@@ -71,22 +100,15 @@ export function activate(context: ExtensionContext) {
             });
             return;
         }
-        const completion = completionStrategy.completion;
-        const position = editor.selection.active;
-        if (completionStrategy.position !== position) {
-            // sync end position
-            const { start, end } = completion.target;
-            completion.target = new Range(start, position);
-        }
         runCompletion(editor, completionStrategy.completion);
         completionStrategy = undefined;
     });
 
-    const syncShorthandHighlighting = window.onDidChangeWindowState(event => {
+    const syncDecoration = window.onDidChangeWindowState(event => {
         if (event.focused) {
-            startShorthandHighlightSync();
+            startDecorationSync();
         } else {
-            stopShorthandHighlightSync();
+            stopDecorationSync();
         }
     });
 
@@ -96,37 +118,50 @@ export function activate(context: ExtensionContext) {
         },
     );
 
-    const validateThenResolveCompletionStrategy =
-        workspace.onDidChangeTextDocument(async event => {
-            // `editor.selection.active` is stale here
-            const change = event.contentChanges[0];
+    // Prefer low-level command to `onDidChangeActiveTextEditor` listener
+    // so extremely keystroke combos can be recognized.
+    const validateThenResolveCompletionStrategy = commands.registerCommand(
+        'type',
+        async args => {
             const editor = window.activeTextEditor;
-            if (!editor || !change || change.text.length === 0) {
-                // check for deletion
+            if (!editor) {
                 return;
             }
-            await editor.document.save(); // sync changes
-            await getCompletionStrategy(change, editor);
-        });
+            await getCompletionStrategy(args.text, editor);
+            commands.executeCommand('default:type', args); // manually perform insertion
+            if (completionStrategy) {
+                editor.setDecorations(decoration, [
+                    completionStrategy.completion.target,
+                ]);
+            }
+        },
+    );
 
     const showDocsOnHover = languages.registerHoverProvider('rust', {
         provideHover(_, __, ___) {
             if (!completionStrategy) {
                 return null;
             }
-            let docs = completionStrategy.shorthand
-            return completionStrategy
-                ? new Hover(completionStrategy.shorthand.docs)
-                : null;
+            return new Hover(completionStrategy.shorthand.docs);
+        },
+    });
+
+    const showTitleOnHover = languages.registerHoverProvider('rust', {
+        provideHover(_, __, ___) {
+            if (!completionStrategy) {
+                return null;
+            }
+            return new Hover(completionStrategy.completion.title);
         },
     });
 
     context.subscriptions.push(
         validateThenResolveCompletionStrategy,
+        showTitleOnHover,
         showDocsOnHover,
-        syncShorthandHighlighting,
+        // syncDecoration,
         cancelOnSelectionChange,
-        { dispose: () => stopShorthandHighlightSync() },
+        // { dispose: () => stopDecorationSync() },
     );
 }
 
@@ -135,11 +170,9 @@ export function activate(context: ExtensionContext) {
  *
  * @return `true` if a line-based shorthand was expanded.
  */
-async function getCompletionStrategy(
-    change: TextDocumentContentChangeEvent,
-    editor: TextEditor,
-): Promise<void> {
-    const position = change.range.start.translate(0, change.text.length);
+async function getCompletionStrategy(key: string, editor: TextEditor) {
+    const active = editor.selection.active;
+    const position = new Position(active.line, active.character + 1);
     const langId = editor.document.languageId;
     const line = editor.document.lineAt(position.line).text;
     if (!line) {
@@ -153,13 +186,12 @@ async function getCompletionStrategy(
     );
     for (const shorthand of shorthands[langId]) {
         const completion = shorthand.resolver(
-            new CompletionContext(Tape.of(line), position, editor),
+            new CompletionContext(Tape.of(line + key), position, editor),
         );
         if (!completion) {
             continue;
         }
         completionStrategy = { shorthand, completion, position };
-        editor.setDecorations(shorthandDecoration, [completion.target]);
         return;
     }
 }
