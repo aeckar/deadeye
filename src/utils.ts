@@ -41,9 +41,9 @@ export function findWord(s: string, query: NonEmptyString): number {
     return -1;
 }
 
-export function rangeBefore(cursor: Position, from: number = 0): Range {
+export function rangeBefore(cursor: Position, from: number = cursor.character): Range {
     return new Range(
-        new Position(cursor.line, from),
+        new Position(cursor.line, cursor.character - from),
         new Position(cursor.line, cursor.character),
     );
 }

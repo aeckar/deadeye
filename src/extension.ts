@@ -5,6 +5,7 @@
 //! - Manual text insertion and snippet injection have a negligible performance difference,
 //! so the latter is chosen for ergonomics
 //! - Scoped completions may fall back to a line-based form to promote better performance
+//! - Hover messages like those of rust-analyzer must be diagnostics to look that way, if desired
 //!
 //! # Style Guide (not enforced by .prettierrc)
 //!
@@ -17,20 +18,17 @@ import {
     Range,
     Selection,
     SnippetString,
-    TextDocumentContentChangeEvent,
     TextEditor,
     ThemeColor,
     commands,
     languages,
     window,
-    workspace,
 } from 'vscode';
 
 import {
     Completion,
     CompletionContext,
     CompletionStrategy,
-    Shorthand,
 } from './completion_utils';
 import scopeResolvers from './lang/scope_resolvers';
 import shorthands from './lang/shorthands';
@@ -38,7 +36,7 @@ import { getCachedScopes } from './scope_utils';
 import Tape from './tape';
 
 let completionStrategy: CompletionStrategy | undefined;
-let decorationSyncId: number | undefined; // todo store by window/lang
+let decorationSyncTimeout: NodeJS.Timeout | undefined; // todo store by window/lang
 
 const decoration = window.createTextEditorDecorationType({
     borderColor: new ThemeColor('editorInfo.foreground'),
@@ -59,34 +57,6 @@ function cancelCompletion(editor: TextEditor) {
     editor.setDecorations(decoration, []);
 }
 
-function startDecorationSync() {
-    console.log('hello\n');
-
-    if (decorationSyncId !== undefined) {
-        return decorationSyncId;
-    }
-    decorationSyncId = setInterval(() => {
-        syncDecoration();
-    }, 500);
-}
-
-function stopDecorationSync() {
-    clearInterval(decorationSyncId);
-    decorationSyncId = undefined;
-}
-
-function syncDecoration() {
-    const editor = window.activeTextEditor;
-    if (!editor || !completionStrategy) {
-        return;
-    }
-    const completion = completionStrategy.completion;
-    const position = editor.selection.active;
-    if (completionStrategy.position !== position) {
-        completion.target = new Range(completion.target.start, position);
-    }
-}
-
 /** Extension initializer. */
 export function activate(context: ExtensionContext) {
     commands.registerCommand('deadeye.trigger', () => {
@@ -102,14 +72,6 @@ export function activate(context: ExtensionContext) {
         }
         runCompletion(editor, completionStrategy.completion);
         completionStrategy = undefined;
-    });
-
-    const syncDecoration = window.onDidChangeWindowState(event => {
-        if (event.focused) {
-            startDecorationSync();
-        } else {
-            stopDecorationSync();
-        }
     });
 
     const cancelOnSelectionChange = window.onDidChangeTextEditorSelection(
@@ -138,8 +100,11 @@ export function activate(context: ExtensionContext) {
     );
 
     const showDocsOnHover = languages.registerHoverProvider('rust', {
-        provideHover(_, __, ___) {
-            if (!completionStrategy) {
+        provideHover(_, position, __) {
+            if (
+                !completionStrategy ||
+                !completionStrategy.completion.target.contains(position)
+            ) {
                 return null;
             }
             return new Hover(completionStrategy.shorthand.docs);
@@ -147,11 +112,18 @@ export function activate(context: ExtensionContext) {
     });
 
     const showTitleOnHover = languages.registerHoverProvider('rust', {
-        provideHover(_, __, ___) {
-            if (!completionStrategy) {
+        provideHover(_, position, __) {
+            if (
+                !completionStrategy ||
+                !completionStrategy.completion.target.contains(position)
+            ) {
                 return null;
             }
-            return new Hover(completionStrategy.completion.title);
+            let title = completionStrategy.completion.title;
+            if (typeof title === 'string') {
+                title = new MarkdownString(title);
+            }
+            return new Hover(title);
         },
     });
 
@@ -159,9 +131,7 @@ export function activate(context: ExtensionContext) {
         validateThenResolveCompletionStrategy,
         showTitleOnHover,
         showDocsOnHover,
-        // syncDecoration,
         cancelOnSelectionChange,
-        // { dispose: () => stopDecorationSync() },
     );
 }
 

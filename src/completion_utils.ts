@@ -100,7 +100,6 @@ export type Shorthand<K extends string> = {
  * This is dynamically created to describe **exactly** how the code is modified. This contrasts
  * with {@link Shorthand.docs}, which is a general description of the shorthand or family of shorthands.
  * @param target The location of the actual shorthand, which is deleted.
- * This value may be  modified in the event that the current selection de-syncs,
  * most likely due to fast typing.
  * @param snippet The snippet to be inserted.
  * @param insertAt If defined, is the position of the snippet to be inserted. Otherwise,
@@ -109,7 +108,7 @@ export type Shorthand<K extends string> = {
  */
 export type Completion = {
     readonly title: MarkdownString | string;
-    target: Range;
+    readonly target: Range;
     readonly snippet: string;
     readonly insertAt?: Position;
     readonly endCursorPos?: Position;

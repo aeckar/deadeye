@@ -1,13 +1,16 @@
 import { MAX_LINE_SEEK, Shorthand, Substitition } from '../../completion_utils';
-import {
-    after,
-    findWord,
-    isLetter,
-    markdown as md,
-    rangeBefore,
-} from '../../utils';
+import { after, findWord, isLetter, markdown as md, rangeBefore } from '../../utils';
 import { RustScope } from './scopes';
 import { consumeRustTarget } from './utils';
+
+
+
+
+
+
+
+
+
 
 // Elements with no identation from start of line need not have their scope checked,
 // as we can assume they are top-level
@@ -214,7 +217,7 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                title: 'If-statement',
+                title: md`Insert \`if\` block, then move to conditional.`,
                 target: rangeBefore(ctx.cursor, 2),
                 snippet: 'if $0 {}',
             };
@@ -245,22 +248,23 @@ const rust: Shorthand<RustScope>[] = [
             if (!tape.consumeAt('l')) {
                 return undefined;
             }
-            const mut = tape.consumeAt('m') ? 'mut ' : '';
+            const mut = tape.consumeAt('m') ? ' mut' : '';
             if (!tape.isExhausted()) {
                 // ensure first in line
                 return undefined;
             }
+            const expansion = 'let' + mut;
             return {
-                title: 'Local variable',
+                title: md`Insert \`${expansion}\`.`,
                 target: rangeBefore(ctx.cursor, mut ? 3 : 2),
-                snippet: 'let ' + mut,
+                snippet: expansion + ' ',
             };
         },
     },
     {
         //fixme false positive match if doing `if if {}...`, good enough for now
         docs: md`
-            Inserts an else block or else-if block after the enclosing if-statement.
+            Inserts an \`else\` block or \`else if\` block after the enclosing \`if\` statement.
             
             \`\`\`
             if {
@@ -300,7 +304,7 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                title: 'Else block',
+                title: md`Insert \`else\` block after current \`if\` block, then move there.`,
                 target: rangeBefore(ctx.cursor), //todo include previous newline as well
                 insertAt: after(ctx.cursor),
                 snippet: includeIf ? ' else if {\n$0\n}' : ' else {\n$0\n}',
@@ -355,7 +359,7 @@ const rust: Shorthand<RustScope>[] = [
             }
             const snippet = pub + kword;
             return {
-                title: md`Inserts \`${snippet}\`.`,
+                title: md`Insert \`${snippet}\`.`,
                 target: rangeBefore(ctx.cursor),
                 snippet: snippet + ' ',
             };
@@ -371,8 +375,7 @@ const rust: Shorthand<RustScope>[] = [
 
             **Constraints:**
 
-            - Shorthand must be
-            - Target preceded by \`:\`
+            - todo
         `,
         minLookbehind: '.s'.length,
         resolver(ctx) {
@@ -399,7 +402,7 @@ const rust: Shorthand<RustScope>[] = [
                 pre = '&' + pre;
             }
             return {
-                title: 'Wrap as slice type',
+                title: 'Wrap as slice type.',
                 target: rangeBefore(ctx.cursor, length),
                 snippet: pre + '[' + target + ']',
             };
@@ -438,7 +441,7 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                title: 'Local variable',
+                title: md`Insert \`extern "\` \`"\`.`,
                 target: rangeBefore(ctx.cursor),
                 snippet: 'extern "${1:C}" $0',
             };
@@ -461,7 +464,7 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                title: 'Attribute',
+                title: md`Insert \`#[\` \`]\`.`,
                 target: rangeBefore(ctx.cursor, 3),
                 snippet: '#[$0]',
             };
@@ -493,7 +496,7 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                title: 'Non-discardable return value',
+                title: 'Insert \`#[must_use]\`.',
                 target: rangeBefore(ctx.cursor, 7),
                 snippet: '#[must_use]',
             };
@@ -523,7 +526,7 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                title: 'Suggest inlining',
+                title: md`Insert \`#[inline]\``,
                 target: rangeBefore(ctx.cursor, 6),
                 snippet: '#[inline]',
             };
