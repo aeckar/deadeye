@@ -1,6 +1,17 @@
 //! Extension entry point.
+//!
+//! # Implementation Notes
+//!
+//! - Manual text insertion and snippet injection have a negligible performance difference,
+//! so the latter is chosen for ergonomics
+//! - Scoped completions may fall back to a line-based form to promote better performance
+//!
+//! # Style Guide (not enforced by .prettierrc)
+//!
+//! - Top-level functions should use `function` notation over arrow function constants
 import {
     ExtensionContext,
+    Hover,
     Position,
     Range,
     Selection,
@@ -9,36 +20,35 @@ import {
     TextEditor,
     ThemeColor,
     commands,
+    languages,
     window,
     workspace,
 } from 'vscode';
 
-import { Completion, CompletionContext, Shorthand } from './completion_utils';
+import {
+    Completion,
+    CompletionContext,
+    CompletionStrategy,
+    Shorthand,
+} from './completion_utils';
 import scopeResolvers from './lang/scope_resolvers';
 import shorthands from './lang/shorthands';
 import { getCachedScopes } from './scope_utils';
 import Tape from './tape';
 
-/* # Implementation Notes
- *
- * - Manual text insertion and snippet injection have a negligible performance difference,
- * so the latter is chosen for ergonomics
- * - Scoped completions may fall back to a line-based form to promote better performance
- *
- * # Style Guide
- *
- * - Top-level functions should use `function` notation over arrow function constants
- */
+let completionStrategy: CompletionStrategy | undefined;
 
-const chordDecoration = window.createTextEditorDecorationType({
-    backgroundColor: new ThemeColor('editor.findMatchHighlightBackground'),
+const shorthandDecoration = window.createTextEditorDecorationType({
     borderColor: new ThemeColor('editorInfo.foreground'),
     border: '1px solid',
     borderRadius: '3px',
     color: new ThemeColor('editorInfo.foreground'),
 });
 
-let completionOnTrigger: Completion | undefined;
+function cancelCompletion(editor: TextEditor) {
+    completionStrategy = undefined;
+    editor.setDecorations(shorthandDecoration, []);
+}
 
 /** Extension initializer. */
 export function activate(context: ExtensionContext) {
@@ -47,14 +57,22 @@ export function activate(context: ExtensionContext) {
         if (!editor) {
             return;
         }
-        if (!completionOnTrigger) {
+        const completion = completionStrategy?.completion;
+        if (!completion) {
             editor.edit(editBuilder => {
                 editBuilder.insert(editor.selection.active, ' ');
             });
+            return;
         }
-        applyCompletion(editor, completionOnTrigger!);
-        completionOnTrigger = undefined;
+        applyCompletion(editor, completion);
+        completionStrategy = undefined;
     });
+
+    const cancelOnSelectionChange = window.onDidChangeTextEditorSelection(
+        event => {
+            cancelCompletion(event.textEditor);
+        },
+    );
 
     const validateThenResolveCompletion = workspace.onDidChangeTextDocument(
         async event => {
@@ -72,10 +90,23 @@ export function activate(context: ExtensionContext) {
                 return;
             }
             await resolveCompletion(change, editor);
+            cancelCompletion(editor);
         },
     );
 
-    context.subscriptions.push(validateThenResolveCompletion);
+    const showDocsOnHover = languages.registerHoverProvider('rust', {
+        provideHover(_, __, ___) {
+            return completionStrategy
+                ? new Hover(completionStrategy.shorthand.docs)
+                : null;
+        },
+    });
+
+    context.subscriptions.push(
+        validateThenResolveCompletion,
+        showDocsOnHover,
+        cancelOnSelectionChange,
+    );
 }
 
 /**
@@ -106,7 +137,8 @@ async function resolveCompletion(
         if (!completion) {
             continue;
         }
-        completionOnTrigger = completion;
+        completionStrategy = { shorthand, completion };
+        editor.setDecorations(shorthandDecoration, [completion.target]);
         return true;
     }
     return false;

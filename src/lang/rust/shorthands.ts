@@ -1,4 +1,4 @@
-import { MAX_LINE_SEEK, Shorthand } from '../../completion_utils';
+import { MAX_LINE_SEEK, Shorthand, Substitition } from '../../completion_utils';
 import {
     after,
     findWord,
@@ -58,34 +58,88 @@ import { consumeRustTarget } from './utils';
 
 const builtins = /str|bool|char|[ui]([8136][624][8]?|size)|f[36][24]/g;
 
-const subsitutitons = {
-    rust: [
-        // Inserts a literal.
-        ['bstof', 'b"$0"'],
-        ['bchof', "b'$0'"],
-        ['stof', '"$0"'],
-        ['chof', "'$0'"],
-        ['evec', 'vec![]'],
-
-        // Inserts a type.
-        ['string', 'String'],
-        ['mapof', 'HashMap<$0,>'],
-        ['vecof', 'Vec<$0>'],
-        ['setof', 'HashSet<$0>'],
-
-        // Inserts an attribute/proc-macro.
-        ['prm', '#[$0]'],
-
-        // Prefixes the scope with a modifier.
-        ['p |fn', 'pub $0fn'],
-        ['x |fn', 'extern "${1:C}" $0fn'],
-        ['c |fn', 'const $0fn'],
-        ['p |struct', 'pub $0struct'],
-        ['p |enum', 'pub $0enum'],
-        ['prm |..'],
-
-        // todo seperate
-        ['reprenum', '#[repr|]\n$0enum'],
+const subsitutitons: Substitition[] = [
+    {
+        exactDescription: 'Inserts a byte-string literal',
+        target: 'bstof',
+        snippet: 'b"$0"',
+    },
+    {
+        exactDescription: 'Inserts a byte-character literal',
+        target: 'bchof',
+        snippet: "b'$0'",
+    },
+    {
+        exactDescription: 'Inserts a string literal',
+        target: 'stof',
+        snippet: '"$0"',
+    },
+    {
+        exactDescription: 'Inserts a character literal',
+        target: 'chof',
+        snippet: "'$0'",
+    },
+    {
+        exactDescription: 'Inserts an empty vector',
+        target: 'evec',
+        snippet: 'vec![$0]',
+    },
+    {
+        exactDescription: 'Inserts a String type',
+        target: 'string',
+        snippet: 'String',
+    },
+    {
+        exactDescription: md`Inserts a \`HashMap\` type`,
+        target: 'mapof',
+        snippet: 'HashMap<$0,>',
+    },
+    {
+        exactDescription: md`Inserts a \`Vec\` type`,
+        target: 'vecof',
+        snippet: 'Vec<$0>',
+    },
+    {
+        exactDescription: md`Inserts a \`HashSet\` type`,
+        target: 'setof',
+        snippet: 'HashSet<$0>',
+    },
+    {
+        exactDescription: 'Inserts an attribute',
+        target: 'prm',
+        snippet: '#[$0]',
+    },
+    {
+        exactDescription: 'Prefixes fn with pub',
+        target: 'p |fn',
+        snippet: 'pub fn $0',
+    },
+    {
+        exactDescription: 'Prefixes fn with extern',
+        target: 'x |fn',
+        snippet: 'extern "${1:C}" fn $0',
+    },
+    {
+        exactDescription: 'Prefixes fn with const',
+        target: 'c |fn',
+        snippet: 'const fn $0',
+    },
+    {
+        exactDescription: 'Prefixes struct with pub',
+        target: 'p |struct',
+        snippet: 'pub struct $0',
+    },
+    {
+        exactDescription: 'Prefixes enum with pub',
+        target: 'p |enum',
+        snippet: 'pub enum $0',
+    },
+    {
+        exactDescription: 'Inserts a derive attribute',
+        target: 'prm |..',
+        snippet: '#[derive(${1:Debug, PartialEq})]\\n$0',
+    },
+];
 
         //inlinefn
         //mustusefn
@@ -104,8 +158,7 @@ const subsitutitons = {
         // derive value type
 
         // .<space> => :: after capitalized target or builtin-type or ')'
-    ],
-};
+
 
 //step 1: match to completion
 // step 2: if trigger is next change, execute stored completion--otherwise, toss

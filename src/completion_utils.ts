@@ -1,4 +1,4 @@
-import { MarkdownString, Position, Range, TextEditor } from 'vscode';
+import { MarkdownString, Position, Range, Selection, TextEditor } from 'vscode';
 
 import Tape from './tape';
 import { Brackets } from './utils';
@@ -60,8 +60,8 @@ export type Flag = FlagChar | `-${FlagChar}${FlagChar}`;
  * @param scope The scope or nested scope required for this shorthand to match. Nested scopes
  * are not required to be adjacent; they must simply be present in the same order. If not provided,
  * this matches in all scopes.
- * @param exactScope If true, the entire scope stack must equal `scope`, not just a part of it.
- * If not provided, behaves as if it were `false`.
+ * @param exactScope If true, the entire scope stack must equal {@link Shorthand.scope|scope},
+ * not just a part of it. If not provided, behaves as if it were `false`.
  */
 export type Shorthand<K extends string> = {
     docs: MarkdownString;
@@ -72,11 +72,11 @@ export type Shorthand<K extends string> = {
 };
 
 /**
- * The result of `Shorthand.resolver`.
+ * The result of {@link Shorthand.resolver}.
  *
- * @param shortDescription A short description of what the completion of the shorthand does.
+ * @param exactDescription A short description of what the completion of the shorthand does.
  * This is dynamically created to describe **exactly** how the code is modified. This contrasts
- * with `Shorthand.docs`, which is a general description of the shorthand or family of shorthands.
+ * with {@link Shorthand.docs}, which is a general description of the shorthand or family of shorthands.
  * @param target The location of the actual shorthand, which is deleted.
  * @param snippet The snippet to be inserted.
  * @param insertAt If defined, is the position of the snippet to be inserted. Otherwise,
@@ -84,7 +84,7 @@ export type Shorthand<K extends string> = {
  * @param newCursorPos The final position of the cursor after the snippet has been inserted.
  */
 export type Completion = {
-    exactDescription: string;
+    exactDescription: MarkdownString | string;
     target: Range;
     snippet: string;
     insertAt?: Position;
@@ -92,18 +92,35 @@ export type Completion = {
 };
 
 /**
- * A simplified completion, which always 
+ * A simplified completion, which always runs for a typed character sequence.
+ *
+ * For a given language, substitutions are todo
+ * 
+ * @param exactDescription See {@link Completion.exactDescription}.
+ * @param docs See {@link Shorthand.docs}.
+ * @param target The character sequence to be matched.
+ * @param snippet See {@link Completion.snippet}.
  */
 export type Substitition = {
-    exactDescription: string;
-    docs: MarkdownString;
-    shorthand: string;
+    exactDescription: MarkdownString | string;
+    docs?: MarkdownString;
+    target: string;
     snippet: string;
+};
+
+/**
+ * Created and stored after a shorthand is matched, and recalled once the trigger is pressed.
+ * 
+ * @param selection the current editor selection the instance this object was created.
+ */
+export type CompletionStrategy = {
+    shorthand: Shorthand<any>,
+    completion: Completion,
 };
 
 export type BracketType = 'curly' | 'square' | 'round' | 'angle';
 
-/** Passed to `Shorthand.resolver`. */
+/** Passed to {@link Shorthand.resolver}. */
 export class CompletionContext {
     line: Tape;
     cursor: Position;
