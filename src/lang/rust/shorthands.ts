@@ -12,6 +12,15 @@ import { consumeRustTarget } from './utils';
 
 
 
+
+
+
+
+
+
+
+
+
 // Elements with no identation from start of line need not have their scope checked,
 // as we can assume they are top-level
 
@@ -94,21 +103,21 @@ const subsitutitons: Substitition[] = [
     },
     {
         title: md`
-Inserts a \`HashMap\` type
+            Inserts a \`HashMap\` type
         `,
         target: 'mapof',
         snippet: 'HashMap<$0,>',
     },
     {
         title: md`
-Inserts a \`Vec\` type
+            Inserts a \`Vec\` type
         `,
         target: 'vecof',
         snippet: 'Vec<$0>',
     },
     {
         title: md`
-Inserts a \`HashSet\` type
+            Inserts a \`HashSet\` type
         `,
         target: 'setof',
         snippet: 'HashSet<$0>',
@@ -217,13 +226,16 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                title: md`Insert \`if\` block, then move to conditional.`,
+                title: md`
+                    Insert \`if\` block, then move to conditional.
+                `,
                 target: rangeBefore(ctx.cursor, 2),
                 snippet: 'if $0 {}',
             };
         },
     },
     {
+        //fixme
         docs: md`
             Declares a local variable.
 
@@ -304,7 +316,9 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                title: md`Insert \`else\` block after current \`if\` block, then move there.`,
+                title: md`
+                    Insert \`else\` block after current \`if\` block, then move there.
+                `,
                 target: rangeBefore(ctx.cursor), //todo include previous newline as well
                 insertAt: after(ctx.cursor),
                 snippet: includeIf ? ' else if {\n$0\n}' : ' else {\n$0\n}',
@@ -366,6 +380,7 @@ const rust: Shorthand<RustScope>[] = [
         },
     },
     {
+        //fixme
         docs: md`
             Wraps the preceding element as a slice type, or a reference to one.
 
@@ -409,6 +424,7 @@ const rust: Shorthand<RustScope>[] = [
         },
     },
     {
+        //fixme
         docs: md`
             Inserts an \`extern\` block to declare functions from FFI.
 
@@ -441,7 +457,9 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                title: md`Insert \`extern "\` \`"\`.`,
+                title: md`
+                    Insert \`extern "\` \`"\`.
+                `,
                 target: rangeBefore(ctx.cursor),
                 snippet: 'extern "${1:C}" $0',
             };
@@ -464,7 +482,9 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                title: md`Insert \`#[\` \`]\`.`,
+                title: md`
+                    Insert \`#[\` \`]\`.
+                `,
                 target: rangeBefore(ctx.cursor, 3),
                 snippet: '#[$0]',
             };
@@ -492,7 +512,10 @@ const rust: Shorthand<RustScope>[] = [
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
-            if (!tape.consumeAt('esutsum') || !tape.isExhausted()) {
+            if (
+                !tape.consumeEither('mustuse', 'nodiscard') ||
+                !tape.isExhausted()
+            ) {
                 return undefined;
             }
             return {
@@ -506,9 +529,14 @@ const rust: Shorthand<RustScope>[] = [
         docs: md`
             Inserts an \`#[inline]\` attribute.
 
+            \`inln \` → \`#[inline]\`
+
             This attribute marks a function such that it can be inlined across crate boundaries.
             This is useful in library development to encourage inlining for small, non-generic
             functions.
+
+            As a rule of thumb when building libraries,
+            proactively add \`#[inline]\` to small, public, non-generic functions.
 
             For more info, see https://nnethercote.github.io/perf-book/inlining.html.
 
@@ -517,16 +545,18 @@ const rust: Shorthand<RustScope>[] = [
             - Top-level or impl scope
             - First word in line
         `,
-        minLookbehind: 'inline'.length,
+        minLookbehind: 'inln'.length,
         scope: [['toplevel'], ['impl']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
-            if (!tape.consumeAt('enilni') || !tape.isExhausted()) {
+            if (!tape.consumeEither('inln', 'inline') || !tape.isExhausted()) {
                 return undefined;
             }
             return {
-                title: md`Insert \`#[inline]\``,
+                title: md`
+Insert \`#[inline]\`
+                `,
                 target: rangeBefore(ctx.cursor, 6),
                 snippet: '#[inline]',
             };

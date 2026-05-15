@@ -82,7 +82,7 @@ export function activate(context: ExtensionContext) {
 
     // Prefer low-level command to `onDidChangeActiveTextEditor` listener
     // so extremely keystroke combos can be recognized.
-    const validateThenResolveCompletionStrategy = commands.registerCommand(
+    const getCompletionStrategyThenType = commands.registerCommand(
         'type',
         async args => {
             const editor = window.activeTextEditor;
@@ -128,7 +128,7 @@ export function activate(context: ExtensionContext) {
     });
 
     context.subscriptions.push(
-        validateThenResolveCompletionStrategy,
+        getCompletionStrategyThenType,
         showTitleOnHover,
         showDocsOnHover,
         cancelOnSelectionChange,

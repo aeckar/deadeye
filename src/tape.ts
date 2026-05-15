@@ -1,12 +1,20 @@
 //! Cursor data structure.
 import { Position } from 'vscode';
 
+
+
 import { Flag } from './completion_utils';
-import {
-    NonEmptyString,
-    isLowerLetter,
-    isUpperLetter,
-} from './utils';
+import { NonEmptyString, isLowerLetter, isUpperLetter } from './utils';
+
+
+
+
+
+
+
+
+
+
 
 /**
  * A lightweight cursor over a string for non-linear parsing.
@@ -334,6 +342,16 @@ export default class Tape {
         }
         this.pos += query.length;
         return query;
+    }
+
+    /** Consumes the query starting at this position, or returns an empty string. */
+    consumeEither(...queries: NonEmptyString[]): string {
+        for (const query of queries) {
+            if (this.consumeAt(query)) {
+                return query;
+            }
+        }
+        return '';
     }
 
     /**
