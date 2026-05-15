@@ -2,7 +2,7 @@
  * Consumes the next character cluster from the current position
  * with clearance discernable using the Rust specification.
  */
-import Tape from '@/tape';
+import Tape from '../../tape';
 
 // todo check for edge cases
 export function consumeRustTarget(tape: Tape): string {

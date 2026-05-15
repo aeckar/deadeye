@@ -1,7 +1,9 @@
 import { MarkdownString, Position, Range, TextEditor } from 'vscode';
 
 import Tape from './tape';
-import { ALL_BRACKETS, Brackets } from './utils';
+import { Brackets } from './utils';
+
+export const MAX_LINE_SEEK = 50;
 
 type FlagChar =
     | 'a'
@@ -70,32 +72,38 @@ export type Shorthand<K extends string> = {
 };
 
 /**
- * todo
+ * The result of `Shorthand.resolver`.
+ *
+ * @param shortDescription A short description of what the completion of the shorthand does.
+ * This is dynamically created to describe **exactly** how the code is modified. This contrasts
+ * with `Shorthand.docs`, which is a general description of the shorthand or family of shorthands.
+ * @param target The location of the actual shorthand, which is deleted.
+ * @param snippet The snippet to be inserted.
+ * @param insertAt If defined, is the position of the snippet to be inserted. Otherwise,
+ * the snippet is inserted at the position of the cursor after the target is deleted.
+ * @param newCursorPos The final position of the cursor after the snippet has been inserted.
  */
 export type Completion = {
-    shortDescription: string;
+    exactDescription: string;
     target: Range;
     snippet: string;
     insertAt?: Position;
-    newCursorPos?: Position;
+    endCursorPos?: Position;
 };
 
 /**
- * todo
+ * A simplified completion, which always 
  */
 export type Substitition = {
-    shortDescription: string;
+    exactDescription: string;
     docs: MarkdownString;
     shorthand: string;
     snippet: string;
 };
 
-//todo space after function in js -- insert smart parentheses
-
 export type BracketType = 'curly' | 'square' | 'round' | 'angle';
 
-export const MAX_LINE_SEEK = 50;
-
+/** Passed to `Shorthand.resolver`. */
 export class CompletionContext {
     line: Tape;
     cursor: Position;

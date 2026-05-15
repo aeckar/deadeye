@@ -1,12 +1,11 @@
-import { MAX_LINE_SEEK, Shorthand } from '@/completion_utils';
+import { MAX_LINE_SEEK, Shorthand } from '../../completion_utils';
 import {
     after,
     findWord,
     isLetter,
     markdown as md,
     rangeBefore,
-} from '@/utils';
-
+} from '../../utils';
 import { RustScope } from './scopes';
 import { consumeRustTarget } from './utils';
 
@@ -157,7 +156,7 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                shortDescription: 'If-statement',
+                exactDescription: 'If-statement',
                 target: rangeBefore(ctx.cursor, 2),
                 snippet: 'if $0 {}',
             };
@@ -194,7 +193,7 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                shortDescription: 'Local variable',
+                exactDescription: 'Local variable',
                 target: rangeBefore(ctx.cursor, mut ? 3 : 2),
                 snippet: 'let ' + mut,
             };
@@ -243,7 +242,7 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                shortDescription: 'Else block',
+                exactDescription: 'Else block',
                 target: rangeBefore(ctx.cursor), //todo include previous newline as well
                 insertAt: after(ctx.cursor),
                 snippet: includeIf ? ' else if {\n$0\n}' : ' else {\n$0\n}',
@@ -297,7 +296,7 @@ const rust: Shorthand<RustScope>[] = [
                 pub = '#[macro_export]\n';
             }
             return {
-                shortDescription: 'Declare top-level element',
+                exactDescription: 'Declare top-level element',
                 target: rangeBefore(ctx.cursor),
                 snippet: pub + kword + ' ',
             };
@@ -341,7 +340,7 @@ const rust: Shorthand<RustScope>[] = [
                 pre = '&' + pre;
             }
             return {
-                shortDescription: 'Wrap as slice type',
+                exactDescription: 'Wrap as slice type',
                 target: rangeBefore(ctx.cursor, length),
                 snippet: pre + '[' + target + ']',
             };
@@ -380,8 +379,8 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                shortDescription: 'Local variable',
-                target: rangeBefore(ctx.cursor, 1),
+                exactDescription: 'Local variable',
+                target: rangeBefore(ctx.cursor),
                 snippet: 'extern "${1:C}" $0',
             };
         },
@@ -403,7 +402,7 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                shortDescription: 'Attribute',
+                exactDescription: 'Attribute',
                 target: rangeBefore(ctx.cursor, 3),
                 snippet: '#[$0]',
             };
@@ -435,7 +434,7 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                shortDescription: 'Non-discardable return value',
+                exactDescription: 'Non-discardable return value',
                 target: rangeBefore(ctx.cursor, 7),
                 snippet: '#[must_use]',
             };
@@ -465,22 +464,22 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                shortDescription: 'Suggest inlining',
+                exactDescription: 'Suggest inlining',
                 target: rangeBefore(ctx.cursor, 6),
                 snippet: '#[inline]',
             };
         },
     },
-    {
-        docs: md`
-            
-        `,
-        minLookbehind: ' '.length,
-        scope: [['fn']],
-        resolver(ctx) {
-            
-        },
-    },
+    // {
+    //     docs: md`
+
+    //     `,
+    //     minLookbehind: ' '.length,
+    //     scope: [['fn']],
+    //     resolver(ctx) {
+
+    //     },
+    // },
 ];
 
 /* 

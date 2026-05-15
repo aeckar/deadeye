@@ -1,5 +1,6 @@
-import { ScopeResolver } from '@/scope_utils';
 import { SymbolKind } from 'vscode';
+
+import { ScopeResolver } from '../../scope_utils';
 
 export type RustScope =
     | 'toplevel'
@@ -10,7 +11,7 @@ export type RustScope =
     | 'trait'
     | 'mod';
 
-const rust: ScopeResolver<RustScope> = (symbol) => {
+const rust: ScopeResolver<RustScope> = symbol => {
     const kind = (() => {
         switch (symbol.kind) {
             case SymbolKind.Struct:

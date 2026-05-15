@@ -4,8 +4,8 @@ import { MarkdownString, Position, Range } from 'vscode';
 
 export type NonEmptyString = `${any}${string}`;
 
-export const ALL_BRACKETS = ['()', '{}', '[]', '<>'] as const;
-export type Brackets = (typeof ALL_BRACKETS)[number];
+const BRACKETS = ['()', '{}', '[]', '<>'] as const;
+export type Brackets = (typeof BRACKETS)[number];
 
 export function findWord(s: string, query: NonEmptyString): number {
     if (!query) {

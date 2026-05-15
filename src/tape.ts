@@ -1,32 +1,12 @@
 //! Cursor data structure.
 import { Position } from 'vscode';
 
-
-
 import { Flag } from './completion_utils';
-import { NonEmptyString, isLetter, isLowerLetter, isUpperLetter } from './utils';
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+import {
+    NonEmptyString,
+    isLowerLetter,
+    isUpperLetter,
+} from './utils';
 
 /**
  * A lightweight cursor over a string for non-linear parsing.

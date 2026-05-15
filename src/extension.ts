@@ -7,19 +7,17 @@ import {
     SnippetString,
     TextDocumentContentChangeEvent,
     TextEditor,
+    ThemeColor,
+    commands,
     window,
     workspace,
 } from 'vscode';
 
-import {
-    Completion,
-    CompletionContext,
-    Substitition,
-} from './completion_utils';
+import { Completion, CompletionContext, Shorthand } from './completion_utils';
 import scopeResolvers from './lang/scope_resolvers';
 import shorthands from './lang/shorthands';
-import Tape from './tape';
 import { getCachedScopes } from './scope_utils';
+import Tape from './tape';
 
 /* # Implementation Notes
  *
@@ -32,12 +30,35 @@ import { getCachedScopes } from './scope_utils';
  * - Top-level functions should use `function` notation over arrow function constants
  */
 
+const chordDecoration = window.createTextEditorDecorationType({
+    backgroundColor: new ThemeColor('editor.findMatchHighlightBackground'),
+    borderColor: new ThemeColor('editorInfo.foreground'),
+    border: '1px solid',
+    borderRadius: '3px',
+    color: new ThemeColor('editorInfo.foreground'),
+});
+
+let completionOnTrigger: Completion | undefined;
+
 /** Extension initializer. */
 export function activate(context: ExtensionContext) {
-    context.subscriptions.push(
-        workspace.onDidChangeTextDocument(async event => {
-            // editor.selection.active is stale here
+    commands.registerCommand('deadeye.trigger', () => {
+        const editor = window.activeTextEditor;
+        if (!editor) {
+            return;
+        }
+        if (!completionOnTrigger) {
+            editor.edit(editBuilder => {
+                editBuilder.insert(editor.selection.active, ' ');
+            });
+        }
+        applyCompletion(editor, completionOnTrigger!);
+        completionOnTrigger = undefined;
+    });
 
+    const validateThenResolveCompletion = workspace.onDidChangeTextDocument(
+        async event => {
+            // `editor.selection.active` is stale here
             const change = event.contentChanges[0];
             if (
                 !change ||
@@ -50,9 +71,11 @@ export function activate(context: ExtensionContext) {
             if (!editor) {
                 return;
             }
-            await runLineCompletions(change, editor);
-        }),
+            await resolveCompletion(change, editor);
+        },
     );
+
+    context.subscriptions.push(validateThenResolveCompletion);
 }
 
 /**
@@ -60,7 +83,7 @@ export function activate(context: ExtensionContext) {
  *
  * @return `true` if a line-based shorthand was expanded.
  */
-async function runLineCompletions(
+async function resolveCompletion(
     change: TextDocumentContentChangeEvent,
     editor: TextEditor,
 ): Promise<boolean> {
@@ -68,29 +91,39 @@ async function runLineCompletions(
     const langId = editor.document.languageId;
     const line = editor.document.lineAt(pos.line).text;
     if (!line) {
-        // ensure line is not empty before passing to handlers
+        // ensure line is not empty before passing to resolvers
         return false;
     }
-    const scopes = await getCachedScopes(editor.document, pos, scopeResolvers[langId]);
+    const scopes = await getCachedScopes(
+        editor.document,
+        pos,
+        scopeResolvers[langId],
+    );
     for (const shorthand of shorthands[langId]) {
-        let sub = shorthand.resolver(
+        let completion = shorthand.resolver(
             new CompletionContext(Tape.of(line), pos, editor),
         );
-        if (!sub) {
+        if (!completion) {
             continue;
         }
-        applyCompletion(editor, sub);
+        completionOnTrigger = completion;
         return true;
     }
     return false;
 }
 
-async function applyCompletion(editor: TextEditor, comp: Completion) {
-    await editor.insertSnippet(new SnippetString(comp.snippet), comp.target);
-    if (!comp.newCursorPos) {
+async function applyCompletion(editor: TextEditor, completion: Completion) {
+    await editor.insertSnippet(
+        new SnippetString(completion.snippet),
+        completion.target,
+    );
+    if (!completion.endCursorPos) {
         return;
     }
-    editor.selection = new Selection(comp.newCursorPos, comp.newCursorPos);
+    editor.selection = new Selection(
+        completion.endCursorPos,
+        completion.endCursorPos,
+    );
 }
 
 // const { line: lineDelta, char: charDelta } = sub.newCursorPos;
