@@ -1,7 +1,29 @@
 import { MarkdownString, Position, Range, Selection, TextEditor } from 'vscode';
 
+
+
 import Tape from './tape';
 import { Brackets } from './utils';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 export const MAX_LINE_SEEK = 50;
 
@@ -60,71 +82,74 @@ export type Flag = FlagChar | `-${FlagChar}${FlagChar}`;
  * @param scope The scope or nested scope required for this shorthand to match. Nested scopes
  * are not required to be adjacent; they must simply be present in the same order. If not provided,
  * this matches in all scopes.
- * @param exactScope If true, the entire scope stack must equal {@link Shorthand.scope|scope},
+ * @param exactScope If true, the entire scope stack must equal {@link Shorthand["scope"]|scope},
  * not just a part of it. If not provided, behaves as if it were `false`.
  */
 export type Shorthand<K extends string> = {
-    docs: MarkdownString;
-    minLookbehind: number;
-    scope?: K[][];
-    exactScope?: boolean;
-    resolver: (ctx: CompletionContext) => Completion | undefined;
+    readonly docs: MarkdownString;
+    readonly minLookbehind: number;
+    readonly scope?: K[][];
+    readonly exactScope?: boolean;
+    readonly resolver: (ctx: CompletionContext) => Completion | undefined;
 };
 
 /**
  * The result of {@link Shorthand.resolver}.
  *
- * @param exactDescription A short description of what the completion of the shorthand does.
+ * @param title A short description of what the completion of the shorthand does.
  * This is dynamically created to describe **exactly** how the code is modified. This contrasts
  * with {@link Shorthand.docs}, which is a general description of the shorthand or family of shorthands.
  * @param target The location of the actual shorthand, which is deleted.
+ * This value may be  modified in the event that the current selection de-syncs,
+ * most likely due to fast typing.
  * @param snippet The snippet to be inserted.
  * @param insertAt If defined, is the position of the snippet to be inserted. Otherwise,
  * the snippet is inserted at the position of the cursor after the target is deleted.
  * @param newCursorPos The final position of the cursor after the snippet has been inserted.
  */
 export type Completion = {
-    exactDescription: MarkdownString | string;
+    readonly title: MarkdownString | string;
     target: Range;
-    snippet: string;
-    insertAt?: Position;
-    endCursorPos?: Position;
+    readonly snippet: string;
+    readonly insertAt?: Position;
+    readonly endCursorPos?: Position;
 };
 
 /**
  * A simplified completion, which always runs for a typed character sequence.
  *
  * For a given language, substitutions are todo
- * 
- * @param exactDescription See {@link Completion.exactDescription}.
+ *
+ * @param title See {@link Completion.title}.
  * @param docs See {@link Shorthand.docs}.
  * @param target The character sequence to be matched.
  * @param snippet See {@link Completion.snippet}.
  */
 export type Substitition = {
-    exactDescription: MarkdownString | string;
-    docs?: MarkdownString;
-    target: string;
-    snippet: string;
+    readonly title: MarkdownString | string;
+    readonly docs?: MarkdownString;
+    readonly target: string;
+    readonly snippet: string;
 };
 
 /**
  * Created and stored after a shorthand is matched, and recalled once the trigger is pressed.
- * 
- * @param selection the current editor selection the instance this object was created.
+ *
+ * @param position the position of the cursor the instance this object was created.
  */
 export type CompletionStrategy = {
-    shorthand: Shorthand<any>,
-    completion: Completion,
+    readonly shorthand: Shorthand<any>;
+    readonly completion: Completion;
+    readonly position: Position;
 };
 
 export type BracketType = 'curly' | 'square' | 'round' | 'angle';
 
 /** Passed to {@link Shorthand.resolver}. */
 export class CompletionContext {
-    line: Tape;
-    cursor: Position;
-    editor: TextEditor;
+    readonly line: Tape;
+    readonly cursor: Position;
+    readonly editor: TextEditor;
 
     constructor(curLine: Tape, cursor: Position, editor: TextEditor) {
         this.line = curLine;

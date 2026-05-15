@@ -1,10 +1,22 @@
 import { DocumentSymbol, Position, TextDocument, commands } from 'vscode';
 
+
+
+
+
+
+
+
+
+
+
+
+
 export type ScopeResolver<K extends string> = (symbol: DocumentSymbol) => Scope<K>;
 
 export type Scope<K extends string> = {
-    kind: K;
-    symbol: DocumentSymbol;
+    readonly kind: K;
+    readonly symbol: DocumentSymbol;
 };
 
 let cachedScope: Scope<any>[] = [];

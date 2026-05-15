@@ -50,6 +50,14 @@ function cancelCompletion(editor: TextEditor) {
     editor.setDecorations(shorthandDecoration, []);
 }
 
+function startShorthandHighlightSync(): {
+    setInterval();
+};
+
+function stopShorthandHighlightSync(): {
+    setInterval();
+};
+
 /** Extension initializer. */
 export function activate(context: ExtensionContext) {
     commands.registerCommand('deadeye.trigger', () => {
@@ -57,15 +65,29 @@ export function activate(context: ExtensionContext) {
         if (!editor) {
             return;
         }
-        const completion = completionStrategy?.completion;
-        if (!completion) {
+        if (!completionStrategy) {
             editor.edit(editBuilder => {
                 editBuilder.insert(editor.selection.active, ' ');
             });
             return;
         }
-        applyCompletion(editor, completion);
+        const completion = completionStrategy.completion;
+        const position = editor.selection.active;
+        if (completionStrategy.position !== position) {
+            // sync end position
+            const { start, end } = completion.target;
+            completion.target = new Range(start, position);
+        }
+        runCompletion(editor, completionStrategy.completion);
         completionStrategy = undefined;
+    });
+
+    const syncShorthandHighlighting = window.onDidChangeWindowState(event => {
+        if (event.focused) {
+            startShorthandHighlightSync();
+        } else {
+            stopShorthandHighlightSync();
+        }
     });
 
     const cancelOnSelectionChange = window.onDidChangeTextEditorSelection(
@@ -74,28 +96,25 @@ export function activate(context: ExtensionContext) {
         },
     );
 
-    const validateThenResolveCompletion = workspace.onDidChangeTextDocument(
-        async event => {
+    const validateThenResolveCompletionStrategy =
+        workspace.onDidChangeTextDocument(async event => {
             // `editor.selection.active` is stale here
             const change = event.contentChanges[0];
-            if (
-                !change ||
-                change.text.length === 0 || // deletion, backspace, cut
-                change.text.length > 1 // paste, autocomplete, programmatic insertion
-            ) {
-                return;
-            }
             const editor = window.activeTextEditor;
-            if (!editor) {
+            if (!editor || !change || change.text.length === 0) {
+                // check for deletion
                 return;
             }
-            await resolveCompletion(change, editor);
-            cancelCompletion(editor);
-        },
-    );
+            await editor.document.save(); // sync changes
+            await getCompletionStrategy(change, editor);
+        });
 
     const showDocsOnHover = languages.registerHoverProvider('rust', {
         provideHover(_, __, ___) {
+            if (!completionStrategy) {
+                return null;
+            }
+            let docs = completionStrategy.shorthand
             return completionStrategy
                 ? new Hover(completionStrategy.shorthand.docs)
                 : null;
@@ -103,9 +122,11 @@ export function activate(context: ExtensionContext) {
     });
 
     context.subscriptions.push(
-        validateThenResolveCompletion,
+        validateThenResolveCompletionStrategy,
         showDocsOnHover,
+        syncShorthandHighlighting,
         cancelOnSelectionChange,
+        { dispose: () => stopShorthandHighlightSync() },
     );
 }
 
@@ -114,37 +135,36 @@ export function activate(context: ExtensionContext) {
  *
  * @return `true` if a line-based shorthand was expanded.
  */
-async function resolveCompletion(
+async function getCompletionStrategy(
     change: TextDocumentContentChangeEvent,
     editor: TextEditor,
-): Promise<boolean> {
-    const pos = change.range.start.translate(0, change.text.length);
+): Promise<void> {
+    const position = change.range.start.translate(0, change.text.length);
     const langId = editor.document.languageId;
-    const line = editor.document.lineAt(pos.line).text;
+    const line = editor.document.lineAt(position.line).text;
     if (!line) {
         // ensure line is not empty before passing to resolvers
-        return false;
+        return;
     }
     const scopes = await getCachedScopes(
         editor.document,
-        pos,
+        position,
         scopeResolvers[langId],
     );
     for (const shorthand of shorthands[langId]) {
-        let completion = shorthand.resolver(
-            new CompletionContext(Tape.of(line), pos, editor),
+        const completion = shorthand.resolver(
+            new CompletionContext(Tape.of(line), position, editor),
         );
         if (!completion) {
             continue;
         }
-        completionStrategy = { shorthand, completion };
+        completionStrategy = { shorthand, completion, position };
         editor.setDecorations(shorthandDecoration, [completion.target]);
-        return true;
+        return;
     }
-    return false;
 }
 
-async function applyCompletion(editor: TextEditor, completion: Completion) {
+async function runCompletion(editor: TextEditor, completion: Completion) {
     await editor.insertSnippet(
         new SnippetString(completion.snippet),
         completion.target,
@@ -157,22 +177,3 @@ async function applyCompletion(editor: TextEditor, completion: Completion) {
         completion.endCursorPos,
     );
 }
-
-// const { line: lineDelta, char: charDelta } = sub.newCursorPos;
-// const current = editor.selection.active;
-// const targetLine = current.line + (lineDelta ?? 0);
-// const targetChar = Math.max(0, current.character + (charDelta ?? 0));
-// if (targetLine >= editor.document.lineCount) {
-//     const linesToAdd = targetLine - (editor.document.lineCount - 1);
-//     await editor.edit(e => {
-//         const lastLine = editor.document.lineAt(
-//             editor.document.lineCount - 1,
-//         );
-//         e.insert(lastLine.range.end, '\n'.repeat(linesToAdd));
-//     });
-// }
-// const lineLength = editor.document.lineAt(targetLine).text.length;
-// const clampedChar = Math.min(targetChar, lineLength);
-// const newPos = new Position(targetLine, clampedChar);
-// editor.selection = new Selection(newPos, newPos);
-// editor.revealRange(new Range(newPos, newPos));

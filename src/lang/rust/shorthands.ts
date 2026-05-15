@@ -60,105 +60,110 @@ const builtins = /str|bool|char|[ui]([8136][624][8]?|size)|f[36][24]/g;
 
 const subsitutitons: Substitition[] = [
     {
-        exactDescription: 'Inserts a byte-string literal',
+        title: 'Inserts a byte-string literal',
         target: 'bstof',
         snippet: 'b"$0"',
     },
     {
-        exactDescription: 'Inserts a byte-character literal',
+        title: 'Inserts a byte-character literal',
         target: 'bchof',
         snippet: "b'$0'",
     },
     {
-        exactDescription: 'Inserts a string literal',
+        title: 'Inserts a string literal',
         target: 'stof',
         snippet: '"$0"',
     },
     {
-        exactDescription: 'Inserts a character literal',
+        title: 'Inserts a character literal',
         target: 'chof',
         snippet: "'$0'",
     },
     {
-        exactDescription: 'Inserts an empty vector',
+        title: 'Inserts an empty vector',
         target: 'evec',
         snippet: 'vec![$0]',
     },
     {
-        exactDescription: 'Inserts a String type',
+        title: 'Inserts a String type',
         target: 'string',
         snippet: 'String',
     },
     {
-        exactDescription: md`Inserts a \`HashMap\` type`,
+        title: md`
+Inserts a \`HashMap\` type
+        `,
         target: 'mapof',
         snippet: 'HashMap<$0,>',
     },
     {
-        exactDescription: md`Inserts a \`Vec\` type`,
+        title: md`
+Inserts a \`Vec\` type
+        `,
         target: 'vecof',
         snippet: 'Vec<$0>',
     },
     {
-        exactDescription: md`Inserts a \`HashSet\` type`,
+        title: md`
+Inserts a \`HashSet\` type
+        `,
         target: 'setof',
         snippet: 'HashSet<$0>',
     },
     {
-        exactDescription: 'Inserts an attribute',
+        title: 'Inserts an attribute',
         target: 'prm',
         snippet: '#[$0]',
     },
     {
-        exactDescription: 'Prefixes fn with pub',
+        title: 'Prefixes fn with pub',
         target: 'p |fn',
         snippet: 'pub fn $0',
     },
     {
-        exactDescription: 'Prefixes fn with extern',
+        title: 'Prefixes fn with extern',
         target: 'x |fn',
         snippet: 'extern "${1:C}" fn $0',
     },
     {
-        exactDescription: 'Prefixes fn with const',
+        title: 'Prefixes fn with const',
         target: 'c |fn',
         snippet: 'const fn $0',
     },
     {
-        exactDescription: 'Prefixes struct with pub',
+        title: 'Prefixes struct with pub',
         target: 'p |struct',
         snippet: 'pub struct $0',
     },
     {
-        exactDescription: 'Prefixes enum with pub',
+        title: 'Prefixes enum with pub',
         target: 'p |enum',
         snippet: 'pub enum $0',
     },
     {
-        exactDescription: 'Inserts a derive attribute',
+        title: 'Inserts a derive attribute',
         target: 'prm |..',
         snippet: '#[derive(${1:Debug, PartialEq})]\\n$0',
     },
 ];
 
-        //inlinefn
-        //mustusefn
-        //testfn
-        //cfgfn
-        //allowfn denyfn
-        //docfn
-        //coldfn
-        // ...
-        //check from available proc-macros
-        //reprc -> repr(C)
-        //repru8, ... -> repr(u8)
-        //
+//inlinefn
+//mustusefn
+//testfn
+//cfgfn
+//allowfn denyfn
+//docfn
+//coldfn
+// ...
+//check from available proc-macros
+//reprc -> repr(C)
+//repru8, ... -> repr(u8)
+//
 
-        // derive basic
-        // derive value type
+// derive basic
+// derive value type
 
-        // .<space> => :: after capitalized target or builtin-type or ')'
-
+// .<space> => :: after capitalized target or builtin-type or ')'
 
 //step 1: match to completion
 // step 2: if trigger is next change, execute stored completion--otherwise, toss
@@ -209,7 +214,7 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                exactDescription: 'If-statement',
+                title: 'If-statement',
                 target: rangeBefore(ctx.cursor, 2),
                 snippet: 'if $0 {}',
             };
@@ -246,7 +251,7 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                exactDescription: 'Local variable',
+                title: 'Local variable',
                 target: rangeBefore(ctx.cursor, mut ? 3 : 2),
                 snippet: 'let ' + mut,
             };
@@ -295,7 +300,7 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                exactDescription: 'Else block',
+                title: 'Else block',
                 target: rangeBefore(ctx.cursor), //todo include previous newline as well
                 insertAt: after(ctx.cursor),
                 snippet: includeIf ? ' else if {\n$0\n}' : ' else {\n$0\n}',
@@ -349,7 +354,7 @@ const rust: Shorthand<RustScope>[] = [
                 pub = '#[macro_export]\n';
             }
             return {
-                exactDescription: 'Declare top-level element',
+                title: 'Declare top-level element',
                 target: rangeBefore(ctx.cursor),
                 snippet: pub + kword + ' ',
             };
@@ -393,7 +398,7 @@ const rust: Shorthand<RustScope>[] = [
                 pre = '&' + pre;
             }
             return {
-                exactDescription: 'Wrap as slice type',
+                title: 'Wrap as slice type',
                 target: rangeBefore(ctx.cursor, length),
                 snippet: pre + '[' + target + ']',
             };
@@ -432,7 +437,7 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                exactDescription: 'Local variable',
+                title: 'Local variable',
                 target: rangeBefore(ctx.cursor),
                 snippet: 'extern "${1:C}" $0',
             };
@@ -455,7 +460,7 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                exactDescription: 'Attribute',
+                title: 'Attribute',
                 target: rangeBefore(ctx.cursor, 3),
                 snippet: '#[$0]',
             };
@@ -487,7 +492,7 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                exactDescription: 'Non-discardable return value',
+                title: 'Non-discardable return value',
                 target: rangeBefore(ctx.cursor, 7),
                 snippet: '#[must_use]',
             };
@@ -517,7 +522,7 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                exactDescription: 'Suggest inlining',
+                title: 'Suggest inlining',
                 target: rangeBefore(ctx.cursor, 6),
                 snippet: '#[inline]',
             };
