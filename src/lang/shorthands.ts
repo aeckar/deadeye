@@ -6,3 +6,5 @@ const shorthands: Record<string, Shorthand<any>[]> = {
 };
 
 export default shorthands;
+
+// lgx lg 

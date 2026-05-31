@@ -22,7 +22,7 @@ These are supplied immediately after the chord, and must be preceded by a trigge
 By default, `SPACE` is the trigger, but this can be changed in `settings.json`.
 
 ```json
-"aeckar.minify.chords": {
+"aeckar.deadeye.chords": {
     "enabled": boolean | "triggerOnly" = true,
     "trigger": String = " ",
 },
@@ -94,10 +94,10 @@ run 'command' on 'target' in 'context'
 ## **2.1.0** Overview
 
 ```json
-"aeckar.minify.modal": {
+"aeckar.deadeye.modal": {
     "enabled": boolean | "triggerOnly" = true,
     "trigger": String = " ",
-    "moveLayout": "minify" | "vim" = "minify",
+    "moveLayout": "deadeye" | "vim" = "deadeye",
 },
 ```
 

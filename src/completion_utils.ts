@@ -88,10 +88,9 @@ export type Flag = FlagChar | `-${FlagChar}${FlagChar}`;
 export type Shorthand<K extends string> = {
     readonly docs: MarkdownString;
     readonly minLookbehind: number;
-    readonly scope?: K[][];
-    readonly exactScope?: boolean;
+    readonly scope?: (K | `...${K}`)[][];
     readonly resolver: (ctx: CompletionContext) => Completion | undefined;
-};
+}; 
 
 /**
  * The result of {@link Shorthand.resolver}.

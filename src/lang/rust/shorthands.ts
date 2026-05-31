@@ -12,15 +12,6 @@ import { consumeRustTarget } from './utils';
 
 
 
-
-
-
-
-
-
-
-
-
 // Elements with no identation from start of line need not have their scope checked,
 // as we can assume they are top-level
 
@@ -103,21 +94,21 @@ const subsitutitons: Substitition[] = [
     },
     {
         title: md`
-            Inserts a \`HashMap\` type
+Inserts a \`HashMap\` type
         `,
         target: 'mapof',
         snippet: 'HashMap<$0,>',
     },
     {
         title: md`
-            Inserts a \`Vec\` type
+Inserts a \`Vec\` type
         `,
         target: 'vecof',
         snippet: 'Vec<$0>',
     },
     {
         title: md`
-            Inserts a \`HashSet\` type
+Inserts a \`HashSet\` type
         `,
         target: 'setof',
         snippet: 'HashSet<$0>',
@@ -227,7 +218,7 @@ const rust: Shorthand<RustScope>[] = [
             }
             return {
                 title: md`
-                    Insert \`if\` block, then move to conditional.
+Insert \`if\` block, then move to conditional.
                 `,
                 target: rangeBefore(ctx.cursor, 2),
                 snippet: 'if $0 {}',
@@ -349,7 +340,6 @@ const rust: Shorthand<RustScope>[] = [
         `,
         minLookbehind: 1,
         scope: [['toplevel']],
-        exactScope: true,
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
             const type = tape.consumeMatch([
@@ -362,12 +352,14 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             let pub = tape.consumeAt('p') ? 'pub ' : '';
+
+            console.log(tape.pos, tape.raw, 1, tape.consumeWs(), 1);
             if (!tape.isExhausted()) {
                 // ensure first in line
                 return undefined;
             }
-            const [command, kword] = type;
-            if (pub && command === 'm') {
+            const [form, kword] = type;
+            if (pub && form === 'm') {
                 // since we are at the margin, no need to prepend indent
                 pub = '#[macro_export]\n';
             }
@@ -449,16 +441,16 @@ const rust: Shorthand<RustScope>[] = [
         `,
         minLookbehind: 'x'.length,
         scope: [['toplevel']],
-        exactScope: true,
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
+            console.log(tape.raw);
             tape.consumeWs();
             if (!tape.consumeAt('x') || !tape.isExhausted()) {
                 return undefined;
             }
             return {
                 title: md`
-                    Insert \`extern "\` \`"\`.
+Insert \`extern "\` \`"\`.
                 `,
                 target: rangeBefore(ctx.cursor),
                 snippet: 'extern "${1:C}" $0',
@@ -483,7 +475,7 @@ const rust: Shorthand<RustScope>[] = [
             }
             return {
                 title: md`
-                    Insert \`#[\` \`]\`.
+Insert \`#[\` \`]\`.
                 `,
                 target: rangeBefore(ctx.cursor, 3),
                 snippet: '#[$0]',
@@ -508,7 +500,7 @@ const rust: Shorthand<RustScope>[] = [
             - First word in line
         `,
         minLookbehind: 'mustuse'.length,
-        scope: [['toplevel'], ['impl']],
+        scope: [['toplevel'], ['...impl']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
@@ -520,7 +512,7 @@ const rust: Shorthand<RustScope>[] = [
             }
             return {
                 title: 'Insert \`#[must_use]\`.',
-                target: rangeBefore(ctx.cursor, 7),
+                target: rangeBefore(ctx.cursor),
                 snippet: '#[must_use]',
             };
         },
@@ -546,7 +538,7 @@ const rust: Shorthand<RustScope>[] = [
             - First word in line
         `,
         minLookbehind: 'inln'.length,
-        scope: [['toplevel'], ['impl']],
+        scope: [['toplevel'], ['...impl']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
@@ -557,11 +549,69 @@ const rust: Shorthand<RustScope>[] = [
                 title: md`
 Insert \`#[inline]\`
                 `,
-                target: rangeBefore(ctx.cursor, 6),
+                target: rangeBefore(ctx.cursor),
                 snippet: '#[inline]',
             };
         },
     },
+    {
+        docs: md`
+            Inserts a \`println!()\` statement.
+
+            \`p \` → \`println!("/* stop here */");\`
+
+            **Constraints:**
+
+            - Fn scope
+            - First word in line
+        `,
+        minLookbehind: 'p'.length,
+        scope: [['...fn']],
+        resolver(ctx) {
+            const tape = ctx.leftOfCursor();
+            tape.consumeWs();
+            if (!tape.consumeAt('p') || !tape.isExhausted()) {
+                return undefined;
+            }
+            return {
+                title: md`
+Inserts \`println!(\` \`)\`
+                `,
+                target: rangeBefore(ctx.cursor, 1),
+                snippet: 'println!("$0");',
+            };
+        },
+    },
+    {
+        docs: md`
+            Inserts a parameter.
+
+            \`vamrsp \` → \`mut &'a mut self\`
+
+            | Flag  | Mnemonic        | Expansion |
+            | :---- | :-------------- | :-------- |
+            | v     | <u>v</u>ariable | \`mut\`     |
+            | r     | <u>r</u>eference   | \`&\`       |
+            | m     | <u>m</u>utable reference  | \`&mut\`    |
+            | s     | <u>s</u>elf     | \`self\`    |
+            | a..=d |                 | \`&'a\`     |
+
+            **Basic form:** \`p\`
+
+            **Constraints:**
+
+            - 
+            -
+        `,
+        minLookbehind: 'p'.length,
+        resolver(ctx) {
+            return {
+                title: '',
+                target: rangeBefore(ctx.cursor, 1),
+            };
+        },
+    },
+
     // {
     //     docs: md`
 

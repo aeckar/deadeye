@@ -253,7 +253,9 @@ export default class Tape {
     consume(pred: (ch: string, pos: number) => boolean): string {
         const end = this.poll((ch, pos) => !pred(ch, pos));
         if (end === undefined) {
-            return '';
+            const res = this.raw.slice(this.pos);
+            this.pos = this.raw.length;
+            return res;
         }
         const res = this.raw.slice(this.pos, end);
         this.pos = end;

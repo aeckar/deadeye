@@ -7,6 +7,7 @@ export type NonEmptyString = `${any}${string}`;
 const BRACKETS = ['()', '{}', '[]', '<>'] as const;
 export type Brackets = (typeof BRACKETS)[number];
 
+
 export function findWord(s: string, query: NonEmptyString): number {
     if (!query) {
         return -1;

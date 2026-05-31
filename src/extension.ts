@@ -89,7 +89,10 @@ export function activate(context: ExtensionContext) {
             if (!editor) {
                 return;
             }
-            await getCompletionStrategy(args.text, editor);
+
+            // sometimes key is preceded by space
+            await getCompletionStrategy((args.text as string).trim(), editor);
+
             commands.executeCommand('default:type', args); // manually perform insertion
             if (completionStrategy) {
                 editor.setDecorations(decoration, [
@@ -138,13 +141,15 @@ export function activate(context: ExtensionContext) {
 /**
  * Runs every line-based completion for the current language.
  *
+ * **CAUTION:** This function is **very** fragile.
+ *
  * @return `true` if a line-based shorthand was expanded.
  */
 async function getCompletionStrategy(key: string, editor: TextEditor) {
     const active = editor.selection.active;
-    const position = new Position(active.line, active.character + 1);
+    const position = new Position(active.line, active.character + 1); // adjust for key-in
     const langId = editor.document.languageId;
-    const line = editor.document.lineAt(position.line).text;
+    const line = editor.document.lineAt(position.line).text + key;
     if (!line) {
         // ensure line is not empty before passing to resolvers
         return;
@@ -156,7 +161,7 @@ async function getCompletionStrategy(key: string, editor: TextEditor) {
     );
     for (const shorthand of shorthands[langId]) {
         const completion = shorthand.resolver(
-            new CompletionContext(Tape.of(line + key), position, editor),
+            new CompletionContext(Tape.of(line), position, editor),
         );
         if (!completion) {
             continue;
