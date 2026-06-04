@@ -9,11 +9,6 @@
 			"node",
 			"mocha",
 		],
-		"paths": {
-			"@/*": [
-				"./src/*"
-			],
-		},
 		"sourceMap": true,
 		"rootDir": "src",
 		"outDir": "./dist",

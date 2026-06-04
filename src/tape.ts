@@ -180,7 +180,7 @@ export default class Tape {
             }
         }
         return expansions
-            .sort(([idx1, _1], [idx2, _2]) => idx1 - idx2)
+            .sort(([idx1, _], [idx2, __]) => idx1 - idx2)
             .map(([idx, e]) => [flags[idx][0], e]);
     }
 

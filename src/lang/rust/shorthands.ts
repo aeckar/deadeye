@@ -1,16 +1,14 @@
+import Tape from '../../tape';
 import { MAX_LINE_SEEK, Shorthand, Substitition } from '../../completion_utils';
-import { after, findWord, isLetter, markdown as md, rangeBefore } from '../../utils';
+import {
+    after,
+    findWord,
+    isLetter,
+    markdown as md,
+    rangeBefore,
+} from '../../utils';
 import { RustScope } from './scopes';
 import { consumeRustTarget } from './utils';
-
-
-
-
-
-
-
-
-
 
 // Elements with no identation from start of line need not have their scope checked,
 // as we can assume they are top-level
@@ -208,7 +206,7 @@ const rust: Shorthand<RustScope>[] = [
 
             **Constraints:**
 
-            - Whole word
+            - Surrounded by whitespace
         `,
         minLookbehind: 'if'.length,
         resolver(ctx) {
@@ -220,7 +218,7 @@ const rust: Shorthand<RustScope>[] = [
                 preview: md`
 Insert \`if\` block, then move to conditional.
                 `,
-                target: rangeBefore(ctx.cursor, 2),
+                target: rangeBefore(ctx.cursor, 'if'.length),
                 snippet: 'if $0 {}',
             };
         },
@@ -258,7 +256,7 @@ Insert \`if\` block, then move to conditional.
             const expansion = 'let' + mut;
             return {
                 preview: md`Insert \`${expansion}\`.`,
-                target: rangeBefore(ctx.cursor, mut ? 2 : 1),
+                target: rangeBefore(ctx.cursor, mut ? 'lm'.length : 'l'.length),
                 snippet: expansion + ' ',
             };
         },
@@ -371,17 +369,22 @@ Insert \`if\` block, then move to conditional.
         },
     },
     {
-        //fixme
         docs: md`
             Wraps the preceding element as a slice type, or a reference to one.
 
             \`u8.amrs \` → \`&'a mut [u8]\`
 
+            | Flag  | Mnemonic                 | Expansion |
+            | :---- | :----------------------- | :-------- |
+            | r     | <u>r</u>eference         | \`&\`       |
+            | m     | <u>m</u>utable reference | \`&mut\`    |
+            | a..=d |                          | \`&'a\`     |
+
             **Basic form:** \`.s\`
 
             **Constraints:**
 
-            - todo
+            - Function scope
         `,
         minLookbehind: '.s'.length,
         resolver(ctx) {
@@ -397,19 +400,21 @@ Insert \`if\` block, then move to conditional.
             if (!flags || !tape.consumeAt('.')) {
                 return undefined;
             }
-            const length = tape.pos;
             const target = consumeRustTarget(tape);
             if (!target) {
                 return undefined;
             }
             let pre = flags.map(e => e[1]).join('');
             if (pre && pre[0] !== '&') {
-                // only `m` flag || missing `r` flag
+                // missing `r` flag, but reference modifier given--assume reference
                 pre = '&' + pre;
             }
             return {
                 preview: 'Wrap as slice type.',
-                target: rangeBefore(ctx.cursor, length),
+                target: rangeBefore(
+                    ctx.cursor,
+                    target.length + flags.length + '.s'.length,
+                ),
                 snippet: pre + '[' + target + ']',
             };
         },
@@ -453,19 +458,19 @@ Insert \`extern "\` \`" \`.
 
             **Constraints:**
 
-            - Whole word
+            - Surrounded by whitespace
         `,
         minLookbehind: 'at'.length,
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
-            if (!tape.consumeAt('ta') || isLetter(tape.cur() ?? 'a')) {
+            if (!tape.consumeAt('ta') || !tape.isExhausted() && !Tape.isWs(tape.cur() ?? '.')) {
                 return undefined;
             }
             return {
                 preview: md`
 Insert \`#[\` \`]\`.
                 `,
-                target: rangeBefore(ctx.cursor, 3),
+                target: rangeBefore(ctx.cursor, 'at'.length),
                 snippet: '#[$0]',
             };
         },
@@ -478,7 +483,10 @@ Insert \`#[\` \`]\`.
 
             This attribute marks a function such that discarding the return value
             causes the compiler to issue a warning. This is useful in library development
-            for preventing bugs by the user.
+            for preventing bugs by the user by marking public API.
+
+            Functions returning \`Result\` do not require marking, since clippy
+            should already throw a warning if such a return value is discarded.
 
             For more info, see https://doc.rust-lang.org/std/hint/fn.must_use.html.
 
@@ -493,7 +501,7 @@ Insert \`#[\` \`]\`.
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
             if (
-                !tape.consumeEither('mustuse', 'nodiscard') ||
+                !tape.consumeEither('mu', 'mustuse', 'nodiscard') ||
                 !tape.isExhausted()
             ) {
                 return undefined;
@@ -509,7 +517,7 @@ Insert \`#[\` \`]\`.
         docs: md`
             Inserts an \`#[inline]\` attribute.
 
-            \`inln \` → \`#[inline]\`
+            \`il \` → \`#[inline]\`
 
             This attribute marks a function such that it can be inlined across crate boundaries.
             This is useful in library development to encourage inlining for small, non-generic
@@ -525,12 +533,12 @@ Insert \`#[\` \`]\`.
             - Top-level or impl scope
             - First word in line
         `,
-        minLookbehind: 'inln'.length,
+        minLookbehind: 'il'.length,
         scope: [['toplevel'], ['...impl']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
-            if (!tape.consumeEither('inln', 'inline') || !tape.isExhausted()) {
+            if (!tape.consumeEither('il', 'inline') || !tape.isExhausted()) {
                 return undefined;
             }
             return {
@@ -538,7 +546,7 @@ Insert \`#[\` \`]\`.
 Insert \`#[inline]\`
                 `,
                 target: rangeBefore(ctx.cursor),
-                snippet: '#[inline]',
+                snippet: '#[inline]\n',
             };
         },
     },
@@ -565,7 +573,7 @@ Insert \`#[inline]\`
                 preview: md`
 Inserts \`println!("\` \`")\`.
                 `,
-                target: rangeBefore(ctx.cursor, 1),
+                target: rangeBefore(ctx.cursor, 'p'.length),
                 snippet: 'println!("$0");',
             };
         },

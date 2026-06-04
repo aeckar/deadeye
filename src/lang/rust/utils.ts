@@ -1,4 +1,4 @@
-import { CLOSE_TO_OPEN, OPEN_TO_CLOSE } from '@/utils';
+import { CLOSE_TO_OPEN, OPEN_TO_CLOSE } from '../../utils';
 
 import Tape from '../../tape';
 
