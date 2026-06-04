@@ -217,7 +217,7 @@ const rust: Shorthand<RustScope>[] = [
                 return undefined;
             }
             return {
-                title: md`
+                preview: md`
 Insert \`if\` block, then move to conditional.
                 `,
                 target: rangeBefore(ctx.cursor, 2),
@@ -226,7 +226,6 @@ Insert \`if\` block, then move to conditional.
         },
     },
     {
-        //fixme
         docs: md`
             Declares a local variable.
 
@@ -258,8 +257,8 @@ Insert \`if\` block, then move to conditional.
             }
             const expansion = 'let' + mut;
             return {
-                title: md`Insert \`${expansion}\`.`,
-                target: rangeBefore(ctx.cursor, mut ? 3 : 2),
+                preview: md`Insert \`${expansion}\`.`,
+                target: rangeBefore(ctx.cursor, mut ? 2 : 1),
                 snippet: expansion + ' ',
             };
         },
@@ -307,7 +306,7 @@ Insert \`if\` block, then move to conditional.
                 return undefined;
             }
             return {
-                title: md`
+                preview: md`
                     Insert \`else\` block after current \`if\` block, then move there.
                 `,
                 target: rangeBefore(ctx.cursor), //todo include previous newline as well
@@ -365,7 +364,7 @@ Insert \`if\` block, then move to conditional.
             }
             const snippet = pub + kword;
             return {
-                title: md`Insert \`${snippet}\`.`,
+                preview: md`Insert \`${snippet}\`.`,
                 target: rangeBefore(ctx.cursor),
                 snippet: snippet + ' ',
             };
@@ -409,28 +408,17 @@ Insert \`if\` block, then move to conditional.
                 pre = '&' + pre;
             }
             return {
-                title: 'Wrap as slice type.',
+                preview: 'Wrap as slice type.',
                 target: rangeBefore(ctx.cursor, length),
                 snippet: pre + '[' + target + ']',
             };
         },
     },
     {
-        //fixme
         docs: md`
-            Inserts an \`extern\` block to declare functions from FFI.
+            Inserts an \`extern\` modifier to declare functions from FFI.
 
-            ~~~
-            x//← press trigger to expand!
-            ~~~
-
-            →
-
-            ~~~
-            unsafe extern "/* placeholder 1 */" {
-                /* stop here */
-            }
-            ~~~
+            \`x\` → \`unsafe extern "/* stop here */"\`
 
             For more info, see https://doc.rust-lang.org/std/keyword.extern.html.
 
@@ -449,8 +437,8 @@ Insert \`if\` block, then move to conditional.
                 return undefined;
             }
             return {
-                title: md`
-Insert \`extern "\` \`"\`.
+                preview: md`
+Insert \`extern "\` \`" \`.
                 `,
                 target: rangeBefore(ctx.cursor),
                 snippet: 'extern "${1:C}" $0',
@@ -474,7 +462,7 @@ Insert \`extern "\` \`"\`.
                 return undefined;
             }
             return {
-                title: md`
+                preview: md`
 Insert \`#[\` \`]\`.
                 `,
                 target: rangeBefore(ctx.cursor, 3),
@@ -511,7 +499,7 @@ Insert \`#[\` \`]\`.
                 return undefined;
             }
             return {
-                title: 'Insert \`#[must_use]\`.',
+                preview: 'Insert \`#[must_use]\`.',
                 target: rangeBefore(ctx.cursor),
                 snippet: '#[must_use]',
             };
@@ -546,7 +534,7 @@ Insert \`#[\` \`]\`.
                 return undefined;
             }
             return {
-                title: md`
+                preview: md`
 Insert \`#[inline]\`
                 `,
                 target: rangeBefore(ctx.cursor),
@@ -574,8 +562,8 @@ Insert \`#[inline]\`
                 return undefined;
             }
             return {
-                title: md`
-Inserts \`println!(\` \`)\`
+                preview: md`
+Inserts \`println!("\` \`")\`.
                 `,
                 target: rangeBefore(ctx.cursor, 1),
                 snippet: 'println!("$0");',
@@ -588,25 +576,27 @@ Inserts \`println!(\` \`)\`
 
             \`vamrsp \` → \`mut &'a mut self\`
 
-            | Flag  | Mnemonic        | Expansion |
-            | :---- | :-------------- | :-------- |
-            | v     | <u>v</u>ariable | \`mut\`     |
-            | r     | <u>r</u>eference   | \`&\`       |
-            | m     | <u>m</u>utable reference  | \`&mut\`    |
-            | s     | <u>s</u>elf     | \`self\`    |
-            | a..=d |                 | \`&'a\`     |
+            | Flag  | Mnemonic                 | Expansion |
+            | :---- | :----------------------- | :-------- |
+            | v     | <u>v</u>ariable          | \`mut\`     |
+            | r     | <u>r</u>eference         | \`&\`       |
+            | m     | <u>m</u>utable reference | \`&mut\`    |
+            | s     | <u>s</u>elf              | \`self\`    |
+            | a..=d |                          | \`&'a\`     |
 
             **Basic form:** \`p\`
 
             **Constraints:**
 
-            - 
+            -
             -
         `,
         minLookbehind: 'p'.length,
         resolver(ctx) {
+            return undefined;
             return {
-                title: '',
+                preview: '',
+                snippet: '',
                 target: rangeBefore(ctx.cursor, 1),
             };
         },

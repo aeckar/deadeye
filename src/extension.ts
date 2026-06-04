@@ -114,7 +114,7 @@ export function activate(context: ExtensionContext) {
         },
     });
 
-    const showTitleOnHover = languages.registerHoverProvider('rust', {
+    const showPreviewOnHover = languages.registerHoverProvider('rust', {
         provideHover(_, position, __) {
             if (
                 !completionStrategy ||
@@ -122,7 +122,7 @@ export function activate(context: ExtensionContext) {
             ) {
                 return null;
             }
-            let title = completionStrategy.completion.title;
+            let title = completionStrategy.completion.preview;
             if (typeof title === 'string') {
                 title = new MarkdownString(title);
             }
@@ -132,7 +132,7 @@ export function activate(context: ExtensionContext) {
 
     context.subscriptions.push(
         getCompletionStrategyThenType,
-        showTitleOnHover,
+        showPreviewOnHover,
         showDocsOnHover,
         cancelOnSelectionChange,
     );

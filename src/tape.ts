@@ -16,6 +16,42 @@ import { NonEmptyString, isLowerLetter, isUpperLetter } from './utils';
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /**
  * A lightweight cursor over a string for non-linear parsing.
  *
@@ -117,9 +153,13 @@ export default class Tape {
         while (!this.isExhausted()) {
             let found = false;
             for (const [idx, [flag, expansion]] of flags.entries()) {
+                if (!this.cur()) {
+                    break;
+                }
+                const ch = this.cur()!;
                 if (flag[0] === '-') {
                     // flag is range
-                    if (this.cur()! >= flag[1] || this.cur()! <= flag[2]) {
+                    if (ch >= flag[1] && ch <= flag[2]) {
                         found = true;
                     }
                 } else if (this.cur() === flag) {
@@ -127,7 +167,7 @@ export default class Tape {
                 }
                 if (found) {
                     this.adv();
-                    expansions.push([idx, expansion]);
+                    expansions.push([idx, expansion.replaceAll('{}', ch)]);
                     break;
                 }
             }

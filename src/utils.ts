@@ -3,10 +3,21 @@ import dedent from 'dedent-js';
 import { MarkdownString, Position, Range } from 'vscode';
 
 export type NonEmptyString = `${any}${string}`;
-
-const BRACKETS = ['()', '{}', '[]', '<>'] as const;
 export type Brackets = (typeof BRACKETS)[number];
 
+const BRACKETS = ['()', '{}', '[]', '<>'] as const;
+
+export const OPEN_TO_CLOSE: Record<string, string> = {
+    '<': '>',
+    '(': ')',
+    '[': ']',
+};
+
+export const CLOSE_TO_OPEN: Record<string, string> = {
+    '>': '<',
+    ')': '(',
+    ']': '[',
+};
 
 export function findWord(s: string, query: NonEmptyString): number {
     if (!query) {
@@ -42,7 +53,19 @@ export function findWord(s: string, query: NonEmptyString): number {
     return -1;
 }
 
-export function rangeBefore(cursor: Position, from: number = cursor.character): Range {
+export function rangeBefore(
+    cursor: Position,
+    from: number = cursor.character,
+): Range {
+    if (from < 0) {
+        // otherwise, would silently fail
+        throw new RangeError(`'from' must be non-negative, got ${from}`);
+    }
+    if (from > cursor.character) {
+        throw new RangeError(
+            `'from' (${from}) exceeds cursor character position (${cursor.character})`,
+        );
+    }
     return new Range(
         new Position(cursor.line, cursor.character - from),
         new Position(cursor.line, cursor.character),
@@ -53,7 +76,10 @@ export function after(cursor: Position, skip: number = 0): Position {
     return new Position(cursor.line, cursor.character + skip + 1);
 }
 
-export function markdown(s: string | TemplateStringsArray, ...values: any[]): MarkdownString {
+export function markdown(
+    s: string | TemplateStringsArray,
+    ...values: any[]
+): MarkdownString {
     return new MarkdownString(dedent(s, values));
 }
 

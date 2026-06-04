@@ -1,29 +1,7 @@
 import { MarkdownString, Position, Range, Selection, TextEditor } from 'vscode';
 
-
-
 import Tape from './tape';
 import { Brackets } from './utils';
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export const MAX_LINE_SEEK = 50;
 
@@ -90,12 +68,12 @@ export type Shorthand<K extends string> = {
     readonly minLookbehind: number;
     readonly scope?: (K | `...${K}`)[][];
     readonly resolver: (ctx: CompletionContext) => Completion | undefined;
-}; 
+};
 
 /**
  * The result of {@link Shorthand.resolver}.
  *
- * @param title A short description of what the completion of the shorthand does.
+ * @param preview A short description of what the completion of the shorthand does.
  * This is dynamically created to describe **exactly** how the code is modified. This contrasts
  * with {@link Shorthand.docs}, which is a general description of the shorthand or family of shorthands.
  * @param target The location of the actual shorthand, which is deleted.
@@ -106,7 +84,7 @@ export type Shorthand<K extends string> = {
  * @param newCursorPos The final position of the cursor after the snippet has been inserted.
  */
 export type Completion = {
-    readonly title: MarkdownString | string;
+    readonly preview: MarkdownString | string;
     readonly target: Range;
     readonly snippet: string;
     readonly insertAt?: Position;
@@ -118,7 +96,7 @@ export type Completion = {
  *
  * For a given language, substitutions are todo
  *
- * @param title See {@link Completion.title}.
+ * @param title See {@link Completion.preview}.
  * @param docs See {@link Shorthand.docs}.
  * @param target The character sequence to be matched.
  * @param snippet See {@link Completion.snippet}.
