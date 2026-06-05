@@ -19,6 +19,14 @@ export const CLOSE_TO_OPEN: Record<string, string> = {
     ']': '[',
 };
 
+export function enumerate<K extends number | string | symbol, V>(o: {
+    [T in K]?: V;
+}): [number, [K, V]][] {
+    // Object.entries returns [string, unknown][], so cast to the expected types
+    const entries = Object.entries(o) as unknown as [K, V][];
+    return entries.map(([key, val], idx) => [idx, [key, val]] as [number, [K, V]]);
+}
+
 export function findWord(s: string, query: NonEmptyString): number {
     if (!query) {
         return -1;

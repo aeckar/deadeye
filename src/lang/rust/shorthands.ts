@@ -1,5 +1,5 @@
-import Tape from '../../tape';
 import { MAX_LINE_SEEK, Shorthand, Substitition } from '../../completion_utils';
+import Tape from '../../tape';
 import {
     after,
     findWord,
@@ -62,27 +62,27 @@ const builtins = /str|bool|char|[ui]([8136][624][8]?|size)|f[36][24]/g;
 const subsitutitons: Substitition[] = [
     {
         title: 'Inserts a byte-string literal',
-        target: 'bstof',
+        target: 'bsof',
         snippet: 'b"$0"',
     },
     {
         title: 'Inserts a byte-character literal',
-        target: 'bchof',
+        target: 'bcof',
         snippet: "b'$0'",
     },
     {
         title: 'Inserts a string literal',
-        target: 'stof',
+        target: 'sof',
         snippet: '"$0"',
     },
     {
         title: 'Inserts a character literal',
-        target: 'chof',
+        target: 'cof',
         snippet: "'$0'",
     },
     {
         title: 'Inserts an empty vector',
-        target: 'evec',
+        target: 'vec',
         snippet: 'vec![$0]',
     },
     {
@@ -386,17 +386,18 @@ Insert \`if\` block, then move to conditional.
 
             - Function scope
         `,
+        scope: [['...fn']],
         minLookbehind: '.s'.length,
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
             if (!tape.consumeAt('s')) {
                 return undefined;
             }
-            const flags = tape.consumeFlags([
-                ['r', '&'],
-                ['-ad', "'{} "],
-                ['m', 'mut '],
-            ]);
+            const flags = tape.consumeFlags({
+                r: '&',
+                m: 'mut ',
+                '-ad': "'{} ",
+            });
             if (!flags || !tape.consumeAt('.')) {
                 return undefined;
             }
@@ -404,7 +405,7 @@ Insert \`if\` block, then move to conditional.
             if (!target) {
                 return undefined;
             }
-            let pre = flags.map(e => e[1]).join('');
+            let pre = [...flags].map(([_, sub]) => sub).join('');
             if (pre && pre[0] !== '&') {
                 // missing `r` flag, but reference modifier given--assume reference
                 pre = '&' + pre;
@@ -413,7 +414,7 @@ Insert \`if\` block, then move to conditional.
                 preview: 'Wrap as slice type.',
                 target: rangeBefore(
                     ctx.cursor,
-                    target.length + flags.length + '.s'.length,
+                    target.length + flags.size + '.s'.length,
                 ),
                 snippet: pre + '[' + target + ']',
             };
@@ -463,7 +464,10 @@ Insert \`extern "\` \`" \`.
         minLookbehind: 'at'.length,
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
-            if (!tape.consumeAt('ta') || !tape.isExhausted() && !Tape.isWs(tape.cur() ?? '.')) {
+            if (
+                !tape.consumeAt('ta') ||
+                (!tape.isExhausted() && !Tape.isWs(tape.cur() ?? '.'))
+            ) {
                 return undefined;
             }
             return {
@@ -492,7 +496,7 @@ Insert \`#[\` \`]\`.
 
             **Constraints:**
 
-            - Top-level or impl scope
+            - Top-level or \`impl\` scope
             - First word in line
         `,
         minLookbehind: 'mustuse'.length,
@@ -530,7 +534,7 @@ Insert \`#[\` \`]\`.
 
             **Constraints:**
 
-            - Top-level or impl scope
+            - Top-level or \`impl\` scope
             - First word in line
         `,
         minLookbehind: 'il'.length,
@@ -558,7 +562,7 @@ Insert \`#[inline]\`
 
             **Constraints:**
 
-            - Fn scope
+            - Function scope
             - First word in line
         `,
         minLookbehind: 'p'.length,
@@ -596,16 +600,52 @@ Inserts \`println!("\` \`")\`.
 
             **Constraints:**
 
-            -
-            -
+            - Inside function parameter bounds \`(\` \`)\`
         `,
         minLookbehind: 'p'.length,
         resolver(ctx) {
-            return undefined;
+            const tape = ctx.leftOfCursor().reversed();
+            if (!tape.consumeAt('p')) {
+                return undefined;
+            }
+            const flags = tape.consumeFlags({
+                v: 'mut ',
+                r: '&',
+                m: 'mut ',
+                s: 'self',
+                '-ad': "'{} ",
+            });
+            if (!flags) {
+                return undefined;
+            }
+            let expansion = '';
+            if (flags.has('v')) {
+                expansion += 'mut ';
+            }
+            if (flags.has('r')) {
+                let ref = '&';
+                const lifetime = [...flags.values()].find(sub => sub[1] >= 'a' && sub[1] <= 'd');
+                if (lifetime) {
+                    ref += lifetime;
+                }
+                if (flags.has('m')) {
+                    ref += 'mut ';
+                }
+                expansion += ref;
+            }
+            if (flags.has('s')) {
+                expansion += 'self';
+            } else {
+                // Generic parameter placeholder fallback
+                if (flags.has('v') && !flags.has('r')) {
+                    expansion = 'mut ' + expansion;
+                }
+                expansion += '${1:name}: ${2:Type}';
+            }
             return {
-                preview: '',
-                snippet: '',
-                target: rangeBefore(ctx.cursor, 1),
+                preview: md`Insert parameter layout: \`${expansion}\`.`,
+                target: rangeBefore(ctx.cursor, flags.size + 1),
+                snippet: expansion,
             };
         },
     },

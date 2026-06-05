@@ -1,56 +1,13 @@
 //! Cursor data structure.
 import { Position } from 'vscode';
 
-
-
 import { Flag } from './completion_utils';
-import { NonEmptyString, isLowerLetter, isUpperLetter } from './utils';
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+import {
+    NonEmptyString,
+    enumerate,
+    isLowerLetter,
+    isUpperLetter,
+} from './utils';
 
 /**
  * A lightweight cursor over a string for non-linear parsing.
@@ -147,12 +104,17 @@ export default class Tape {
      *
      * If more than one flag is matched, the returned array is ordered according to
      * how they were given. If a flag appears more than once, `undefined` is returned.
+     * 
+     * Since range is typically used in sub, no need to make other access todo revise doc
      */
-    consumeFlags(flags: [Flag, string][]): [Flag, string][] | undefined {
+    consumeFlags(flags: { [K in Flag]?: string }):
+        | Map<Flag, string>
+        | undefined {
         let expansions: [number, string][] = [];
+        const enumerated = enumerate(flags);
         while (!this.isExhausted()) {
             let found = false;
-            for (const [idx, [flag, expansion]] of flags.entries()) {
+            for (const [idx, [flag, expansion]] of enumerate(flags)) {
                 if (!this.cur()) {
                     break;
                 }
@@ -179,9 +141,11 @@ export default class Tape {
                 }
             }
         }
-        return expansions
-            .sort(([idx1, _], [idx2, __]) => idx1 - idx2)
-            .map(([idx, e]) => [flags[idx][0], e]);
+        return new Map(
+            expansions
+                .sort(([idx1, _], [idx2, __]) => idx1 - idx2)
+                .map(([idx, e]) => [Object.entries(flags)[idx][0] as Flag, e]),
+        );
     }
 
     /**
