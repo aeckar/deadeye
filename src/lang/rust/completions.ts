@@ -1,18 +1,18 @@
-import {
-    CompletionFamily,
-    CompletionSingle,
-    MAX_LINE_SEEK,
-} from '../../completion_utils';
+import { CompletionFamily, CompletionSingle, MAX_LINE_SEEK } from '../../completion_utils';
 import Tape from '../../tape';
-import {
-    after,
-    findWord,
-    isLetter,
-    markdown as md,
-    rangeBefore,
-} from '../../utils';
+import { after, findWord, isLetter, markdown as md, rangeBefore } from '../../utils';
 import { consumeRustTarget } from './lang';
 import { RustScope } from './scopes';
+
+
+
+
+
+
+
+
+
+
 
 // Elements with no identation from start of line need not have their scope checked,
 // as we can assume they are top-level
@@ -201,7 +201,55 @@ Inserts a \`HashSet\` type
 // append links to non-trivial concepts
 // basic forms only if multiple forms
 
+// todo typing c in extern "" completes, sends cursor to next pos
+
 const rust: CompletionFamily<RustScope>[] = [
+    {
+        docs: md`
+            Declares a function.
+
+            \`f \` → \`extern "C" fn \`
+
+            | Flag | Expansion                         |
+            | :--- | :-------------------------------- |
+            | p    | <u>p</u>ub                        |
+            | u    | <u>u</u>nsafe                     |
+            | x    | e<u>x</u>tern "/\* stop here \*/" |
+            | c    | <u>c</u>onst                      |
+            | a    | <u>a</u>sync                      |
+        `,
+        minLookbehind: 'f'.length,
+        scope: [['toplevel'], ['...fn'], ['...impl'], ['...mod'], ['...trait']],
+        resolver(ctx) {
+            const tape = ctx.leftOfCursor().reversed();
+            if (!tape.consumeAt('f')) {
+                return undefined;
+            }
+            const flags = tape.consumeFlags({
+                p: 'pub ',
+                u: 'unsafe ',
+                x: 'extern "$0" ',
+                c: 'const ',
+                a: 'async ',
+            });
+            if (!flags) {
+                return undefined;
+            }
+            let expansion = '';
+            for (const key of ['p', 'c', 'a', 'u', 'x'] as const) {
+                if (flags.has(key)) {
+                    expansion += flags.get(key);
+                }
+            }
+            expansion += 'fn ';
+
+            return {
+                preview: md`Insert \`${expansion.replace('${1:C}', 'C')}\`.`,
+                target: rangeBefore(ctx.cursor, flags.size + 'f'.length),
+                snippet: expansion + '$0',
+            };
+        },
+    },
     {
         docs: md`
             Inserts an if-statement.
@@ -627,7 +675,7 @@ Inserts \`println!("\` \`")\`.
             }
             let expansion = '';
             if (flags.has('v')) {
-                expansion += 'mut ';
+                expansion += flags.get('v');
             }
             if (flags.has('r')) {
                 let ref = '&';
@@ -638,16 +686,16 @@ Inserts \`println!("\` \`")\`.
                     ref += lifetime;
                 }
                 if (flags.has('m')) {
-                    ref += 'mut ';
+                    ref += flags.get('m');
                 }
                 expansion += ref;
             }
             if (flags.has('s')) {
-                expansion += 'self';
+                expansion += flags.get('s');
             } else {
                 // Generic parameter placeholder fallback
                 if (flags.has('v') && !flags.has('r')) {
-                    expansion = 'mut ' + expansion;
+                    expansion = flags.get('v') + expansion;
                 }
                 expansion += '${1:name}: ${2:Type}';
             }
@@ -657,10 +705,6 @@ Inserts \`println!("\` \`")\`.
                 snippet: expansion,
             };
         },
-    },
-
-    {
-        resolver(ctx) {},
     },
 
     // {

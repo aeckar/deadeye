@@ -136,11 +136,9 @@ Wrap expression with \`await\`.
                 r: 'private ',
                 o: 'protected ',
             });
-
             if (!flags || !tape.isExhausted()) {
                 return undefined;
             }
-
             const flagMap = new Map(flags);
             let expansion = '';
 

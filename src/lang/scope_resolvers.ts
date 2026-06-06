@@ -1,8 +1,10 @@
 import { ScopeResolver } from '../scope_utils';
 import rust from './rust/scopes';
+import typescript from './ts/scopes';
 
 const scopeResolvers: Record<string, ScopeResolver<any>> = {
     rust,
+    typescript
 };
 
 export default scopeResolvers;
