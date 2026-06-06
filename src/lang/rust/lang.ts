@@ -1,5 +1,5 @@
 import Tape from '../../tape';
-import { CLOSE_TO_OPEN, OPEN_TO_CLOSE } from '../../utils';
+import { getCloseBracket, getOpenBracket } from '../../utils';
 
 const STOP = '=,{};';
 const SIGIL = '&*!+-';
@@ -71,18 +71,19 @@ export function consumeRustTarget(tape: Tape): string {
             if (STOP.includes(ch) || SIGIL.includes(ch)) {
                 break;
             }
-            if (ch in OPEN_TO_CLOSE) {
-                result += skipBalanced(tape, ch, OPEN_TO_CLOSE[ch]);
+            const close = getCloseBracket(ch);
+            if (close) {
+                result += skipBalanced(tape, ch, close);
                 continue;
             }
-            if (ch in CLOSE_TO_OPEN) {
+            if (getOpenBracket(ch)) {
                 break;
             }
             if (Tape.isWs(ch)) {
                 const ws = tape.consumeWs();
                 const next = tape.cur();
                 if (next !== ':' && next !== '<') {
-                    tape.pos -= ws.length;
+                    tape.pos -= ws.length; // faster than `putBackWs`
                     break;
                 } else if (next === '<') {
                     tape.adv(); // skip `<`
@@ -110,19 +111,19 @@ export function consumeRustTarget(tape: Tape): string {
             if (STOP.includes(ch) || SIGIL.includes(ch)) {
                 break;
             }
-            if (ch in CLOSE_TO_OPEN) {
-                result =
-                    skipBalancedReverse(tape, ch, CLOSE_TO_OPEN[ch]) + result;
+            const open = getOpenBracket(ch);
+            if (open) {
+                result = skipBalancedReverse(tape, ch, open) + result;
                 continue;
             }
-            if (ch in OPEN_TO_CLOSE) {
+            if (getCloseBracket(ch)) {
                 break;
             }
             if (Tape.isWs(ch)) {
                 const ws = tape.consumeWs();
                 const next = tape.cur();
                 if (next !== ':' && next !== '>') {
-                    tape.pos -= ws.length;
+                    tape.pos -= ws.length; // faster than `putBackWs`
                     break;
                 } else if (next === '>') {
                     tape.adv(); // skip `>`

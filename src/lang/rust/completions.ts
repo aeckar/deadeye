@@ -12,7 +12,7 @@ import {
     rangeBefore,
 } from '../../utils';
 import { RustScope } from './scopes';
-import { consumeRustTarget } from './utils';
+import { consumeRustTarget } from './lang';
 
 // Elements with no identation from start of line need not have their scope checked,
 // as we can assume they are top-level

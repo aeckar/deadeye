@@ -10,6 +10,7 @@
 //! # Style Guide (not enforced by .prettierrc)
 //!
 //! - Top-level functions should use `function` notation over arrow function constants
+//! to easily discern from top-level constants
 import {
     ExtensionContext,
     Hover,

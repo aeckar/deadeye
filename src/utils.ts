@@ -4,27 +4,41 @@ import { MarkdownString, Position, Range } from 'vscode';
 
 export type NonEmptyString = `${any}${string}`;
 export type Brackets = (typeof BRACKETS)[number];
+export type OpenBracket = (typeof OPEN_BRACKETS)[number];
+export type CloseBracket = (typeof CLOSE_BRACKETS)[number];
 
-const BRACKETS = ['()', '{}', '[]', '<>'] as const;
+export const BRACKETS = ['()', '{}', '[]', '<>'] as const;
 
-export const OPEN_TO_CLOSE: Record<string, string> = {
-    '<': '>',
-    '(': ')',
-    '[': ']',
-};
+/** Each element is analogous to that in `CLOSE_BRACKETS`. */
+export const OPEN_BRACKETS = ['(', '{', '[', '<'] as const;
 
-export const CLOSE_TO_OPEN: Record<string, string> = {
-    '>': '<',
-    ')': '(',
-    ']': '[',
-};
+/** Each element is analogous to that in `OPEN_BRACKETS`. */
+export const CLOSE_BRACKETS = [')', '}', ']', '>'] as const;
+
+export function getCloseBracket(open: string): CloseBracket | undefined {
+    const idx = OPEN_BRACKETS.indexOf(open as OpenBracket);
+    if (idx === undefined) {
+        return undefined;
+    }
+    return CLOSE_BRACKETS[idx];
+}
+
+export function getOpenBracket(close: string): OpenBracket | undefined {
+    const idx = CLOSE_BRACKETS.indexOf(close as CloseBracket);
+    if (idx === undefined) {
+        return undefined;
+    }
+    return OPEN_BRACKETS[idx];
+}
 
 export function enumerate<K extends number | string | symbol, V>(o: {
     [T in K]?: V;
 }): [number, [K, V]][] {
     // Object.entries returns [string, unknown][], so cast to the expected types
     const entries = Object.entries(o) as unknown as [K, V][];
-    return entries.map(([key, val], idx) => [idx, [key, val]] as [number, [K, V]]);
+    return entries.map(
+        ([key, val], idx) => [idx, [key, val]] as [number, [K, V]],
+    );
 }
 
 export function findWord(s: string, query: NonEmptyString): number {

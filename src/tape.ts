@@ -1,13 +1,20 @@
 //! Cursor data structure.
 import { Position } from 'vscode';
 
+
+
 import { Flag } from './completion_utils';
-import {
-    NonEmptyString,
-    enumerate,
-    isLowerLetter,
-    isUpperLetter,
-} from './utils';
+import { NonEmptyString, enumerate, isLowerLetter, isUpperLetter } from './utils';
+
+
+
+
+
+
+
+
+
+
 
 /**
  * A lightweight cursor over a string for non-linear parsing.
@@ -254,12 +261,16 @@ export default class Tape {
      * Consumes a string of flag characters from the current position according to the given
      * flag-expansion pairs.
      *
-     * @return the pairs whose flag was matched.
-     *
      * If more than one flag is matched, the returned array is ordered according to
      * how they were given. If a flag appears more than once, `undefined` is returned.
      *
-     * Since range is typically used in sub, no need to make other access todo revise doc
+     * Flags can be given as either a single character or two characters followed by `-`,
+     * in which case any character with a code point between the given ones is matched.
+     * These range flags can only be matched once for a given entry in `flags`.
+     * To determine which specific character was matched,  
+     * 
+     *
+     * @return the pairs whose flag was matched.
      */
     consumeFlags(flags: { [K in Flag]?: string }):
         | Map<Flag, string>
@@ -273,7 +284,8 @@ export default class Tape {
                     break;
                 }
                 const ch = this.cur()!;
-                if (flag[0] === '-') {
+                const isRange = flag[0] === '-';
+                if (isRange) {
                     // flag is range
                     if (ch >= flag[1] && ch <= flag[2]) {
                         found = true;
@@ -283,7 +295,9 @@ export default class Tape {
                 }
                 if (found) {
                     this.adv();
-                    expansions.push([idx, expansion.replaceAll('{}', ch)]);
+                    if (isRange) {
+                        expansions.push([idx, expansion.replaceAll('{}', ch)]);
+                    }
                     break;
                 }
             }
@@ -362,7 +376,14 @@ export default class Tape {
     /**
      * Decrements `pos` until a non-whitespace character is found.
      *
-     * @return the substring containing whitespace
+     * If the spanning substring has already be written to a variable,
+     * its length should be subtracted from the current position instead for better performance.
+     *
+     * ```ts
+     * tape.pos -= ws.length;
+     * ```
+     *
+     * @return the substring containing whitespace.
      */
     putBackWs(): string {
         return this.putBack((ch, _) => Tape.isWs(ch));
