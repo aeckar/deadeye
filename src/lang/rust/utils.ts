@@ -1,6 +1,5 @@
-import { CLOSE_TO_OPEN, OPEN_TO_CLOSE } from '../../utils';
-
 import Tape from '../../tape';
+import { CLOSE_TO_OPEN, OPEN_TO_CLOSE } from '../../utils';
 
 const STOP = '=,{};';
 const SIGIL = '&*!+-';
@@ -37,7 +36,7 @@ export function consumeRustTarget(tape: Tape): string {
                 }
             }
         }
-        if (!tape.isExhausted() && tape.peek() === '.') {
+        if (!tape.isExhausted() && tape.cur() === '.') {
             chunk += tape.next();
         }
         return chunk;
@@ -68,7 +67,7 @@ export function consumeRustTarget(tape: Tape): string {
     function consumeForward(tape: Tape): string {
         let result = '';
         while (!tape.isExhausted()) {
-            const ch = tape.peek()!;
+            const ch = tape.cur()!;
             if (STOP.includes(ch) || SIGIL.includes(ch)) {
                 break;
             }
@@ -81,12 +80,21 @@ export function consumeRustTarget(tape: Tape): string {
             }
             if (Tape.isWs(ch)) {
                 const ws = tape.consumeWs();
-                const next = tape.peek();
-                if (next === ':' || next === '<') {
-                    result += ws;
-                } else {
+                const next = tape.cur();
+                if (next !== ':' && next !== '<') {
                     tape.pos -= ws.length;
                     break;
+                } else if (next === '<') {
+                    tape.adv(); // skip `<`
+                    result += ws + '<';
+                } else {
+                    tape.adv(); // skip first `:`
+                    if (tape.cur() !== ':') {
+                        tape.pos -= ws.length + 1;
+                        break;
+                    }
+                    tape.adv(); // skip second `:`
+                    result += ws + '::';
                 }
                 continue;
             }
@@ -98,7 +106,7 @@ export function consumeRustTarget(tape: Tape): string {
     function consumeReversed(tape: Tape): string {
         let result = '';
         while (!tape.isExhausted()) {
-            const ch = tape.peek()!;
+            const ch = tape.cur()!;
             if (STOP.includes(ch) || SIGIL.includes(ch)) {
                 break;
             }
@@ -112,12 +120,21 @@ export function consumeRustTarget(tape: Tape): string {
             }
             if (Tape.isWs(ch)) {
                 const ws = tape.consumeWs();
-                const next = tape.peek();
-                if (next === ':' || next === '>') {
-                    result = ws + result;
-                } else {
+                const next = tape.cur();
+                if (next !== ':' && next !== '>') {
                     tape.pos -= ws.length;
                     break;
+                } else if (next === '>') {
+                    tape.adv(); // skip `>`
+                    result = '>' + ws + result;
+                } else {
+                    tape.adv(); // skip first `:`
+                    if (tape.cur() !== ':') {
+                        tape.pos -= ws.length + 1;
+                        break;
+                    }
+                    tape.adv(); // skip second `:`
+                    result = '::' + ws + result;
                 }
                 continue;
             }

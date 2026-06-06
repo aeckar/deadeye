@@ -1,9 +1,13 @@
-import { MAX_LINE_SEEK, Shorthand, Substitition } from '../../completion_utils';
+import {
+    CompletionFamilySpec,
+    MAX_LINE_SEEK,
+    UnitCompletionSpec,
+} from '../../completion_utils';
 import { after, isLetter, markdown as md, rangeBefore } from '../../utils';
 import { TypeScriptScope } from './scopes';
 
 // Simple, non-contextual substitutions triggered globally or inline
-const substitutions: Substitition[] = [
+const substitutions: UnitCompletionSpec[] = [
     {
         title: 'Inserts an arrow function template',
         target: 'arr',
@@ -26,7 +30,7 @@ const substitutions: Substitition[] = [
     },
 ];
 
-const typescript: Shorthand<TypeScriptScope>[] = [
+const typescript: CompletionFamilySpec<TypeScriptScope>[] = [
     {
         docs: md`
             Inserts block-scoped variable declarations.
@@ -123,15 +127,15 @@ Wrap expression with \`await\`.
             const tape = ctx.leftOfCursor().reversed();
 
             // Consume valid structural flags backwards
-            const flags = tape.consumeFlags([
-                ['m', 'method'],
-                ['v', 'variable'],
-                ['f', 'async '],
-                ['s', 'static '],
-                ['p', 'public '],
-                ['r', 'private '],
-                ['o', 'protected '],
-            ]);
+            const flags = tape.consumeFlags({
+                m: 'method',
+                v: 'variable',
+                f: 'async ',
+                s: 'static ',
+                p: 'public ',
+                r: 'private ',
+                o: 'protected ',
+            });
 
             if (!flags || !tape.isExhausted()) {
                 return undefined;
@@ -141,13 +145,21 @@ Wrap expression with \`await\`.
             let expansion = '';
 
             // 1. Resolve Access Modifier (Default to none or public based on style preference)
-            if (flagMap.has('p')) expansion += 'public ';
-            else if (flagMap.has('r')) expansion += 'private ';
-            else if (flagMap.has('o')) expansion += 'protected ';
+            if (flagMap.has('p')) {
+                expansion += 'public ';
+            } else if (flagMap.has('r')) {
+                expansion += 'private ';
+            } else if (flagMap.has('o')) {
+                expansion += 'protected ';
+            }
 
             // 2. Resolve Modifiers
-            if (flagMap.has('s')) expansion += 'static ';
-            if (flagMap.has('f')) expansion += 'async ';
+            if (flagMap.has('s')) {
+                expansion += 'static ';
+            }
+            if (flagMap.has('f')) {
+                expansion += 'async ';
+            }
 
             // 3. Resolve Structural Base
             if (flagMap.has('m')) {
@@ -158,7 +170,7 @@ Wrap expression with \`await\`.
 
             return {
                 preview: md`Insert class structure: \`${expansion.split('\n')[0]}\`.`,
-                target: rangeBefore(ctx.cursor, flags.length),
+                target: rangeBefore(ctx.cursor, flags.size),
                 snippet: expansion,
             };
         },

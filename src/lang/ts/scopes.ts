@@ -52,3 +52,4 @@ class vs. interface: Unlike Rust where Class maps directly to impl, TypeScript t
 The fn Consolidation: Grouping SymbolKind.Constructor along with functions and methods ensures that shortcuts for local variables (let, const), loops (for, while), or control flows map correctly inside any executable block structure.
 
 object Scope Addition: TypeScript developers heavily use explicit inline object definitions for configurations and type assertions. Mapping SymbolKind.Object allows your shorthand engine to distinguish between writing code inside a function body versus writing property-value pairs inside a literal object block.
+*/

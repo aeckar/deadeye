@@ -60,22 +60,43 @@ export type Flag = FlagChar | `-${FlagChar}${FlagChar}`;
  * @param scope The scope or nested scope required for this shorthand to match. Nested scopes
  * are not required to be adjacent; they must simply be present in the same order. If not provided,
  * this matches in all scopes.
- * @param exactScope If true, the entire scope stack must equal {@link Shorthand["scope"]|scope},
- * not just a part of it. If not provided, behaves as if it were `false`.
+ * @param exactScope If true, the entire scope stack must equal
+ * {@link CompletionFamilySpec["scope"]|scope}, not just a part of it.
+ * If not provided, behaves as if it were `false`.
  */
-export type Shorthand<K extends string> = {
+export type CompletionFamilySpec<K extends string> = {
     readonly docs: MarkdownString;
     readonly minLookbehind: number;
     readonly scope?: (K | `...${K}`)[][];
-    readonly resolver: (ctx: CompletionContext) => Completion | undefined;
+    readonly resolver: (
+        ctx: CompletionResolverContext,
+    ) => Completion | undefined;
 };
 
 /**
- * The result of {@link Shorthand.resolver}.
+ * A simplified completion, which always runs for a typed character sequence.
+ *
+ * For a given language, substitutions are todo
+ *
+ * @param title See {@link Completion.preview}.
+ * @param docs See {@link CompletionFamilySpec.docs}.
+ * @param target The character sequence to be matched.
+ * @param snippet See {@link Completion.snippet}.
+ */
+export type UnitCompletionSpec = {
+    readonly title: MarkdownString | string;
+    readonly docs?: MarkdownString;
+    readonly target: string;
+    readonly snippet: string;
+};
+
+/**
+ * The result of {@link CompletionFamilySpec.resolver}.
  *
  * @param preview A short description of what the completion of the shorthand does.
  * This is dynamically created to describe **exactly** how the code is modified. This contrasts
- * with {@link Shorthand.docs}, which is a general description of the shorthand or family of shorthands.
+ * with {@link CompletionFamilySpec.docs}, which is a general description of
+ * the shorthand or family of shorthands.
  * @param target The location of the actual shorthand, which is deleted.
  * most likely due to fast typing.
  * @param snippet The snippet to be inserted.
@@ -92,37 +113,18 @@ export type Completion = {
 };
 
 /**
- * A simplified completion, which always runs for a typed character sequence.
- *
- * For a given language, substitutions are todo
- *
- * @param title See {@link Completion.preview}.
- * @param docs See {@link Shorthand.docs}.
- * @param target The character sequence to be matched.
- * @param snippet See {@link Completion.snippet}.
- */
-export type Substitition = {
-    readonly title: MarkdownString | string;
-    readonly docs?: MarkdownString;
-    readonly target: string;
-    readonly snippet: string;
-};
-
-/**
  * Created and stored after a shorthand is matched, and recalled once the trigger is pressed.
  *
  * @param position the position of the cursor the instance this object was created.
  */
 export type CompletionStrategy = {
-    readonly shorthand: Shorthand<any>;
+    readonly shorthand: CompletionFamilySpec<any>;
     readonly completion: Completion;
     readonly position: Position;
 };
 
-export type BracketType = 'curly' | 'square' | 'round' | 'angle';
-
-/** Passed to {@link Shorthand.resolver}. */
-export class CompletionContext {
+/** Passed to {@link CompletionFamilySpec.resolver}. */
+export class CompletionResolverContext {
     readonly line: Tape;
     readonly cursor: Position;
     readonly editor: TextEditor;
@@ -140,6 +142,10 @@ export class CompletionContext {
 
     seekOpener(brackets: Brackets): Position | undefined {
         return this.seekOpenerRecursive(brackets, this.cursor, true);
+    }
+
+    seekCloser(brackets: Brackets): Position | undefined {
+        return this.seekCloserRecursive(brackets, this.cursor, true);
     }
 
     private static OTHER_BRACKETS: Record<string, string> = {
@@ -170,11 +176,19 @@ export class CompletionContext {
             for (let character = end - 1; character >= 0; character--) {
                 const ch = text[character];
                 if (recur) {
-                    if (CompletionContext.OTHER_BRACKETS[open].includes(ch)) {
+                    if (
+                        CompletionResolverContext.OTHER_BRACKETS[open].includes(
+                            ch,
+                        )
+                    ) {
                         // missing closer for other type of bracket
                         return undefined;
                     }
-                    if (CompletionContext.OTHER_BRACKETS[closed].includes(ch)) {
+                    if (
+                        CompletionResolverContext.OTHER_BRACKETS[
+                            closed
+                        ].includes(ch)
+                    ) {
                         const openPos = this.seekOpenerRecursive(
                             (ch === ')'
                                 ? '('
@@ -204,10 +218,6 @@ export class CompletionContext {
         return undefined;
     }
 
-    seekCloser(brackets: Brackets): Position | undefined {
-        return this.seekCloserRecursive(brackets, this.cursor, true);
-    }
-
     private seekCloserRecursive(
         brackets: Brackets,
         start: Position,
@@ -230,11 +240,19 @@ export class CompletionContext {
             for (let character = 0; character < end; character++) {
                 const ch = text[character];
                 if (recur) {
-                    if (CompletionContext.OTHER_BRACKETS[closed].includes(ch)) {
+                    if (
+                        CompletionResolverContext.OTHER_BRACKETS[
+                            closed
+                        ].includes(ch)
+                    ) {
                         // missing closer for other type of bracket
                         return undefined;
                     }
-                    if (CompletionContext.OTHER_BRACKETS[open].includes(ch)) {
+                    if (
+                        CompletionResolverContext.OTHER_BRACKETS[open].includes(
+                            ch,
+                        )
+                    ) {
                         const closedPos = this.seekCloserRecursive(
                             (ch === ')'
                                 ? '('

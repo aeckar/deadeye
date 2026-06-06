@@ -26,9 +26,9 @@ export default class Tape {
     readonly isReversed: boolean;
     pos: number;
 
-    /** Returns a new instance over the original string. */
-    static of(raw: string, pos = 0) {
-        return new Tape(raw, pos, false);
+    /** The length of the remaining portion of the tape. */
+    get length(): number {
+        return Math.max(0, this.raw.length - this.pos);
     }
 
     private constructor(raw: string, pos: number, isReversed: boolean) {
@@ -50,33 +50,17 @@ export default class Tape {
         };
     }
 
-    /** The length of the remaining portion of the tape. */
-    public get length(): number {
-        return Math.max(0, this.raw.length - this.pos);
+    /** Returns a new instance over the original string. */
+    static of(raw: string, pos = 0) {
+        return new Tape(raw, pos, false);
     }
 
-    /**
-     * Consumes the next letter cluster from the current position
-     * with clearance and a capital letter in the lowest absolute position.
-     */
-    consumeCapitalized(): string {
-        if (this.isReversed) {
-            let rest = this.consume(ch => isLowerLetter(ch));
-            let first = this.cur();
-            if (!first || !isUpperLetter(first)) {
-                return '';
-            }
-            this.adv();
-            return first + rest;
-        }
-        let first = this.cur();
-        if (!first || !isUpperLetter(first)) {
-            return '';
-        }
-        this.adv();
-        let rest = this.consume(ch => isLowerLetter(ch));
-        return first + rest;
+    /** Returns true if the given character is space or tab. */
+    static isWs(ch: string): boolean {
+        return ch === ' ' || ch === '\t';
     }
+
+    /* ================================ Duplication and Slicing ================================ */
 
     /** Returns a new instance over a slice over the original string. */
     slice(start: number, end = this.raw.length): Tape {
@@ -91,9 +75,179 @@ export default class Tape {
         return this.slice(0, cursor.character + 1);
     }
 
+    /** Returns a snapshot of this cursor. */
+    clone(): Tape {
+        return new Tape(this.raw, this.pos, this.isReversed);
+    }
+
     /** Returns a new instance over the remaining string, reversed. */
     reversed(): Tape {
         return new Tape(this.rest().split('').reverse().join(''), 0, true);
+    }
+
+    /* ================================ Context-Free Retrieval ================================ */
+
+    /** Returns the character at the given index. */
+    get(idx: number): string {
+        return this.raw[idx];
+    }
+
+    /** Returns a substring over the original slice from the current position. */
+    rest(): string {
+        return this.raw.slice(this.pos);
+    }
+
+    /* ======================================= Iteration ======================================= */
+
+    /**
+     * Advances the current position by 1 character.
+     *
+     * @return true if this results in the tape being exhausted.
+     */
+    adv() {
+        this.pos += 1;
+        return this.length === 0;
+    }
+
+    /** Decrements the current position by 1 character. */
+    dec() {
+        this.pos -= 1;
+    }
+
+    /** Returns true if the cursor is past the last character. */
+    isExhausted(): boolean {
+        return this.pos >= this.raw.length;
+    }
+
+    /**
+     * Returns the current character, or `undefined` if `pos` is out of bounds.
+     *
+     * Not to be confused with `peek`, which returns the character *after* the current position.
+     */
+    cur(): string | undefined {
+        return this.raw[this.pos];
+    }
+
+    /**
+     * Returns the **current** character, if exists, before incrementing the current position.
+     *
+     * This function is primarily used for iteration.
+     * If used for iteration, the current position may be modified concurrently.
+     *
+     * If the tape is exhausted, `pos` will still be incremented.
+     */
+    next(): string | undefined {
+        const ch = this.raw[this.pos];
+        this.pos += 1;
+        return ch;
+    }
+
+    /**
+     * Returns the character at `pos + 1`, or `undefined` if that position is out of bounds.
+     *
+     * Not to be confused with `cur`, which returns the character at the current position.
+     */
+    peek(): string | undefined {
+        return this.raw[this.pos + 1];
+    }
+
+    /** Returns the character at `pos - 1`, or `undefined` if that position is out of bounds. */
+    peekBack(): string | undefined {
+        return this.raw[this.pos - 1];
+    }
+
+    /* ==================================== Pattern Lookup ==================================== */
+
+    /** Returns the position of the first character returning true, or `undefined`. */
+    poll(pred: (ch: string, pos: number) => boolean): number | undefined {
+        for (let i = this.pos; i < this.raw.length; i++) {
+            if (pred(this.raw[i], i)) {
+                return i;
+            }
+        }
+        return undefined;
+    }
+
+    /** Returns the position of the last character returning true, or `undefined`. */
+    pollBack(pred: (ch: string, pos: number) => boolean): number | undefined {
+        for (let i = this.raw.length - 1; i >= this.pos; i--) {
+            if (pred(this.raw[i], i)) {
+                return i;
+            }
+        }
+        return undefined;
+    }
+
+    /* ================================== Pattern Consumption ================================== */
+
+    /**
+     * Advance `pos` until `pred` returns false for the character at the
+     * current position.
+     *
+     * Leaves `pos` pointing at the matching character (or at `raw.length` when none matched).
+     * @return the substring iterated over.
+     */
+    consume(pred: (ch: string, pos: number) => boolean): string {
+        const end = this.poll((ch, pos) => !pred(ch, pos));
+        if (end === undefined) {
+            const res = this.raw.slice(this.pos);
+            this.pos = this.raw.length;
+            return res;
+        }
+        const res = this.raw.slice(this.pos, end);
+        this.pos = end;
+        return res;
+    }
+
+    /**
+     * Consumes the next, possibly empty, sequence of whitespace characters.
+     *
+     * @return the substring containing whitespace
+     */
+    consumeWs(): string {
+        return this.consume((ch, _) => Tape.isWs(ch));
+    }
+
+    /** Consumes the query starting at this position, or returns an empty string. */
+    consumeAt(query: NonEmptyString): string {
+        if (!this.isAt(query)) {
+            return '';
+        }
+        this.pos += query.length;
+        return query;
+    }
+
+    /** Consumes the query starting at this position, or returns an empty string. */
+    consumeEither(...queries: NonEmptyString[]): string {
+        for (const query of queries) {
+            if (this.consumeAt(query)) {
+                return query;
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Consumes the next chunks, with whitespace possibly in betweeen them.
+     *
+     * @return the matches to each chunks, as well as any whitespace between them.
+     * If a match to any chunk fails, `undefined` is returned.
+     */
+    consumeChunks(chunks: NonEmptyString[]): string[] | undefined {
+        const start = this.pos;
+        let parts = [];
+        for (const [idx, chunk] of chunks.entries()) {
+            let next = this.consumeAt(chunk);
+            if (!next) {
+                this.pos = start;
+                return undefined;
+            }
+            parts.push(next);
+            if (idx !== chunks.length - 1) {
+                parts.push(this.consumeWs());
+            }
+        }
+        return parts;
     }
 
     /**
@@ -104,7 +258,7 @@ export default class Tape {
      *
      * If more than one flag is matched, the returned array is ordered according to
      * how they were given. If a flag appears more than once, `undefined` is returned.
-     * 
+     *
      * Since range is typically used in sub, no need to make other access todo revise doc
      */
     consumeFlags(flags: { [K in Flag]?: string }):
@@ -163,111 +317,33 @@ export default class Tape {
         return undefined;
     }
 
-    /** Returns the character at the given index. */
-    get(idx: number): string {
-        return this.raw[idx];
-    }
-
-    /** Returns a snapshot of this cursor. */
-    clone(): Tape {
-        return new Tape(this.raw, this.pos, this.isReversed);
-    }
-
-    /** Returns a substring over the original slice from the current position. */
-    rest(): string {
-        return this.raw.slice(this.pos);
-    }
-
     /**
-     * Advances the current position by 1 character.
-     *
-     * @return true if this results in the tape being exhausted.
+     * Consumes the next letter cluster from the current position
+     * with clearance and a capital letter in the lowest absolute position.
      */
-    adv() {
-        this.pos += 1;
-        return this.length === 0;
-    }
-
-    /** Decrements the current position by 1 character. */
-    dec() {
-        this.pos -= 1;
-    }
-
-    /** Returns true if the cursor is past the last character. */
-    isExhausted(): boolean {
-        return this.pos >= this.raw.length;
-    }
-
-    /** Returns the current character, or `undefined` if `pos` is out of bounds. */
-    cur(): string | undefined {
-        return this.raw[this.pos];
-    }
-
-    /**
-     * Returns the **current** character, if exists, before incrementing the current position.
-     *
-     * This function is primarily used for iteration.
-     * If used for iteration, the current position may be modified concurrently.
-     *
-     * If the tape is exhausted, `pos` will still be incremented.
-     */
-    next(): string | undefined {
-        const ch = this.raw[this.pos];
-        this.pos += 1;
-        return ch;
-    }
-
-    /** Returns the character at `pos + 1`, or `undefined` if that position is out of bounds. */
-    peek(): string | undefined {
-        return this.raw[this.pos + 1];
-    }
-
-    /** Returns the character at `pos - 1`, or `undefined` if that position is out of bounds. */
-    peekBack(): string | undefined {
-        return this.raw[this.pos - 1];
-    }
-
-    /** Returns the position of the first character returning true, or `undefined`. */
-    poll(pred: (ch: string, pos: number) => boolean): number | undefined {
-        for (let i = this.pos; i < this.raw.length; i++) {
-            if (pred(this.raw[i], i)) {
-                return i;
+    consumeCapitalized(): string {
+        if (this.isReversed) {
+            let rest = this.consume(ch => isLowerLetter(ch));
+            let first = this.cur();
+            if (!first || !isUpperLetter(first)) {
+                return '';
             }
+            this.adv();
+            return first + rest;
         }
-        return undefined;
+        let first = this.cur();
+        if (!first || !isUpperLetter(first)) {
+            return '';
+        }
+        this.adv();
+        let rest = this.consume(ch => isLowerLetter(ch));
+        return first + rest;
     }
 
-    /** Returns the position of the last character returning true, or `undefined`. */
-    pollBack(pred: (ch: string, pos: number) => boolean): number | undefined {
-        for (let i = this.raw.length - 1; i >= this.pos; i--) {
-            if (pred(this.raw[i], i)) {
-                return i;
-            }
-        }
-        return undefined;
-    }
-
-    /**
-     * Advance `pos` until `pred` returns false for the character at the
-     * current position.
-     *
-     * Leaves `pos` pointing at the matching character (or at `raw.length` when none matched).
-     * @return the substring iterated over.
-     */
-    consume(pred: (ch: string, pos: number) => boolean): string {
-        const end = this.poll((ch, pos) => !pred(ch, pos));
-        if (end === undefined) {
-            const res = this.raw.slice(this.pos);
-            this.pos = this.raw.length;
-            return res;
-        }
-        const res = this.raw.slice(this.pos, end);
-        this.pos = end;
-        return res;
-    }
+    /* ================================== Pattern Restoration ================================== */
 
     /**
-     * Decrement `pos` until `pred` returns false for the character at the
+     * Decrements `pos` until `pred` returns false for the character at the
      * current position.
      *
      * Leaves `pos` pointing at the matching character (or at `raw.length` when none matched).
@@ -282,6 +358,17 @@ export default class Tape {
         this.pos = end;
         return res;
     }
+
+    /**
+     * Decrements `pos` until a non-whitespace character is found.
+     *
+     * @return the substring containing whitespace
+     */
+    putBackWs(): string {
+        return this.putBack((ch, _) => Tape.isWs(ch));
+    }
+
+    /* ===================================== Pattern Seek ===================================== */
 
     /**
      * Advances `pos` to the first index where `pred` is true.
@@ -314,14 +401,6 @@ export default class Tape {
     }
 
     /**
-     * Returns true if the substring starting at the current position
-     * starts with the given string.
-     */
-    isAt(query: string): boolean {
-        return this.raw.startsWith(query, this.pos);
-    }
-
-    /**
      * Advances `pos` to where `query` is found.
      *
      * @return `true` if found and `pos` is left pointing at the match,
@@ -336,56 +415,14 @@ export default class Tape {
         return true;
     }
 
-    /** Returns true if the given character is space or tab. */
-    static isWs(ch: string): boolean {
-        return ch === ' ' || ch === '\t';
-    }
-
-    /** Consumes the query starting at this position, or returns an empty string. */
-    consumeAt(query: NonEmptyString): string {
-        if (!this.isAt(query)) {
-            return '';
-        }
-        this.pos += query.length;
-        return query;
-    }
-
-    /** Consumes the query starting at this position, or returns an empty string. */
-    consumeEither(...queries: NonEmptyString[]): string {
-        for (const query of queries) {
-            if (this.consumeAt(query)) {
-                return query;
-            }
-        }
-        return '';
-    }
+    /* ==================================== Pattern Testing ==================================== */
 
     /**
-     * Consumes the next chunks, with whitespace possibly in betweeen them.
-     *
-     * @return the matches to each chunks, as well as any whitespace between them.
-     * If a match to any chunk fails, `undefined` is returned.
+     * Returns true if the substring starting at the current position
+     * starts with the given string.
      */
-    consumeChunks(chunks: NonEmptyString[]): string[] | undefined {
-        const start = this.pos;
-        let parts = [];
-        for (const [idx, chunk] of chunks.entries()) {
-            let next = this.consumeAt(chunk);
-            if (!next) {
-                this.pos = start;
-                return undefined;
-            }
-            parts.push(next);
-            if (idx !== chunks.length - 1) {
-                parts.push(this.consumeWs());
-            }
-        }
-        return parts;
-    }
-
-    /** Consumes the next, possibly empty, sequence of whitespace characters. */
-    consumeWs(): string {
-        return this.consume((ch, _) => Tape.isWs(ch));
+    isAt(query: string): boolean {
+        return this.raw.startsWith(query, this.pos);
     }
 
     /** Returns true if the character at the given position has clearance on its left side. */

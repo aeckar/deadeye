@@ -1,4 +1,8 @@
-import { MAX_LINE_SEEK, Shorthand, Substitition } from '../../completion_utils';
+import {
+    CompletionFamilySpec,
+    MAX_LINE_SEEK,
+    UnitCompletionSpec,
+} from '../../completion_utils';
 import Tape from '../../tape';
 import {
     after,
@@ -59,7 +63,7 @@ import { consumeRustTarget } from './utils';
 
 const builtins = /str|bool|char|[ui]([8136][624][8]?|size)|f[36][24]/g;
 
-const subsitutitons: Substitition[] = [
+const subsitutitons: UnitCompletionSpec[] = [
     {
         title: 'Inserts a byte-string literal',
         target: 'bsof',
@@ -197,7 +201,7 @@ Inserts a \`HashSet\` type
 // append links to non-trivial concepts
 // basic forms only if multiple forms
 
-const rust: Shorthand<RustScope>[] = [
+const rust: CompletionFamilySpec<RustScope>[] = [
     {
         docs: md`
             Inserts an if-statement.
@@ -401,7 +405,10 @@ Insert \`if\` block, then move to conditional.
             if (!flags || !tape.consumeAt('.')) {
                 return undefined;
             }
+
+            console.log('tape=', tape);
             const target = consumeRustTarget(tape);
+
             if (!target) {
                 return undefined;
             }
@@ -624,7 +631,9 @@ Inserts \`println!("\` \`")\`.
             }
             if (flags.has('r')) {
                 let ref = '&';
-                const lifetime = [...flags.values()].find(sub => sub[1] >= 'a' && sub[1] <= 'd');
+                const lifetime = [...flags.values()].find(
+                    sub => sub[1] >= 'a' && sub[1] <= 'd',
+                );
                 if (lifetime) {
                     ref += lifetime;
                 }

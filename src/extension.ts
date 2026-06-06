@@ -27,7 +27,7 @@ import {
 
 import {
     Completion,
-    CompletionContext,
+    CompletionResolverContext,
     CompletionStrategy,
 } from './completion_utils';
 import scopeResolvers from './lang/scope_resolvers';
@@ -161,7 +161,7 @@ async function getCompletionStrategy(key: string, editor: TextEditor) {
     );
     for (const shorthand of shorthands[langId]) {
         const completion = shorthand.resolver(
-            new CompletionContext(Tape.of(line), position, editor),
+            new CompletionResolverContext(Tape.of(line), position, editor),
         );
         if (!completion) {
             continue;
