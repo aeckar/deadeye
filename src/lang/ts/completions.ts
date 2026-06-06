@@ -1,13 +1,13 @@
 import {
-    CompletionFamilySpec,
+    CompletionFamily,
+    CompletionSingle,
     MAX_LINE_SEEK,
-    UnitCompletionSpec,
 } from '../../completion_utils';
 import { after, isLetter, markdown as md, rangeBefore } from '../../utils';
 import { TypeScriptScope } from './scopes';
 
 // Simple, non-contextual substitutions triggered globally or inline
-const substitutions: UnitCompletionSpec[] = [
+const substitutions: CompletionSingle[] = [
     {
         title: 'Inserts an arrow function template',
         target: 'arr',
@@ -30,7 +30,7 @@ const substitutions: UnitCompletionSpec[] = [
     },
 ];
 
-const typescript: CompletionFamilySpec<TypeScriptScope>[] = [
+const typescript: CompletionFamily<TypeScriptScope>[] = [
     {
         docs: md`
             Inserts block-scoped variable declarations.

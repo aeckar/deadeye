@@ -61,10 +61,10 @@ export type Flag = FlagChar | `-${FlagChar}${FlagChar}`;
  * are not required to be adjacent; they must simply be present in the same order. If not provided,
  * this matches in all scopes.
  * @param exactScope If true, the entire scope stack must equal
- * {@link CompletionFamilySpec["scope"]|scope}, not just a part of it.
+ * {@link CompletionFamily["scope"]|scope}, not just a part of it.
  * If not provided, behaves as if it were `false`.
  */
-export type CompletionFamilySpec<K extends string> = {
+export type CompletionFamily<K extends string> = {
     readonly docs: MarkdownString;
     readonly minLookbehind: number;
     readonly scope?: (K | `...${K}`)[][];
@@ -79,11 +79,11 @@ export type CompletionFamilySpec<K extends string> = {
  * For a given language, substitutions are todo
  *
  * @param title See {@link Completion.preview}.
- * @param docs See {@link CompletionFamilySpec.docs}.
+ * @param docs See {@link CompletionFamily.docs}.
  * @param target The character sequence to be matched.
  * @param snippet See {@link Completion.snippet}.
  */
-export type UnitCompletionSpec = {
+export type CompletionSingle = {
     readonly title: MarkdownString | string;
     readonly docs?: MarkdownString;
     readonly target: string;
@@ -91,11 +91,11 @@ export type UnitCompletionSpec = {
 };
 
 /**
- * The result of {@link CompletionFamilySpec.resolver}.
+ * The result of {@link CompletionFamily.resolver}.
  *
  * @param preview A short description of what the completion of the shorthand does.
  * This is dynamically created to describe **exactly** how the code is modified. This contrasts
- * with {@link CompletionFamilySpec.docs}, which is a general description of
+ * with {@link CompletionFamily.docs}, which is a general description of
  * the shorthand or family of shorthands.
  * @param target The location of the actual shorthand, which is deleted.
  * most likely due to fast typing.
@@ -118,12 +118,12 @@ export type Completion = {
  * @param position the position of the cursor the instance this object was created.
  */
 export type CompletionStrategy = {
-    readonly shorthand: CompletionFamilySpec<any>;
+    readonly family: CompletionFamily<any>;
     readonly completion: Completion;
     readonly position: Position;
 };
 
-/** Passed to {@link CompletionFamilySpec.resolver}. */
+/** Passed to {@link CompletionFamily.resolver}. */
 export class CompletionResolverContext {
     readonly line: Tape;
     readonly cursor: Position;

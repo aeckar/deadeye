@@ -1,7 +1,7 @@
 import {
-    CompletionFamilySpec,
+    CompletionFamily,
+    CompletionSingle,
     MAX_LINE_SEEK,
-    UnitCompletionSpec,
 } from '../../completion_utils';
 import Tape from '../../tape';
 import {
@@ -11,8 +11,8 @@ import {
     markdown as md,
     rangeBefore,
 } from '../../utils';
-import { RustScope } from './scopes';
 import { consumeRustTarget } from './lang';
+import { RustScope } from './scopes';
 
 // Elements with no identation from start of line need not have their scope checked,
 // as we can assume they are top-level
@@ -63,7 +63,7 @@ import { consumeRustTarget } from './lang';
 
 const builtins = /str|bool|char|[ui]([8136][624][8]?|size)|f[36][24]/g;
 
-const subsitutitons: UnitCompletionSpec[] = [
+const subsitutitons: CompletionSingle[] = [
     {
         title: 'Inserts a byte-string literal',
         target: 'bsof',
@@ -201,28 +201,28 @@ Inserts a \`HashSet\` type
 // append links to non-trivial concepts
 // basic forms only if multiple forms
 
-const rust: CompletionFamilySpec<RustScope>[] = [
+const rust: CompletionFamily<RustScope>[] = [
     {
         docs: md`
             Inserts an if-statement.
 
-            \`if \` → \`if /* stop here */ {}\`
+            \`i \` → \`if /* stop here */ {}\`
 
             **Constraints:**
 
             - Surrounded by whitespace
         `,
-        minLookbehind: 'if'.length,
+        minLookbehind: 'i'.length,
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
-            if (!tape.consumeAt('fi') || isLetter(tape.cur() ?? 'a')) {
+            if (!tape.consumeAt('i') || isLetter(tape.cur() ?? ' ')) {
                 return undefined;
             }
             return {
                 preview: md`
 Insert \`if\` block, then move to conditional.
                 `,
-                target: rangeBefore(ctx.cursor, 'if'.length),
+                target: rangeBefore(ctx.cursor, 'i'.length),
                 snippet: 'if $0 {}',
             };
         },
@@ -657,6 +657,10 @@ Inserts \`println!("\` \`")\`.
                 snippet: expansion,
             };
         },
+    },
+
+    {
+        resolver(ctx) {},
     },
 
     // {
