@@ -1,21 +1,13 @@
 import { DocumentSymbol, Position, TextDocument, commands } from 'vscode';
+import { CompletionResolverContext } from './completion_utils';
 
+export type ScopeResolver<Kind extends string> = (
+    symbol: DocumentSymbol,
+    ctx: CompletionResolverContext,
+) => Scope<Kind>;
 
-
-
-
-
-
-
-
-
-
-
-
-export type ScopeResolver<K extends string> = (symbol: DocumentSymbol) => Scope<K>;
-
-export type Scope<K extends string> = {
-    readonly kind: K;
+export type Scope<Kind extends string> = {
+    readonly kind: Kind;
     readonly symbol: DocumentSymbol;
 };
 
@@ -25,24 +17,24 @@ let lastFetch = 0;
 
 const SCOPE_TTL = 150;
 
-export function innerScope<K extends string>(
-    scopes: Scope<K>[],
-): Scope<K> | undefined {
+export function innerScope<Kind extends string>(
+    scopes: Scope<Kind>[],
+): Scope<Kind> | undefined {
     return scopes.at(-1);
 }
 
-export function isInScope<K extends string>(
-    scopes: Scope<K>[],
+export function isInScope<Kind extends string>(
+    scopes: Scope<Kind>[],
     kind: string,
 ): boolean {
     return scopes.some(s => s.kind === kind);
 }
 
-export async function getCachedScopes<K extends string>(
+export async function getCachedScopes<Kind extends string>(
     document: TextDocument,
     pos: Position,
-    resolver: ScopeResolver<K>,
-): Promise<Scope<K>[]> {
+    resolver: ScopeResolver<Kind>,
+): Promise<Scope<Kind>[]> {
     const now = Date.now();
     const lineChanged = pos.line !== cachedLine;
     const expired = now - lastFetch > SCOPE_TTL;
@@ -55,11 +47,11 @@ export async function getCachedScopes<K extends string>(
     return cachedScope;
 }
 
-export async function getScopes<K extends string>(
+export async function getScopes<Kind extends string>(
     document: TextDocument,
     pos: Position,
-    resolver: ScopeResolver<K>,
-): Promise<Scope<K>[]> {
+    resolver: ScopeResolver<Kind>,
+): Promise<Scope<Kind>[]> {
     const symbols = await commands.executeCommand<DocumentSymbol[]>(
         'vscode.executeDocumentSymbolProvider',
         document.uri,
@@ -73,11 +65,11 @@ export async function getScopes<K extends string>(
     return walkSymbols(symbols, pos, resolver);
 }
 
-function walkSymbols<K extends string>(
+function walkSymbols<Kind extends string>(
     symbols: DocumentSymbol[],
     pos: Position,
-    resolver: ScopeResolver<K>,
-): Scope<K>[] {
+    resolver: ScopeResolver<Kind>,
+): Scope<Kind>[] {
     for (const symbol of symbols) {
         if (!symbol.range.contains(pos)) {
             continue;

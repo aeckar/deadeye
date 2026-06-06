@@ -1,18 +1,18 @@
-import { CompletionFamily, CompletionSingle, MAX_LINE_SEEK } from '../../completion_utils';
+import {
+    CompletionFamily,
+    CompletionSingle,
+    MAX_LINE_SEEK,
+} from '../../completion_utils';
 import Tape from '../../tape';
-import { after, findWord, isLetter, markdown as md, rangeBefore } from '../../utils';
+import {
+    after,
+    findWord,
+    isLetter,
+    markdown as md,
+    rangeBefore,
+} from '../../utils';
 import { consumeRustTarget } from './lang';
-import { RustScope } from './scopes';
-
-
-
-
-
-
-
-
-
-
+import { RustScopeKind } from './scopes';
 
 // Elements with no identation from start of line need not have their scope checked,
 // as we can assume they are top-level
@@ -202,8 +202,10 @@ Inserts a \`HashSet\` type
 // basic forms only if multiple forms
 
 // todo typing c in extern "" completes, sends cursor to next pos
+// todo worry about partial constructs later, might not even be an issue for all i know
+// todo come back to these when expression-level scopes finished
 
-const rust: CompletionFamily<RustScope>[] = [
+const rust: CompletionFamily<RustScopeKind>[] = [
     {
         docs: md`
             Declares a function.
@@ -213,10 +215,20 @@ const rust: CompletionFamily<RustScope>[] = [
             | Flag | Expansion                         |
             | :--- | :-------------------------------- |
             | p    | <u>p</u>ub                        |
-            | u    | <u>u</u>nsafe                     |
-            | x    | e<u>x</u>tern "/\* stop here \*/" |
             | c    | <u>c</u>onst                      |
             | a    | <u>a</u>sync                      |
+            | u    | <u>u</u>nsafe                     |
+            | x    | e<u>x</u>tern "/\* stop here \*/" |
+
+            **Constraints:**
+
+            - First word in line
+            - In any of the following scopes:
+                - Top-level
+                - Function
+                - \`impl\`
+                - \`mod\`
+                - \`trait\`
         `,
         minLookbehind: 'f'.length,
         scope: [['toplevel'], ['...fn'], ['...impl'], ['...mod'], ['...trait']],
@@ -227,50 +239,50 @@ const rust: CompletionFamily<RustScope>[] = [
             }
             const flags = tape.consumeFlags({
                 p: 'pub ',
-                u: 'unsafe ',
-                x: 'extern "$0" ',
                 c: 'const ',
                 a: 'async ',
+                u: 'unsafe ',
+                x: 'extern "$0" ',
             });
             if (!flags) {
                 return undefined;
             }
-            let expansion = '';
+            let snippet = '';
             for (const key of ['p', 'c', 'a', 'u', 'x'] as const) {
                 if (flags.has(key)) {
-                    expansion += flags.get(key);
+                    snippet += flags.get(key);
                 }
             }
-            expansion += 'fn ';
-
+            snippet += 'fn ';
             return {
-                preview: md`Insert \`${expansion.replace('${1:C}', 'C')}\`.`,
+                preview: md`Insert \`${snippet}\`.`,
                 target: rangeBefore(ctx.cursor, flags.size + 'f'.length),
-                snippet: expansion + '$0',
+                snippet,
             };
         },
     },
     {
+        // Would consider changing this to `i`, but would clash with iterator variables
         docs: md`
             Inserts an if-statement.
 
-            \`i \` → \`if /* stop here */ {}\`
+            \`if \` → \`if /* stop here */ {}\`
 
             **Constraints:**
 
-            - Surrounded by whitespace
+            - Whole word
         `,
-        minLookbehind: 'i'.length,
+        minLookbehind: 'if'.length,
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
-            if (!tape.consumeAt('i') || isLetter(tape.cur() ?? ' ')) {
+            if (!tape.consumeAt('fi') || isLetter(tape.cur() ?? ' ')) {
                 return undefined;
             }
             return {
                 preview: md`
 Insert \`if\` block, then move to conditional.
                 `,
-                target: rangeBefore(ctx.cursor, 'i'.length),
+                target: rangeBefore(ctx.cursor, 'if'.length),
                 snippet: 'if $0 {}',
             };
         },
@@ -337,7 +349,7 @@ Insert \`if\` block, then move to conditional.
             
             **Constraints:**
             - In an if-statement
-            - \`if\` keyword not farther than ${MAX_LINE_SEEK} lines away
+            - \`if\` keyword not farther than \`${MAX_LINE_SEEK}\` lines away
         `,
         minLookbehind: 4,
         resolver(ctx) {

@@ -2,16 +2,28 @@ import { SymbolKind } from 'vscode';
 
 import { ScopeResolver } from '../../scope_utils';
 
-export type RustScope =
+export type RustScopeKind =
+    /* Declaration-level -- map directly to `SymbolKind` */
     | 'toplevel'
     | 'struct'
     | 'impl'
     | 'fn'
     | 'enum'
     | 'trait'
-    | 'mod';
+    | 'mod'
 
-const rust: ScopeResolver<RustScope> = symbol => {
+    /* Expression/Statement */
+    | 'assignment'
+    | 'type-anno'
+    | 'condition'
+    | 'conditional'
+    | 'loop'
+    | 'macro'
+    | 'extern'
+    | 'match-arm'
+    | 'type-param';
+
+const rust: ScopeResolver<RustScopeKind> = symbol => {
     const kind = (() => {
         switch (symbol.kind) {
             case SymbolKind.Struct:

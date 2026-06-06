@@ -58,6 +58,7 @@ function cancelCompletion(editor: TextEditor) {
 export function activate(context: ExtensionContext) {
     commands.registerCommand('deadeye.trigger', () => {
         // Actual trigger is in `keybindings` in `package.json`
+        // Register command as keybinding instead of as `type` intercept for better performance
         const editor = window.activeTextEditor;
         if (!editor) {
             return;

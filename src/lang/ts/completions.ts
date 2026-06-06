@@ -4,7 +4,7 @@ import {
     MAX_LINE_SEEK,
 } from '../../completion_utils';
 import { after, isLetter, markdown as md, rangeBefore } from '../../utils';
-import { TypeScriptScope } from './scopes';
+import { TsScopeKind } from './scopes';
 
 // Simple, non-contextual substitutions triggered globally or inline
 const substitutions: CompletionSingle[] = [
@@ -30,7 +30,7 @@ const substitutions: CompletionSingle[] = [
     },
 ];
 
-const typescript: CompletionFamily<TypeScriptScope>[] = [
+const typescript: CompletionFamily<TsScopeKind>[] = [
     {
         docs: md`
             Inserts block-scoped variable declarations.
