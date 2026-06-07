@@ -3,7 +3,7 @@ import { Position } from 'vscode';
 
 import { Flag } from './completion_utils';
 import { enumerate } from './misc';
-import { NonEmptyString, isLowerLetter, isUpperLetter } from './text_utils';
+import { isLowerLetter, isUpperLetter } from './text_utils';
 
 /**
  * A lightweight cursor over a string for non-linear parsing.
@@ -63,12 +63,14 @@ export default class Tape {
         return Tape.of(this.raw.slice(start, end));
     }
 
-    /**
-     * Returns a new instance over the substring from the current position to
-     * the position of the cursor.
-     */
+    /** Returns a new instance over the original string up to the position of the cursor. */
     before(cursor: Position): Tape {
         return this.slice(0, cursor.character + 1);
+    }
+
+    /** Returns a new instance over the original string starting from the position of the cursor. */
+    after(cursor: Position): Tape {
+        return this.slice(cursor.character);
     }
 
     /** Returns a snapshot of this cursor. */

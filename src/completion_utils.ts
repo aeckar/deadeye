@@ -1,4 +1,5 @@
-import { MarkdownString, Position, Range, Selection, TextEditor } from 'vscode';
+//! Data structures and algorithms used to match completion snippets.
+import { MarkdownString, Position, Range, TextEditor, window } from 'vscode';
 
 import { Scope } from './scoping_utils';
 import Tape from './tape';
@@ -44,6 +45,23 @@ type FlagChar =
 export type Flag = FlagChar | `-${FlagChar}${FlagChar}`;
 
 /**
+ * The key used to trigger a completion.
+ *
+ * Triggers are not considered part of a completion, and this is helpful
+ * because it allows the completion itself to be highlighted and show suggestions before
+ * being fired.
+ *
+ * If provided, a trigger must take the form of either:
+ * - ` `
+ * - `;`:
+ * - (enter)
+ *
+ * A `null` trigger means there is no set trigger key,
+ * and the completion will fire as soon as it is matched.
+ */
+export type Trigger = ' ' | ';' | 'enter' | null;
+
+/**
  * A shorthand for a programming language element.
  *
  * Once a shorthand is detected, the user must key in a trigger (space, by default) to replace the
@@ -59,16 +77,16 @@ export type Flag = FlagChar | `-${FlagChar}${FlagChar}`;
  * @param minLookbehind The minimum number of previous, consecutive character insertions
  * for a match to this shorthand to be valid. This is an optimization, often the minimum number
  * of characters for the base case. Can be assigned `NaN` so this shorthand is always checked.
+ * @param trigger The key that triggers the completion.
+ * If not provided, is inferred to be space (` `).
  * @param scoping The possible scope trees required for this shorthand to match.
  * Nested scopes are not required to be adjacent; they must simply be present in the same order.
  * If not provided, this matches in all scopes.
- * @param exactScope If true, the entire scope stack must equal
- * {@link CompletionFamily["scope"]|scope}, not just a part of it.
- * If not provided, behaves as if it were `false`.
  */
 export type CompletionFamily<ScopeKind extends string> = {
     readonly docs: MarkdownString;
     readonly minLookbehind: number;
+    readonly trigger?: Trigger;
     readonly scoping?: (ScopeKind | `...${ScopeKind}`)[][];
     readonly resolver: (
         ctx: CompletionContext<ScopeKind>,
@@ -86,7 +104,7 @@ export type CompletionFamily<ScopeKind extends string> = {
  * @param snippet See {@link Completion.snippet}.
  */
 export type CompletionSingle = {
-    readonly title: MarkdownString | string;
+    readonly title: MarkdownString;
     readonly docs?: MarkdownString;
     readonly target: string;
     readonly snippet: string;
@@ -102,17 +120,54 @@ export type CompletionSingle = {
  * @param target The location of the actual shorthand, which is deleted.
  * most likely due to fast typing.
  * @param snippet The snippet to be inserted.
+ * @param errors The ranges in the source file within `target`
+ * that represent malformed auxillary constructs in the matched completion.
+ * If the trigger is pressed, the completion will fire according to the
+ * portion of the completion that is well-formed.
  * @param insertAt If defined, is the position of the snippet to be inserted. Otherwise,
  * the snippet is inserted at the position of the cursor after the target is deleted.
  * @param newCursorPos The final position of the cursor after the snippet has been inserted.
  */
-export type Completion = {
-    readonly preview: MarkdownString | string;
+export class Completion {
+    readonly preview: MarkdownString;
     readonly target: Range;
     readonly snippet: string;
+    readonly errors?: Range[];
     readonly insertAt?: Position;
     readonly endCursorPos?: Position;
-};
+
+    constructor(args: {
+        preview: MarkdownString;
+        target: Range;
+        snippet: string;
+        errors?: Range[];
+        insertAt?: Position;
+        endCursorPos?: Position;
+    }) {
+        if (args.errors) {
+            const invalid = args.errors.filter(e => !args.target.contains(e));
+            if (invalid.length > 0) {
+                const strings = invalid
+                    .map(
+                        r =>
+                            `[${r.start.line}:${r.start.character}-${r.end.line}:${r.end.character}]`,
+                    )
+                    .join(', ');
+                window.showWarningMessage(
+                    `Deadeye: Error range(s) outside of target: ${strings}`,
+                );
+                this.errors = args.errors.filter(e => args.target.contains(e));
+            } else {
+                this.errors = args.errors;
+            }
+        }
+        this.preview = args.preview;
+        this.target = args.target;
+        this.snippet = args.snippet;
+        this.insertAt = args.insertAt;
+        this.endCursorPos = args.endCursorPos;
+    }
+}
 
 /**
  * Created and stored after a shorthand is matched, and recalled once the trigger is pressed.
@@ -144,9 +199,14 @@ export class CompletionContext<ScopeKind extends string> {
         this.scopeTree = scopeTree;
     }
 
-    /** Returns a tape moving left from the cursor over the current line. */
+    /** Returns a tape over the current line up to the cursor. */
     leftOfCursor(): Tape {
         return this.line.before(this.cursor);
+    }
+
+    /** Returns a tape over the current line after the cursor. */
+    rightOfCursor(): Tape {
+        return this.line.after(this.cursor);
     }
 
     seekOpener(brackets: Brackets): Position | undefined {

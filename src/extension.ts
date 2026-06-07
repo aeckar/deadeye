@@ -33,7 +33,7 @@ import {
 } from './completion_utils';
 import completionFamilies from './lang/completion_families';
 import scopeResolvers from './lang/scope_resolvers';
-import { Scope, getCachedScopes } from './scoping_utils';
+import { Scope } from './scoping_utils';
 import Tape from './tape';
 
 let strategy: CompletionStrategy | undefined;
@@ -88,7 +88,11 @@ export function activate(context: ExtensionContext) {
             if (!editor) {
                 return;
             }
+
             const key = (args.text as string).trim(); // sometimes preceded by space
+            if (!key) {
+                command
+            }
             await updateStrategy(key, editor);
             commands.executeCommand('default:type', args); // manually perform insertion
             if (strategy) {
@@ -144,12 +148,12 @@ async function updateStrategy(key: string, editor: TextEditor) {
             scopeTree,
         );
     };
-    const scopeTree = await getCachedScopes(
-        editor.document,
-        position,
-        newContext([]),
-        scopeResolvers[langId],
-    );
+    // const scopeTree = await getCachedScopes(
+    //     editor.document,
+    //     position,
+    //     newContext([]),
+    //     scopeResolvers[langId],
+    // );
     for (const family of completionFamilies[langId]) {
         const completion = family.resolver(newContext(scopeTree));
         if (!completion) {

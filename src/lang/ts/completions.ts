@@ -12,12 +12,12 @@ import { TsScopeKind } from './scopes';
 const substitutions: CompletionSingle[] = [
     {
         title: 'Inserts an arrow function template',
-        target: 'arr',
-        snippet: '($1) => $0',
+        target: 'c',
+        snippet: '($1) => ',
     },
     {
         title: 'Inserts an async arrow function template',
-        target: 'aarr',
+        target: 'ac',
         snippet: 'async ($1) => $0',
     },
     {
@@ -31,6 +31,8 @@ const substitutions: CompletionSingle[] = [
         snippet: 'readonly ',
     },
 ];
+
+// todo hot completion: auto-cap assignment to key if atomic symbolic constant (true, false, undefined)
 
 const typescript: CompletionFamily<TsScopeKind>[] = [
     {
@@ -46,7 +48,7 @@ const typescript: CompletionFamily<TsScopeKind>[] = [
             - First word in line
         `,
         minLookbehind: 1,
-        scopePool: [['fn'], ['object']],
+        scoping: [['fn'], ['object']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
@@ -79,7 +81,7 @@ const typescript: CompletionFamily<TsScopeKind>[] = [
             - Inside an async function scope
         `,
         minLookbehind: 3, // '.aw'.length
-        scopePool: [['fn']],
+        scoping: [['fn']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
             if (!tape.consumeAt('wa') || !tape.consumeAt('.')) {
@@ -124,7 +126,7 @@ Wrap expression with \`await\`.
             - First item on the line
         `,
         minLookbehind: 2,
-        scopePool: [['class']],
+        scoping: [['class']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
 

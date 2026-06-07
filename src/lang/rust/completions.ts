@@ -1,4 +1,5 @@
 import {
+    Completion,
     CompletionFamily,
     CompletionSingle,
     MAX_LINE_SEEK,
@@ -14,32 +15,44 @@ const builtins = /str|bool|char|[ui]([8136][624][8]?|size)|f[36][24]/g;
 
 const subsitutitons: CompletionSingle[] = [
     {
-        title: 'Inserts a byte-string literal',
+        title: md`
+Inserts a byte-string literal
+        `,
         target: 'bsof',
         snippet: 'b"$0"',
     },
     {
-        title: 'Inserts a byte-character literal',
+        title: md`
+Inserts a byte-character literal
+        `,
         target: 'bcof',
         snippet: "b'$0'",
     },
     {
-        title: 'Inserts a string literal',
+        title: md`
+Inserts a string literal
+        `,
         target: 'sof',
         snippet: '"$0"',
     },
     {
-        title: 'Inserts a character literal',
+        title: md`
+Inserts a character literal
+        `,
         target: 'cof',
         snippet: "'$0'",
     },
     {
-        title: 'Inserts an empty vector',
+        title: md`
+Inserts an empty vector
+        `,
         target: 'vec',
         snippet: 'vec![$0]',
     },
     {
-        title: 'Inserts a String type',
+        title: md`
+Inserts a String type
+        `,
         target: 'string',
         snippet: 'String',
     },
@@ -65,37 +78,51 @@ Inserts a \`HashSet\` type
         snippet: 'HashSet<$0>',
     },
     {
-        title: 'Inserts an attribute',
+        title: md`
+Inserts an attribute
+        `,
         target: 'prm',
         snippet: '#[$0]',
     },
     {
-        title: 'Prefixes fn with pub',
+        title: md`
+Prefixes fn with pub
+        `,
         target: 'p |fn',
         snippet: 'pub fn $0',
     },
     {
-        title: 'Prefixes fn with extern',
+        title: md`
+Prefixes fn with extern
+        `,
         target: 'x |fn',
         snippet: 'extern "${1:C}" fn $0',
     },
     {
-        title: 'Prefixes fn with const',
+        title: md`
+Prefixes fn with const
+        `,
         target: 'c |fn',
         snippet: 'const fn $0',
     },
     {
-        title: 'Prefixes struct with pub',
+        title: md`
+Prefixes struct with pub
+        `,
         target: 'p |struct',
         snippet: 'pub struct $0',
     },
     {
-        title: 'Prefixes enum with pub',
+        title: md`
+Prefixes enum with pub
+        `,
         target: 'p |enum',
         snippet: 'pub enum $0',
     },
     {
-        title: 'Inserts a derive attribute',
+        title: md`
+Inserts a derive attribute
+        `,
         target: 'prm |..',
         snippet: '#[derive(${1:Debug, PartialEq})]\\n$0',
     },
@@ -219,15 +246,49 @@ Inserts a \`HashSet\` type
 grey squiggly when left of scope marker to show help
 */
 
+// todo on `return`, `break`, or `continue` completion,
+// move cursor to next line out of close bracket
+// todo auto-wrap long method chains / `.[ENTER]` -> `<nl><indent + 1>.|`
+// todo disable completions in comments EXCEPT in fenced code blocks
+// todo completions should typically be >1 char to not conflict with single-letter vars,
+//  except outside of fn scope
+
 const rust: CompletionFamily<RustScopeKind>[] = [
     {
         docs: md``,
         minLookbehind: 1,
+        trigger: null,
+        resolver(ctx) {},
+    },
+    {
+        docs: md``,
+        minLookbehind: 1,
         resolver(ctx) {
-            
+            const left = ctx.leftOfCursor().reversed();
+            const right = ctx.rightOfCursor();
+            if (!right.consumeAt('fn')) {
+                return undefined;
+            }
         },
     },
     {
+        docs: md`
+            Adds a modifier to a function.
+
+            \`c/* start here */f\` → \`const /* stop here */fn \`
+        `,
+        trigger: null,
+        minLookbehind: 1,
+        resolver(ctx) {
+            const left = ctx.leftOfCursor().reversed();
+            const right = ctx.rightOfCursor();
+            if (!right.consumeAt('fn')) {
+                return undefined;
+            }
+        },
+    },
+    {
+        // todo contextualize flags
         docs: md`
             Declares a function.
 
@@ -246,19 +307,12 @@ const rust: CompletionFamily<RustScopeKind>[] = [
             - First word in line
             - In any of the following scopes:
                 - Top-level
-                - Function
                 - \`impl\`
                 - \`mod\`
                 - \`trait\`
         `,
         minLookbehind: 'f'.length,
-        scoping: [
-            ['toplevel'],
-            ['...fn'],
-            ['...impl'],
-            ['...mod'],
-            ['...trait'],
-        ],
+        scoping: [['toplevel'], ['...impl'], ['...mod'], ['...trait']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
             if (!tape.consumeAt('f')) {
@@ -281,11 +335,11 @@ const rust: CompletionFamily<RustScopeKind>[] = [
                 }
             }
             snippet += 'fn ';
-            return {
+            return new Completion({
                 preview: md`Insert \`${snippet}\`.`,
                 target: rangeBefore(ctx.cursor, flags.size + 'f'.length),
                 snippet,
-            };
+            });
         },
     },
     {
@@ -305,13 +359,13 @@ const rust: CompletionFamily<RustScopeKind>[] = [
             if (!tape.consumeAt('fi') || isLetter(tape.cur() ?? ' ')) {
                 return undefined;
             }
-            return {
+            return new Completion({
                 preview: md`
 Insert \`if\` block, then move to conditional.
                 `,
                 target: rangeBefore(ctx.cursor, 'if'.length),
                 snippet: 'if $0 {}',
-            };
+            });
         },
     },
     {
@@ -345,11 +399,11 @@ Insert \`if\` block, then move to conditional.
                 return undefined;
             }
             const expansion = 'let' + mut;
-            return {
+            return new Completion({
                 preview: md`Insert \`${expansion}\`.`,
                 target: rangeBefore(ctx.cursor, mut ? 'lm'.length : 'l'.length),
                 snippet: expansion + ' ',
-            };
+            });
         },
     },
     {
@@ -394,14 +448,14 @@ Insert \`if\` block, then move to conditional.
             if (!closePos) {
                 return undefined;
             }
-            return {
+            return new Completion({
                 preview: md`
                     Insert \`else\` block after current \`if\` block, then move there.
                 `,
                 target: rangeBefore(ctx.cursor), //todo include previous newline as well
                 insertAt: after(ctx.cursor),
                 snippet: includeIf ? ' else if {\n$0\n}' : ' else {\n$0\n}',
-            };
+            });
         },
     },
     {
@@ -452,11 +506,11 @@ Insert \`if\` block, then move to conditional.
                 pub = '#[macro_export]\n';
             }
             const snippet = pub + kword;
-            return {
+            return new Completion({
                 preview: md`Insert \`${snippet}\`.`,
                 target: rangeBefore(ctx.cursor),
                 snippet: snippet + ' ',
-            };
+            });
         },
     },
     {
@@ -504,14 +558,16 @@ Insert \`if\` block, then move to conditional.
                 // missing `r` flag, but reference modifier given--assume reference
                 pre = '&' + pre;
             }
-            return {
-                preview: 'Wrap as slice type.',
+            return new Completion({
+                preview: md`
+Wrap as slice type.
+                `,
                 target: rangeBefore(
                     ctx.cursor,
                     target.length + flags.size + '.s'.length,
                 ),
                 snippet: pre + '[' + target + ']',
-            };
+            });
         },
     },
     {
@@ -536,13 +592,13 @@ Insert \`if\` block, then move to conditional.
             if (!tape.consumeAt('x') || !tape.isExhausted()) {
                 return undefined;
             }
-            return {
+            return new Completion({
                 preview: md`
 Insert \`extern "\` \`" \`.
                 `,
                 target: rangeBefore(ctx.cursor),
                 snippet: 'extern "${1:C}" $0',
-            };
+            });
         },
     },
     {
@@ -564,13 +620,13 @@ Insert \`extern "\` \`" \`.
             ) {
                 return undefined;
             }
-            return {
+            return new Completion({
                 preview: md`
 Insert \`#[\` \`]\`.
                 `,
                 target: rangeBefore(ctx.cursor, 'at'.length),
                 snippet: '#[$0]',
-            };
+            });
         },
     },
     {
@@ -604,11 +660,13 @@ Insert \`#[\` \`]\`.
             ) {
                 return undefined;
             }
-            return {
-                preview: 'Insert \`#[must_use]\`.',
+            return new Completion({
+                preview: md`
+Insert \`#[must_use]\`.
+                `,
                 target: rangeBefore(ctx.cursor),
                 snippet: '#[must_use]',
-            };
+            });
         },
     },
     {
@@ -639,13 +697,13 @@ Insert \`#[\` \`]\`.
             if (!tape.consumeEither('il', 'inline') || !tape.isExhausted()) {
                 return undefined;
             }
-            return {
+            return new Completion({
                 preview: md`
 Insert \`#[inline]\`
                 `,
                 target: rangeBefore(ctx.cursor),
                 snippet: '#[inline]\n',
-            };
+            });
         },
     },
     {
@@ -667,13 +725,13 @@ Insert \`#[inline]\`
             if (!tape.consumeAt('p') || !tape.isExhausted()) {
                 return undefined;
             }
-            return {
+            return new Completion({
                 preview: md`
 Inserts \`println!("\` \`")\`.
                 `,
                 target: rangeBefore(ctx.cursor, 'p'.length),
                 snippet: 'println!("$0");',
-            };
+            });
         },
     },
     {
@@ -738,11 +796,11 @@ Inserts \`println!("\` \`")\`.
                 }
                 expansion += '${1:name}: ${2:Type}';
             }
-            return {
+            return new Completion({
                 preview: md`Insert parameter layout: \`${expansion}\`.`,
                 target: rangeBefore(ctx.cursor, flags.size + 1),
                 snippet: expansion,
-            };
+            });
         },
     },
 

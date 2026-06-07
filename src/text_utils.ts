@@ -1,8 +1,7 @@
-//! General utilities.
+//! Text-manipulation utilities.
 import dedent from 'dedent-js';
 import { MarkdownString } from 'vscode';
 
-export type NonEmptyString = `${any}${string}`;
 export type Brackets = (typeof BRACKETS)[number];
 export type OpenBracket = (typeof OPEN_BRACKETS)[number];
 export type CloseBracket = (typeof CLOSE_BRACKETS)[number];
@@ -43,7 +42,7 @@ export function getOpenBracket(close: string): OpenBracket | undefined {
  * Returns the index of the first occurrence of `query`
  * that is not appended or prepended to a sequence of letters.
  */
-export function findWord(s: string, query: NonEmptyString): number {
+export function findWord(s: string, query: string): number {
     if (!query) {
         return -1;
     }
