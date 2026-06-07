@@ -59,7 +59,7 @@ export type Flag = FlagChar | `-${FlagChar}${FlagChar}`;
  * @param minLookbehind The minimum number of previous, consecutive character insertions
  * for a match to this shorthand to be valid. This is an optimization, often the minimum number
  * of characters for the base case. Can be assigned `NaN` so this shorthand is always checked.
- * @param validScopeTrees The scope or nested scope required for this shorthand to match.
+ * @param scoping The possible scope trees required for this shorthand to match.
  * Nested scopes are not required to be adjacent; they must simply be present in the same order.
  * If not provided, this matches in all scopes.
  * @param exactScope If true, the entire scope stack must equal
@@ -69,7 +69,7 @@ export type Flag = FlagChar | `-${FlagChar}${FlagChar}`;
 export type CompletionFamily<ScopeKind extends string> = {
     readonly docs: MarkdownString;
     readonly minLookbehind: number;
-    readonly validScopeTrees?: (ScopeKind | `...${ScopeKind}`)[][];
+    readonly scoping?: (ScopeKind | `...${ScopeKind}`)[][];
     readonly resolver: (
         ctx: CompletionContext<ScopeKind>,
     ) => Completion | undefined;

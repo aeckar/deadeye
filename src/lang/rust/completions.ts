@@ -7,55 +7,8 @@ import { rangeBefore } from '../../misc';
 import { after } from '../../misc';
 import Tape from '../../tape';
 import { findWord, isLetter, toMarkdown as md } from '../../text_utils';
-import { consumeRustTarget } from './lang';
+import { consumeRustTarget } from './lang_utils';
 import { RustScopeKind } from './scoping';
-
-// Elements with no identation from start of line need not have their scope checked,
-// as we can assume they are top-level
-
-// ['ls', 'static'], // `mut ` comes after
-
-// first in line, top-level or struct/enum scope
-// ['t', 'type'],
-// ['lc', 'const'],
-// ['a', '#[$0]'],
-
-// non-exportable top-level elements
-// nonPubItems: new Map([['i', 'impl$0']]),
-
-// lifetimes(flags) {
-//     return (
-//         [...flags.toLowerCase()].find(ch => ch >= 'a' && ch <= 'd') ??
-//         ''
-//     );
-// },
-
-//rust
-// ts
-// javaScript
-// c
-// cpp
-// java
-// kotlin
-// dart
-// html
-// css
-// yaml
-// toml
-// json
-// md
-
-// pcrate psuper pself
-// defer (pub in ..)
-
-// reprc reprt reprp repraN
-// function signature
-// use specials
-
-// are all triggered by space
-
-// need both raw and regex's for most robust archiecture
-// use space instead of \s
 
 const builtins = /str|bool|char|[ui]([8136][624][8]?|size)|f[36][24]/g;
 
@@ -148,6 +101,53 @@ Inserts a \`HashSet\` type
     },
 ];
 
+// Elements with no identation from start of line need not have their scope checked,
+// as we can assume they are top-level
+
+// ['ls', 'static'], // `mut ` comes after
+
+// first in line, top-level or struct/enum scope
+// ['t', 'type'],
+// ['lc', 'const'],
+// ['a', '#[$0]'],
+
+// non-exportable top-level elements
+// nonPubItems: new Map([['i', 'impl$0']]),
+
+// lifetimes(flags) {
+//     return (
+//         [...flags.toLowerCase()].find(ch => ch >= 'a' && ch <= 'd') ??
+//         ''
+//     );
+// },
+
+//rust
+// ts
+// javaScript
+// c
+// cpp
+// java
+// kotlin
+// dart
+// html
+// css
+// yaml
+// toml
+// json
+// md
+
+// pcrate psuper pself
+// defer (pub in ..)
+
+// reprc reprt reprp repraN
+// function signature
+// use specials
+
+// are all triggered by space
+
+// need both raw and regex's for most robust archiecture
+// use space instead of \s
+
 //inlinefn
 //mustusefn
 //testfn
@@ -201,7 +201,32 @@ Inserts a \`HashSet\` type
 // todo worry about partial constructs later, might not even be an issue for all i know
 // todo come back to these when expression-level scopes finished
 
+// HOT COMPLETIONS
+// `:.* string(?=>[,)])` -> `:.* String(?=>[,)])`
+// `string::` -> `String::` IMPORTANT: run at same time as `::` completion
+// `c` -> `C` for `extern "C"`
+
+//`,` -> `, `
+// `efn` -> extern fm   // check is modification of valid fn signature
+// gfn -> add <> after fn id
+
+/*
+␣ ;
+
+⎵ ;
+
+
+grey squiggly when left of scope marker to show help
+*/
+
 const rust: CompletionFamily<RustScopeKind>[] = [
+    {
+        docs: md``,
+        minLookbehind: 1,
+        resolver(ctx) {
+            
+        },
+    },
     {
         docs: md`
             Declares a function.
@@ -227,7 +252,7 @@ const rust: CompletionFamily<RustScopeKind>[] = [
                 - \`trait\`
         `,
         minLookbehind: 'f'.length,
-        scopePool: [
+        scoping: [
             ['toplevel'],
             ['...fn'],
             ['...impl'],
@@ -307,7 +332,7 @@ Insert \`if\` block, then move to conditional.
             - First word in line
         `,
         minLookbehind: 'l'.length,
-        scopePool: [['fn']],
+        scoping: [['fn']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
@@ -402,7 +427,7 @@ Insert \`if\` block, then move to conditional.
             - First word in line
         `,
         minLookbehind: 1,
-        scopePool: [['toplevel']],
+        scoping: [['toplevel']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
             const type = tape.consumeMatch([
@@ -452,7 +477,7 @@ Insert \`if\` block, then move to conditional.
 
             - Function scope
         `,
-        scopePool: [['...fn']],
+        scoping: [['...fn']],
         minLookbehind: '.s'.length,
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
@@ -503,7 +528,7 @@ Insert \`if\` block, then move to conditional.
             - First word in line
         `,
         minLookbehind: 'x'.length,
-        scopePool: [['toplevel']],
+        scoping: [['toplevel']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             console.log(tape.raw);
@@ -569,7 +594,7 @@ Insert \`#[\` \`]\`.
             - First word in line
         `,
         minLookbehind: 'mustuse'.length,
-        scopePool: [['toplevel'], ['...impl']],
+        scoping: [['toplevel'], ['...impl']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
@@ -607,7 +632,7 @@ Insert \`#[\` \`]\`.
             - First word in line
         `,
         minLookbehind: 'il'.length,
-        scopePool: [['toplevel'], ['...impl']],
+        scoping: [['toplevel'], ['...impl']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
@@ -635,7 +660,7 @@ Insert \`#[inline]\`
             - First word in line
         `,
         minLookbehind: 'p'.length,
-        scopePool: [['...fn']],
+        scoping: [['...fn']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();

@@ -31,7 +31,7 @@ import {
     CompletionContext,
     CompletionStrategy,
 } from './completion_utils';
-import completionFamilies from './lang/completions';
+import completionFamilies from './lang/completion_families';
 import scopeResolvers from './lang/scope_resolvers';
 import { Scope, getCachedScopes } from './scoping_utils';
 import Tape from './tape';

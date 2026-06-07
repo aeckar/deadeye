@@ -1,9 +1,6 @@
 import * as assert from 'assert';
-
-// You can import and use all API from the 'vscode' module
-// as well as import your extension to test it
 import * as vscode from 'vscode';
-// import * as myExtension from '../../extension';
+import * as myExtension from '../extension';
 
 suite('Extension Test Suite', () => {
 	vscode.window.showInformationMessage('Start all tests.');
@@ -13,3 +10,11 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(-1, [1, 2, 3].indexOf(0));
 	});
 });
+
+/*
+Tape — pure data structure, trivially testable
+consumeRustTarget — pure function, just needs a tape and returns a string
+The chord resolvers — if you construct a CompletionResolverContext with a fake tape and position, you can test them without an editor
+The scope scanner (once written) — just needs raw text and a cursor position
+The chord conflict checker — pure logic
+*/
