@@ -7,7 +7,7 @@ import {
 import { rangeBefore } from '../../misc';
 import { after } from '../../misc';
 import Tape from '../../tape';
-import { findWord, isLetter, toMarkdown as md } from '../../text_utils';
+import { findWord, isLetter, match, toMarkdown as md } from '../../text_utils';
 import { consumeRustTarget } from './lang_utils';
 import { RustScopeKind } from './scoping';
 
@@ -281,10 +281,21 @@ const rust: CompletionFamily<RustScopeKind>[] = [
         minLookbehind: 1,
         resolver(ctx) {
             const left = ctx.leftOfCursor().reversed();
+            if (left.isExhausted()) {
+                return undefined;
+            }
             const right = ctx.rightOfCursor();
             if (!right.consumeAt('fn')) {
                 return undefined;
             }
+            const expansion = match(left.next()!, {
+                p: 'pub',
+                c: 'const',
+                a: 'async',
+                u: 'unsafe',
+                x: 'extern "$0"'
+            });
+            
         },
     },
     {

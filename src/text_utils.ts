@@ -38,6 +38,19 @@ export function getOpenBracket(close: string): OpenBracket | undefined {
     return OPEN_BRACKETS[idx];
 }
 
+/** Returns the value paired to the key matching the given string, or `undefined` if none exists. */
+export function match(
+    s: string,
+    key: { [Key in string]: string },
+): string | undefined {
+    for (const [k, v] of Object.entries(key)) {
+        if (s === k) {
+            return v;
+        }
+    }
+    return undefined;
+}
+
 /**
  * Returns the index of the first occurrence of `query`
  * that is not appended or prepended to a sequence of letters.
