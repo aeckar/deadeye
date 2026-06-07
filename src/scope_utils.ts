@@ -1,13 +1,14 @@
 import { DocumentSymbol, Position, TextDocument, commands } from 'vscode';
-import { CompletionResolverContext } from './completion_utils';
 
-export type ScopeResolver<Kind extends string> = (
+import { CompletionContext } from './completion_utils';
+
+export type ScopeResolver<ScopeKind extends string> = (
     symbol: DocumentSymbol,
-    ctx: CompletionResolverContext,
-) => Scope<Kind>;
+    ctx: CompletionContext<ScopeKind>,
+) => Scope<ScopeKind>;
 
-export type Scope<Kind extends string> = {
-    readonly kind: Kind;
+export type Scope<ScopeKind extends string> = {
+    readonly kind: ScopeKind;
     readonly symbol: DocumentSymbol;
 };
 
@@ -17,41 +18,43 @@ let lastFetch = 0;
 
 const SCOPE_TTL = 150;
 
-export function innerScope<Kind extends string>(
-    scopes: Scope<Kind>[],
-): Scope<Kind> | undefined {
+export function innerScope<ScopeKind extends string>(
+    scopes: Scope<ScopeKind>[],
+): Scope<ScopeKind> | undefined {
     return scopes.at(-1);
 }
 
-export function isInScope<Kind extends string>(
-    scopes: Scope<Kind>[],
+export function isInScope<ScopeKind extends string>(
+    scopes: Scope<ScopeKind>[],
     kind: string,
 ): boolean {
     return scopes.some(s => s.kind === kind);
 }
 
-export async function getCachedScopes<Kind extends string>(
+export async function getCachedScopes<ScopeKind extends string>(
     document: TextDocument,
     pos: Position,
-    resolver: ScopeResolver<Kind>,
-): Promise<Scope<Kind>[]> {
+    ctx: CompletionContext<ScopeKind>,
+    resolver: ScopeResolver<ScopeKind>,
+): Promise<Scope<ScopeKind>[]> {
     const now = Date.now();
     const lineChanged = pos.line !== cachedLine;
     const expired = now - lastFetch > SCOPE_TTL;
     if (!lineChanged && !expired) {
         return cachedScope;
     }
-    cachedScope = await getScopes(document, pos, resolver);
+    cachedScope = await getScopes(document, pos, ctx, resolver);
     cachedLine = pos.line;
     lastFetch = now;
     return cachedScope;
 }
 
-export async function getScopes<Kind extends string>(
+export async function getScopes<ScopeKind extends string>(
     document: TextDocument,
     pos: Position,
-    resolver: ScopeResolver<Kind>,
-): Promise<Scope<Kind>[]> {
+    ctx: CompletionContext<ScopeKind>,
+    resolver: ScopeResolver<ScopeKind>,
+): Promise<Scope<ScopeKind>[]> {
     const symbols = await commands.executeCommand<DocumentSymbol[]>(
         'vscode.executeDocumentSymbolProvider',
         document.uri,
@@ -62,22 +65,23 @@ export async function getScopes<Kind extends string>(
 
     // return full stack of scopes containing pos
     // e.g. [Mod, Impl, Function] if you're inside a method
-    return walkSymbols(symbols, pos, resolver);
+    return walkSymbols(symbols, pos, ctx, resolver);
 }
 
-function walkSymbols<Kind extends string>(
+function walkSymbols<ScopeKind extends string>(
     symbols: DocumentSymbol[],
     pos: Position,
-    resolver: ScopeResolver<Kind>,
-): Scope<Kind>[] {
+    ctx: CompletionContext<ScopeKind>,
+    resolver: ScopeResolver<ScopeKind>,
+): Scope<ScopeKind>[] {
     for (const symbol of symbols) {
         if (!symbol.range.contains(pos)) {
             continue;
         }
-        const scope = resolver(symbol);
+        const scope = resolver(symbol, ctx);
 
         // recurse into children to get full stack
-        const children = walkSymbols(symbol.children, pos, resolver);
+        const children = walkSymbols(symbol.children, pos, ctx, resolver);
         return [scope, ...children];
     }
     return [];

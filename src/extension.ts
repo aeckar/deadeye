@@ -11,29 +11,40 @@
 //!
 //! - Top-level functions should use `function` notation over arrow function constants
 //! to easily discern from top-level constants
-import {
-    ExtensionContext,
-    Hover,
-    MarkdownString,
-    Position,
-    Selection,
-    SnippetString,
-    TextEditor,
-    ThemeColor,
-    commands,
-    languages,
-    window,
-} from 'vscode';
+import { ExtensionContext, Hover, MarkdownString, Position, Selection, SnippetString, TextEditor, ThemeColor, commands, languages, window } from 'vscode';
 
-import {
-    Completion,
-    CompletionResolverContext,
-    CompletionStrategy,
-} from './completion_utils';
+
+
+import { Completion, CompletionContext, CompletionStrategy } from './completion_utils';
 import completionFamilies from './lang/completions';
 import scopeResolvers from './lang/scope_resolvers';
-import { getCachedScopes } from './scope_utils';
+import { Scope, getCachedScopes } from './scope_utils';
 import Tape from './tape';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 let strategy: CompletionStrategy | undefined;
 let decorationSyncTimeout: NodeJS.Timeout | undefined; // todo store by window/lang
@@ -51,7 +62,7 @@ function cancelCompletion(editor: TextEditor) {
         return;
     }
     strategy = undefined;
-    editor.setDecorations(decoration, []);  // reset decorations
+    editor.setDecorations(decoration, []); // reset decorations
 }
 
 /** Extension initializer. */
@@ -88,7 +99,7 @@ export function activate(context: ExtensionContext) {
                 return;
             }
             const key = (args.text as string).trim(); // sometimes preceded by space
-            await getCompletionStrategy(key, editor);
+            await updateStrategy(key, editor);
             commands.executeCommand('default:type', args); // manually perform insertion
             if (strategy) {
                 editor.setDecorations(decoration, [strategy.completion.target]);
@@ -126,12 +137,8 @@ export function activate(context: ExtensionContext) {
     );
 }
 
-/**
- * Runs every line-based completion for the current language.
- *
- * @return `true` if a line-based shorthand was expanded.
- */
-async function getCompletionStrategy(key: string, editor: TextEditor) {
+/** Runs every line-based completion for the current language. */
+async function updateStrategy(key: string, editor: TextEditor) {
     const active = editor.selection.active;
     const position = new Position(active.line, active.character + 1); // adjust for key-in
     const langId = editor.document.languageId;
@@ -139,16 +146,17 @@ async function getCompletionStrategy(key: string, editor: TextEditor) {
     if (!line) {
         return; // ensure line is not empty before passing to resolvers
     }
-    const scopes = await getCachedScopes(
-        //todo implement me
+    const newContext = (scopeTree: Scope<any>[]): CompletionContext<any> => {
+        return new CompletionContext(Tape.of(line), position, editor, scopeTree);
+    };
+    const scopeTree = await getCachedScopes(
         editor.document,
         position,
+        newContext([]),
         scopeResolvers[langId],
     );
     for (const family of completionFamilies[langId]) {
-        const completion = family.resolver(
-            new CompletionResolverContext(Tape.of(line), position, editor),
-        );
+        const completion = family.resolver(newContext(scopeTree));
         if (!completion) {
             continue;
         }

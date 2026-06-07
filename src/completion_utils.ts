@@ -1,7 +1,20 @@
 import { MarkdownString, Position, Range, Selection, TextEditor } from 'vscode';
 
+
+
+import { Scope } from './scope_utils';
 import Tape from './tape';
 import { Brackets } from './utils';
+
+
+
+
+
+
+
+
+
+
 
 export const MAX_LINE_SEEK = 50;
 
@@ -57,19 +70,19 @@ export type Flag = FlagChar | `-${FlagChar}${FlagChar}`;
  * @param minLookbehind The minimum number of previous, consecutive character insertions
  * for a match to this shorthand to be valid. This is an optimization, often the minimum number
  * of characters for the base case. Can be assigned `NaN` so this shorthand is always checked.
- * @param scope The scope or nested scope required for this shorthand to match. Nested scopes
- * are not required to be adjacent; they must simply be present in the same order. If not provided,
- * this matches in all scopes.
+ * @param validScopeTrees The scope or nested scope required for this shorthand to match.
+ * Nested scopes are not required to be adjacent; they must simply be present in the same order.
+ * If not provided, this matches in all scopes.
  * @param exactScope If true, the entire scope stack must equal
  * {@link CompletionFamily["scope"]|scope}, not just a part of it.
  * If not provided, behaves as if it were `false`.
  */
-export type CompletionFamily<K extends string> = {
+export type CompletionFamily<ScopeKind extends string> = {
     readonly docs: MarkdownString;
     readonly minLookbehind: number;
-    readonly scope?: (K | `...${K}`)[][];
+    readonly validScopeTrees?: (ScopeKind | `...${ScopeKind}`)[][];
     readonly resolver: (
-        ctx: CompletionResolverContext,
+        ctx: CompletionContext<ScopeKind>,
     ) => Completion | undefined;
 };
 
@@ -124,15 +137,22 @@ export type CompletionStrategy = {
 };
 
 /** Passed to {@link CompletionFamily.resolver}. */
-export class CompletionResolverContext {
+export class CompletionContext<ScopeKind extends string> {
     readonly line: Tape;
     readonly cursor: Position;
     readonly editor: TextEditor;
+    readonly scopeTree?: Scope<ScopeKind>[];
 
-    constructor(curLine: Tape, cursor: Position, editor: TextEditor) {
+    constructor(
+        curLine: Tape,
+        cursor: Position,
+        editor: TextEditor,
+        scopeTree?: Scope<ScopeKind>[],
+    ) {
         this.line = curLine;
         this.cursor = cursor;
         this.editor = editor;
+        this.scopeTree = scopeTree;
     }
 
     /** Returns a tape moving left from the cursor over the current line. */
@@ -176,19 +196,11 @@ export class CompletionResolverContext {
             for (let character = end - 1; character >= 0; character--) {
                 const ch = text[character];
                 if (recur) {
-                    if (
-                        CompletionResolverContext.OTHER_BRACKETS[open].includes(
-                            ch,
-                        )
-                    ) {
+                    if (CompletionContext.OTHER_BRACKETS[open].includes(ch)) {
                         // missing closer for other type of bracket
                         return undefined;
                     }
-                    if (
-                        CompletionResolverContext.OTHER_BRACKETS[
-                            closed
-                        ].includes(ch)
-                    ) {
+                    if (CompletionContext.OTHER_BRACKETS[closed].includes(ch)) {
                         const openPos = this.seekOpenerRecursive(
                             (ch === ')'
                                 ? '('
@@ -240,19 +252,11 @@ export class CompletionResolverContext {
             for (let character = 0; character < end; character++) {
                 const ch = text[character];
                 if (recur) {
-                    if (
-                        CompletionResolverContext.OTHER_BRACKETS[
-                            closed
-                        ].includes(ch)
-                    ) {
+                    if (CompletionContext.OTHER_BRACKETS[closed].includes(ch)) {
                         // missing closer for other type of bracket
                         return undefined;
                     }
-                    if (
-                        CompletionResolverContext.OTHER_BRACKETS[open].includes(
-                            ch,
-                        )
-                    ) {
+                    if (CompletionContext.OTHER_BRACKETS[open].includes(ch)) {
                         const closedPos = this.seekCloserRecursive(
                             (ch === ')'
                                 ? '('

@@ -231,7 +231,13 @@ const rust: CompletionFamily<RustScopeKind>[] = [
                 - \`trait\`
         `,
         minLookbehind: 'f'.length,
-        scope: [['toplevel'], ['...fn'], ['...impl'], ['...mod'], ['...trait']],
+        scopePool: [
+            ['toplevel'],
+            ['...fn'],
+            ['...impl'],
+            ['...mod'],
+            ['...trait'],
+        ],
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
             if (!tape.consumeAt('f')) {
@@ -305,7 +311,7 @@ Insert \`if\` block, then move to conditional.
             - First word in line
         `,
         minLookbehind: 'l'.length,
-        scope: [['fn']],
+        scopePool: [['fn']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
@@ -400,7 +406,7 @@ Insert \`if\` block, then move to conditional.
             - First word in line
         `,
         minLookbehind: 1,
-        scope: [['toplevel']],
+        scopePool: [['toplevel']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
             const type = tape.consumeMatch([
@@ -450,7 +456,7 @@ Insert \`if\` block, then move to conditional.
 
             - Function scope
         `,
-        scope: [['...fn']],
+        scopePool: [['...fn']],
         minLookbehind: '.s'.length,
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
@@ -501,7 +507,7 @@ Insert \`if\` block, then move to conditional.
             - First word in line
         `,
         minLookbehind: 'x'.length,
-        scope: [['toplevel']],
+        scopePool: [['toplevel']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             console.log(tape.raw);
@@ -567,7 +573,7 @@ Insert \`#[\` \`]\`.
             - First word in line
         `,
         minLookbehind: 'mustuse'.length,
-        scope: [['toplevel'], ['...impl']],
+        scopePool: [['toplevel'], ['...impl']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
@@ -605,7 +611,7 @@ Insert \`#[\` \`]\`.
             - First word in line
         `,
         minLookbehind: 'il'.length,
-        scope: [['toplevel'], ['...impl']],
+        scopePool: [['toplevel'], ['...impl']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
@@ -633,7 +639,7 @@ Insert \`#[inline]\`
             - First word in line
         `,
         minLookbehind: 'p'.length,
-        scope: [['...fn']],
+        scopePool: [['...fn']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();

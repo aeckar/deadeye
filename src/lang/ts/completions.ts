@@ -44,7 +44,7 @@ const typescript: CompletionFamily<TsScopeKind>[] = [
             - First word in line
         `,
         minLookbehind: 1,
-        scope: [['fn'], ['object']],
+        scopePool: [['fn'], ['object']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
@@ -77,7 +77,7 @@ const typescript: CompletionFamily<TsScopeKind>[] = [
             - Inside an async function scope
         `,
         minLookbehind: 3, // '.aw'.length
-        scope: [['fn']],
+        scopePool: [['fn']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
             if (!tape.consumeAt('wa') || !tape.consumeAt('.')) {
@@ -122,7 +122,7 @@ Wrap expression with \`await\`.
             - First item on the line
         `,
         minLookbehind: 2,
-        scope: [['class']],
+        scopePool: [['class']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
 
