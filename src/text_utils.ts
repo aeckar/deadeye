@@ -98,32 +98,32 @@ export function after(cursor: Position, skip: number = 0): Position {
     return new Position(cursor.line, cursor.character + skip + 1);
 }
 
-export function markdown(
+export function toMarkdown(
     s: string | TemplateStringsArray,
     ...values: any[]
 ): MarkdownString {
     return new MarkdownString(dedent(s, values));
 }
 
-export function pascal(chunks: string[]): string {
+export function toPascalCase(chunks: string[]): string {
     return chunks.map(capitalize).join('');
 }
 
-export function scream(chunks: string[]): string {
+export function toScreamCase(chunks: string[]): string {
     return chunks.map(s => s.toUpperCase()).join('_');
 }
 
-export function snake(chunks: string[]): string {
+export function toSnakeCase(chunks: string[]): string {
     return chunks.map(s => s.toLowerCase()).join('_');
 }
 
-export function camel(chunks: string[]): string {
+export function toCamelCase(chunks: string[]): string {
     return chunks
         .map((s, idx) => (idx === 0 ? s.toLowerCase() : capitalize(s)))
         .join('');
 }
 
-export function kebab(chunks: string[]): string {
+export function toKebabCase(chunks: string[]): string {
     return chunks.map(s => s.toLowerCase()).join('-');
 }
 

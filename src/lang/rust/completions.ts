@@ -8,9 +8,9 @@ import {
     after,
     findWord,
     isLetter,
-    markdown as md,
+    toMarkdown as md,
     rangeBefore,
-} from '../../utils';
+} from '../../text_utils';
 import { consumeRustTarget } from './lang';
 import { RustScopeKind } from './scopes';
 

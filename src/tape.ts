@@ -1,20 +1,13 @@
 //! Cursor data structure.
 import { Position } from 'vscode';
 
-
-
 import { Flag } from './completion_utils';
-import { NonEmptyString, enumerate, isLowerLetter, isUpperLetter } from './utils';
-
-
-
-
-
-
-
-
-
-
+import {
+    NonEmptyString,
+    enumerate,
+    isLowerLetter,
+    isUpperLetter,
+} from './text_utils';
 
 /**
  * A lightweight cursor over a string for non-linear parsing.
@@ -267,8 +260,8 @@ export default class Tape {
      * Flags can be given as either a single character or two characters followed by `-`,
      * in which case any character with a code point between the given ones is matched.
      * These range flags can only be matched once for a given entry in `flags`.
-     * To determine which specific character was matched,  
-     * 
+     * To determine which specific character was matched,
+     *
      *
      * @return the pairs whose flag was matched.
      */

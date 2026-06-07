@@ -10,41 +10,31 @@
 //! # Style Guide (not enforced by .prettierrc)
 //!
 //! - Top-level functions should use `function` notation over arrow function constants
-//! to easily discern from top-level constants
-import { ExtensionContext, Hover, MarkdownString, Position, Selection, SnippetString, TextEditor, ThemeColor, commands, languages, window } from 'vscode';
+//! to easily discern from top-level constants ... unless its a closure with captured variables
+//! or you are implementing a closure type
+import {
+    ExtensionContext,
+    Hover,
+    MarkdownString,
+    Position,
+    Selection,
+    SnippetString,
+    TextEditor,
+    ThemeColor,
+    commands,
+    languages,
+    window,
+} from 'vscode';
 
-
-
-import { Completion, CompletionContext, CompletionStrategy } from './completion_utils';
+import {
+    Completion,
+    CompletionContext,
+    CompletionStrategy,
+} from './completion_utils';
 import completionFamilies from './lang/completions';
 import scopeResolvers from './lang/scope_resolvers';
 import { Scope, getCachedScopes } from './scope_utils';
 import Tape from './tape';
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 let strategy: CompletionStrategy | undefined;
 let decorationSyncTimeout: NodeJS.Timeout | undefined; // todo store by window/lang
@@ -147,7 +137,12 @@ async function updateStrategy(key: string, editor: TextEditor) {
         return; // ensure line is not empty before passing to resolvers
     }
     const newContext = (scopeTree: Scope<any>[]): CompletionContext<any> => {
-        return new CompletionContext(Tape.of(line), position, editor, scopeTree);
+        return new CompletionContext(
+            Tape.of(line),
+            position,
+            editor,
+            scopeTree,
+        );
     };
     const scopeTree = await getCachedScopes(
         editor.document,

@@ -5,8 +5,14 @@ import { CompletionContext } from './completion_utils';
 export type ScopeResolver<ScopeKind extends string> = (
     symbol: DocumentSymbol,
     ctx: CompletionContext<ScopeKind>,
-) => Scope<ScopeKind>;
+) => ScopeKind[];
 
+/**
+ * Represents a member in the scope tree at a particular position in a file.
+ * 
+ * @param kind the type of scope, as defined in `lang/<langId>/scopes.ts`
+ * @param symbol provides metadata and location data of the scope in question
+ */
 export type Scope<ScopeKind extends string> = {
     readonly kind: ScopeKind;
     readonly symbol: DocumentSymbol;
@@ -78,11 +84,10 @@ function walkSymbols<ScopeKind extends string>(
         if (!symbol.range.contains(pos)) {
             continue;
         }
-        const scope = resolver(symbol, ctx);
-
-        // recurse into children to get full stack
+        const kinds = resolver(symbol, ctx);
+        const scopes = kinds.map(kind => ({ kind, symbol }));
         const children = walkSymbols(symbol.children, pos, ctx, resolver);
-        return [scope, ...children];
+        return [...scopes, ...children];
     }
     return [];
 }

@@ -1,5 +1,5 @@
 import Tape from '../../tape';
-import { getCloseBracket, getOpenBracket } from '../../utils';
+import { getCloseBracket, getOpenBracket } from '../../text_utils';
 
 const STOP = '=,{};';
 const SIGIL = '&*!+-';
