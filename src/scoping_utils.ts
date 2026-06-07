@@ -1,16 +1,6 @@
 import { Position, TextDocument, commands } from 'vscode';
 
-
-
 import { CompletionContext } from './completion_utils';
-
-
-
-
-
-
-
-
 
 export type ScopeResolver<ScopeKind extends string> = (
     ctx: CompletionContext<ScopeKind>,
@@ -20,15 +10,16 @@ export type ScopeResolver<ScopeKind extends string> = (
  * Represents a member in the scope tree at a particular position in a file.
  *
  * @param kind the type of scope, as defined in `lang/<langId>/scopes.ts`
- * @param symbol provides metadata and location data of the scope in question
+ * @param markerPos the position of the first character of the scope marker
+ * (`if`, `fn`, `impl`, `mod`, etc.), which is primarily useful to hot completions
+ * that modify the scope signature.
+ * @param openPos the position of the opening bracket that denotes this scope.
  */
 export type Scope<ScopeKind extends string> = {
     readonly kind: ScopeKind;
-    readonly symbol: DocumentSymbol;
+    readonly markerPos: Position;
+    readonly openPos: Position;
 };
-
-const MAX_SCAN_LINES = 100;
-const MAX_SCAN_CHARS = 5000;
 
 let cachedScope: Scope<any>[] = [];
 let cachedLine = -1;

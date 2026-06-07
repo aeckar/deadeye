@@ -1,6 +1,6 @@
 //! General utilities.
 import dedent from 'dedent-js';
-import { MarkdownString, Position, Range } from 'vscode';
+import { MarkdownString } from 'vscode';
 
 export type NonEmptyString = `${any}${string}`;
 export type Brackets = (typeof BRACKETS)[number];
@@ -15,6 +15,10 @@ export const OPEN_BRACKETS = ['(', '{', '[', '<'] as const;
 /** Each element is analogous to that in `OPEN_BRACKETS`. */
 export const CLOSE_BRACKETS = [')', '}', ']', '>'] as const;
 
+/**
+ * Returns the appropriate closing bracket, or `undefined`
+ * if the given character is not an opener.
+ */
 export function getCloseBracket(open: string): CloseBracket | undefined {
     const idx = OPEN_BRACKETS.indexOf(open as OpenBracket);
     if (idx === undefined) {
@@ -23,6 +27,10 @@ export function getCloseBracket(open: string): CloseBracket | undefined {
     return CLOSE_BRACKETS[idx];
 }
 
+/**
+ * Returns the appropriate opening bracket, or `undefined`
+ * if the given character is not a closer.
+ */
 export function getOpenBracket(close: string): OpenBracket | undefined {
     const idx = CLOSE_BRACKETS.indexOf(close as CloseBracket);
     if (idx === undefined) {
@@ -32,20 +40,8 @@ export function getOpenBracket(close: string): OpenBracket | undefined {
 }
 
 /**
- *
- */
-export function enumerate<K extends number | string | symbol, V>(o: {
-    [T in K]?: V;
-}): [number, [K, V]][] {
-    // Object.entries returns [string, unknown][], so cast to the expected types
-    const entries = Object.entries(o) as unknown as [K, V][];
-    return entries.map(
-        ([key, val], idx) => [idx, [key, val]] as [number, [K, V]],
-    );
-}
-
-/**
- *
+ * Returns the index of the first occurrence of `query`
+ * that is not appended or prepended to a sequence of letters.
  */
 export function findWord(s: string, query: NonEmptyString): number {
     if (!query) {
@@ -79,29 +75,6 @@ export function findWord(s: string, query: NonEmptyString): number {
         index = s.indexOf(query, index + 1);
     }
     return -1;
-}
-
-export function rangeBefore(
-    cursor: Position,
-    from: number = cursor.character,
-): Range {
-    if (from < 0) {
-        // otherwise, would silently fail
-        throw new RangeError(`'from' must be non-negative, got ${from}`);
-    }
-    if (from > cursor.character) {
-        throw new RangeError(
-            `'from' (${from}) exceeds cursor character position (${cursor.character})`,
-        );
-    }
-    return new Range(
-        new Position(cursor.line, cursor.character - from),
-        new Position(cursor.line, cursor.character),
-    );
-}
-
-export function after(cursor: Position, skip: number = 0): Position {
-    return new Position(cursor.line, cursor.character + skip + 1);
 }
 
 /** Returns a Markdown string, which can be used for documentation. */

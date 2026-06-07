@@ -2,12 +2,8 @@
 import { Position } from 'vscode';
 
 import { Flag } from './completion_utils';
-import {
-    NonEmptyString,
-    enumerate,
-    isLowerLetter,
-    isUpperLetter,
-} from './text_utils';
+import { enumerate } from './misc';
+import { NonEmptyString, isLowerLetter, isUpperLetter } from './text_utils';
 
 /**
  * A lightweight cursor over a string for non-linear parsing.

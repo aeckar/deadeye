@@ -3,12 +3,9 @@ import {
     CompletionSingle,
     MAX_LINE_SEEK,
 } from '../../completion_utils';
-import {
-    after,
-    isLetter,
-    toMarkdown as md,
-    rangeBefore,
-} from '../../text_utils';
+import { rangeBefore } from '../../misc';
+import { after } from '../../misc';
+import { isLetter, toMarkdown as md } from '../../text_utils';
 import { TsScopeKind } from './scopes';
 
 // Simple, non-contextual substitutions triggered globally or inline

@@ -3,14 +3,10 @@ import {
     CompletionSingle,
     MAX_LINE_SEEK,
 } from '../../completion_utils';
+import { rangeBefore } from '../../misc';
+import { after } from '../../misc';
 import Tape from '../../tape';
-import {
-    after,
-    findWord,
-    isLetter,
-    toMarkdown as md,
-    rangeBefore,
-} from '../../text_utils';
+import { findWord, isLetter, toMarkdown as md } from '../../text_utils';
 import { consumeRustTarget } from './lang';
 import { RustScopeKind } from './scoping';
 
