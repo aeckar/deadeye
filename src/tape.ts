@@ -207,7 +207,7 @@ export default class Tape {
     }
 
     /** Consumes the query starting at this position, or returns an empty string. */
-    consumeAt(query: NonEmptyString): string {
+    consumeAt(query: string): string {
         if (!this.isAt(query)) {
             return '';
         }
@@ -216,7 +216,7 @@ export default class Tape {
     }
 
     /** Consumes the query starting at this position, or returns an empty string. */
-    consumeEither(...queries: NonEmptyString[]): string {
+    consumeEither(...queries: string[]): string {
         for (const query of queries) {
             if (this.consumeAt(query)) {
                 return query;
@@ -231,7 +231,8 @@ export default class Tape {
      * @return the matches to each chunks, as well as any whitespace between them.
      * If a match to any chunk fails, `undefined` is returned.
      */
-    consumeChunks(chunks: NonEmptyString[]): string[] | undefined {
+    // todo i dont rember what this is for...
+    consumeChunks(chunks: string[]): string[] | undefined {
         const start = this.pos;
         let parts = [];
         for (const [idx, chunk] of chunks.entries()) {
@@ -260,10 +261,11 @@ export default class Tape {
      * These range flags can only be matched once for a given entry in `flags`.
      * To determine which specific character was matched,
      *
+     * For completion matching, values should have a trailing space.
      *
      * @return the pairs whose flag was matched.
      */
-    consumeFlags(flags: { [K in Flag]?: string }):
+    consumeFlags(flags: { [Key in Flag]?: string }):
         | Map<Flag, string>
         | undefined {
         let expansions: [number, string][] = [];
@@ -310,13 +312,17 @@ export default class Tape {
     /**
      * Consumes the first key that matches from the list of key-value pairs.
      *
+     * For completion matching, values should not have a trailing space.
+     *
      * @return the pair whose key matched, or `undefined` if none did.
      */
-    consumeMatch(strings: [string, string][]): [string, string] | undefined {
-        for (const [key, value] of strings) {
-            if (this.isAt(key)) {
-                this.pos += key.length;
-                return [key, value];
+    consumeMatch(key: { [Key in string]: string }):
+        | [string, string]
+        | undefined {
+        for (const [k, v] of Object.entries(key)) {
+            if (this.isAt(k)) {
+                this.pos += k.length;
+                return [k, v];
             }
         }
         return undefined;

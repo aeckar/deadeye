@@ -93,30 +93,14 @@ export type CompletionFamily<ScopeKind extends string> = {
     ) => Completion | undefined;
 };
 
-/**
- * A simplified completion, which always runs for a typed character sequence.
- *
- * For a given language, substitutions are todo
- *
- * @param title See {@link Completion.preview}.
- * @param docs See {@link CompletionFamily.docs}.
- * @param target The character sequence to be matched.
- * @param snippet See {@link Completion.snippet}.
- */
-export type CompletionSingle = {
-    readonly title: MarkdownString;
-    readonly docs?: MarkdownString;
-    readonly target: string;
-    readonly snippet: string;
-};
-
+// Use U+FF0F to escape `*/` in doc comment
 /**
  * The result of {@link CompletionFamily.resolver}.
  *
  * @param preview A short description of what the completion of the shorthand does.
  * This is dynamically created to describe **exactly** how the code is modified. This contrasts
  * with {@link CompletionFamily.docs}, which is a general description of
- * the shorthand or family of shorthands.
+ * the shorthand or family of shorthands. Ran through `expandTabStops` before rendering.
  * @param target The location of the actual shorthand, which is deleted.
  * most likely due to fast typing.
  * @param snippet The snippet to be inserted.

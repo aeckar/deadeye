@@ -38,6 +38,16 @@ export function getOpenBracket(close: string): OpenBracket | undefined {
     return OPEN_BRACKETS[idx];
 }
 
+//todo make fn to transform inline code blocks to fenced langid code block for syntax highlighting
+/** Expands each tab stop (`$0`, `${1:C}) to a more descriptive form. */
+export function expandTabStops(s: MarkdownString): MarkdownString {
+    return new MarkdownString(
+        s.value
+            .replace('$0', '/* stop here */')
+            .replace(/\$\{?(\d)(?::.*?\})?/, '/* placeholder $1 */'),
+    );
+}
+
 /** Returns the value paired to the key matching the given string, or `undefined` if none exists. */
 export function match(
     s: string,

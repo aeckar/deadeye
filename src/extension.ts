@@ -35,6 +35,7 @@ import completionFamilies from './lang/completion_families';
 import scopeResolvers from './lang/scope_resolvers';
 import { Scope } from './scoping_utils';
 import Tape from './tape';
+import { expandTabStops } from './text_utils';
 
 let strategy: CompletionStrategy | undefined;
 let decorationSyncTimeout: NodeJS.Timeout | undefined; // todo store by window/lang
@@ -57,23 +58,6 @@ function cancelCompletion(editor: TextEditor) {
 
 /** Extension initializer. */
 export function activate(context: ExtensionContext) {
-    commands.registerCommand('deadeye.trigger', () => {
-        // Actual trigger is in `keybindings` in `package.json`
-        // Register command as keybinding instead of as `type` intercept for better performance
-        const editor = window.activeTextEditor;
-        if (!editor) {
-            return;
-        }
-        if (!strategy) {
-            editor.edit(editBuilder => {
-                editBuilder.insert(editor.selection.active, ' ');
-            });
-            return;
-        }
-        applyCompletion(editor, strategy.completion);
-        strategy = undefined;
-    });
-
     const cancelCompletionOnSelectionChange =
         window.onDidChangeTextEditorSelection(event => {
             cancelCompletion(event.textEditor);
@@ -88,11 +72,21 @@ export function activate(context: ExtensionContext) {
             if (!editor) {
                 return;
             }
-
             const key = (args.text as string).trim(); // sometimes preceded by space
             if (!key) {
-                command
+                // pressed space
+                if (!strategy) {
+                    // fixme for hot completions
+                    editor.edit(editBuilder => {
+                        editBuilder.insert(editor.selection.active, ' ');
+                    });
+                    return;
+                }
+                applyCompletion(editor, strategy.completion);
+                strategy = undefined;
+                return;
             }
+
             await updateStrategy(key, editor);
             commands.executeCommand('default:type', args); // manually perform insertion
             if (strategy) {
@@ -115,11 +109,7 @@ export function activate(context: ExtensionContext) {
             if (!strategy || !strategy.completion.target.contains(position)) {
                 return null;
             }
-            let title = strategy.completion.preview;
-            if (typeof title === 'string') {
-                title = new MarkdownString(title);
-            }
-            return new Hover(title);
+            return new Hover(expandTabStops(strategy.completion.preview));
         },
     });
 

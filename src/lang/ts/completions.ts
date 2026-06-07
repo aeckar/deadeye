@@ -33,6 +33,7 @@ const substitutions: CompletionSingle[] = [
 ];
 
 // todo hot completion: auto-cap assignment to key if atomic symbolic constant (true, false, undefined)
+// todo technically already performing spec engineering thru doc comment validation...
 
 const typescript: CompletionFamily<TsScopeKind>[] = [
     {
@@ -52,16 +53,13 @@ const typescript: CompletionFamily<TsScopeKind>[] = [
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
-
-            const match = tape.consumeMatch([
-                ['c', 'const'],
-                ['l', 'let'],
-            ]);
-
+            const match = tape.consumeMatch({
+                c: 'const',
+                l: 'let',
+            });
             if (!match || !tape.isExhausted()) {
                 return undefined;
             }
-
             const [_, kword] = match;
             return {
                 preview: md`Insert \`${kword}\` declaration.`,

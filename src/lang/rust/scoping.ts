@@ -49,6 +49,9 @@ Only needs 1-3 levels of depth
 A raw scanner satisfies all four. The symbol tree satisfies none of them fully. You would have hit every one of those walls eventually and ended up at the scanner anyway.
 */
 
+
+//todo for all other c-like too: optimize doc comment (make single line /** */, etc)
+
 function toDeclarationScope(symbol: DocumentSymbol): RustScopeKind {
     switch (symbol.kind) {
         case SymbolKind.Module:

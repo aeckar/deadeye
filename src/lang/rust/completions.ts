@@ -1,7 +1,6 @@
 import {
     Completion,
     CompletionFamily,
-    CompletionSingle,
     MAX_LINE_SEEK,
 } from '../../completion_utils';
 import { rangeBefore } from '../../misc';
@@ -13,120 +12,120 @@ import { RustScopeKind } from './scoping';
 
 const builtins = /str|bool|char|[ui]([8136][624][8]?|size)|f[36][24]/g;
 
-const subsitutitons: CompletionSingle[] = [
-    {
-        title: md`
-Inserts a byte-string literal
-        `,
-        target: 'bsof',
-        snippet: 'b"$0"',
-    },
-    {
-        title: md`
-Inserts a byte-character literal
-        `,
-        target: 'bcof',
-        snippet: "b'$0'",
-    },
-    {
-        title: md`
-Inserts a string literal
-        `,
-        target: 'sof',
-        snippet: '"$0"',
-    },
-    {
-        title: md`
-Inserts a character literal
-        `,
-        target: 'cof',
-        snippet: "'$0'",
-    },
-    {
-        title: md`
-Inserts an empty vector
-        `,
-        target: 'vec',
-        snippet: 'vec![$0]',
-    },
-    {
-        title: md`
-Inserts a String type
-        `,
-        target: 'string',
-        snippet: 'String',
-    },
-    {
-        title: md`
-Inserts a \`HashMap\` type
-        `,
-        target: 'mapof',
-        snippet: 'HashMap<$0,>',
-    },
-    {
-        title: md`
-Inserts a \`Vec\` type
-        `,
-        target: 'vecof',
-        snippet: 'Vec<$0>',
-    },
-    {
-        title: md`
-Inserts a \`HashSet\` type
-        `,
-        target: 'setof',
-        snippet: 'HashSet<$0>',
-    },
-    {
-        title: md`
-Inserts an attribute
-        `,
-        target: 'prm',
-        snippet: '#[$0]',
-    },
-    {
-        title: md`
-Prefixes fn with pub
-        `,
-        target: 'p |fn',
-        snippet: 'pub fn $0',
-    },
-    {
-        title: md`
-Prefixes fn with extern
-        `,
-        target: 'x |fn',
-        snippet: 'extern "${1:C}" fn $0',
-    },
-    {
-        title: md`
-Prefixes fn with const
-        `,
-        target: 'c |fn',
-        snippet: 'const fn $0',
-    },
-    {
-        title: md`
-Prefixes struct with pub
-        `,
-        target: 'p |struct',
-        snippet: 'pub struct $0',
-    },
-    {
-        title: md`
-Prefixes enum with pub
-        `,
-        target: 'p |enum',
-        snippet: 'pub enum $0',
-    },
-    {
-        title: md`
-Inserts a derive attribute
-        `,
-        target: 'prm |..',
-        snippet: '#[derive(${1:Debug, PartialEq})]\\n$0',
-    },
-];
+// const subsitutitons: CompletionSingle[] = [
+//     {
+//         title: md`
+// Inserts a byte-string literal
+//         `,
+//         target: 'bsof',
+//         snippet: 'b"$0"',
+//     },
+//     {
+//         title: md`
+// Inserts a byte-character literal
+//         `,
+//         target: 'bcof',
+//         snippet: "b'$0'",
+//     },
+//     {
+//         title: md`
+// Inserts a string literal
+//         `,
+//         target: 'sof',
+//         snippet: '"$0"',
+//     },
+//     {
+//         title: md`
+// Inserts a character literal
+//         `,
+//         target: 'cof',
+//         snippet: "'$0'",
+//     },
+//     {
+//         title: md`
+// Inserts an empty vector
+//         `,
+//         target: 'vec',
+//         snippet: 'vec![$0]',
+//     },
+//     {
+//         title: md`
+// Inserts a String type
+//         `,
+//         target: 'string',
+//         snippet: 'String',
+//     },
+//     {
+//         title: md`
+// Inserts a \`HashMap\` type
+//         `,
+//         target: 'mapof',
+//         snippet: 'HashMap<$0,>',
+//     },
+//     {
+//         title: md`
+// Inserts a \`Vec\` type
+//         `,
+//         target: 'vecof',
+//         snippet: 'Vec<$0>',
+//     },
+//     {
+//         title: md`
+// Inserts a \`HashSet\` type
+//         `,
+//         target: 'setof',
+//         snippet: 'HashSet<$0>',
+//     },
+//     {
+//         title: md`
+// Inserts an attribute
+//         `,
+//         target: 'prm',
+//         snippet: '#[$0]',
+//     },
+//     {
+//         title: md`
+// Prefixes fn with pub
+//         `,
+//         target: 'p |fn',
+//         snippet: 'pub fn $0',
+//     },
+//     {
+//         title: md`
+// Prefixes fn with extern
+//         `,
+//         target: 'x |fn',
+//         snippet: 'extern "${1:C}" fn $0',
+//     },
+//     {
+//         title: md`
+// Prefixes fn with const
+//         `,
+//         target: 'c |fn',
+//         snippet: 'const fn $0',
+//     },
+//     {
+//         title: md`
+// Prefixes struct with pub
+//         `,
+//         target: 'p |struct',
+//         snippet: 'pub struct $0',
+//     },
+//     {
+//         title: md`
+// Prefixes enum with pub
+//         `,
+//         target: 'p |enum',
+//         snippet: 'pub enum $0',
+//     },
+//     {
+//         title: md`
+// Inserts a derive attribute
+//         `,
+//         target: 'prm |..',
+//         snippet: '#[derive(${1:Debug, PartialEq})]\\n$0',
+//     },
+// ];
 
 // Elements with no identation from start of line need not have their scope checked,
 // as we can assume they are top-level
@@ -253,6 +252,10 @@ grey squiggly when left of scope marker to show help
 // todo completions should typically be >1 char to not conflict with single-letter vars,
 //  except outside of fn scope
 
+// todo group completions by trigger at init time
+
+// todo convert all completionSingle's to families
+
 const rust: CompletionFamily<RustScopeKind>[] = [
     {
         docs: md``,
@@ -272,6 +275,7 @@ const rust: CompletionFamily<RustScopeKind>[] = [
         },
     },
     {
+        // be lax with scoping rules to allow for move to before `fn` while still typing signature
         docs: md`
             Adds a modifier to a function.
 
@@ -288,14 +292,21 @@ const rust: CompletionFamily<RustScopeKind>[] = [
             if (!right.consumeAt('fn')) {
                 return undefined;
             }
-            const expansion = match(left.next()!, {
-                p: 'pub',
-                c: 'const',
-                a: 'async',
-                u: 'unsafe',
-                x: 'extern "$0"'
+            const snippet = match(left.next()!, {
+                p: 'pub ',
+                c: 'const ',
+                a: 'async ',
+                u: 'unsafe ',
+                x: 'extern "$0" ',
             });
-            
+            if (!snippet) {
+                return undefined;
+            }
+            return new Completion({
+                preview: md`Insert \`${snippet}\`.`,
+                target: rangeBefore(ctx.cursor, 1),
+                snippet,
+            });
         },
     },
     {
@@ -495,12 +506,12 @@ Insert \`if\` block, then move to conditional.
         scoping: [['toplevel']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
-            const type = tape.consumeMatch([
-                ['u', 'use'],
-                ['s', 'struct'],
-                ['e', 'enum'],
-                ['m', 'macro_rules!'],
-            ]);
+            const type = tape.consumeMatch({
+                u: 'use',
+                s: 'struct',
+                e: 'enum',
+                m: 'macro_rules!',
+            });
             if (!type) {
                 return undefined;
             }
@@ -585,7 +596,7 @@ Wrap as slice type.
         docs: md`
             Inserts an \`extern\` modifier to declare functions from FFI.
 
-            \`x\` → \`unsafe extern "/* stop here */"\`
+            \`x\` → \`unsafe extern "/* placeholder */" /* stop here */\`
 
             For more info, see https://doc.rust-lang.org/std/keyword.extern.html.
 
@@ -605,10 +616,10 @@ Wrap as slice type.
             }
             return new Completion({
                 preview: md`
-Insert \`extern "\` \`" \`.
+Insert \`extern "\${1:C}" \`.
                 `,
                 target: rangeBefore(ctx.cursor),
-                snippet: 'extern "${1:C}" $0',
+                snippet: 'extern "${1:C}" ',
             });
         },
     },
@@ -633,7 +644,7 @@ Insert \`extern "\` \`" \`.
             }
             return new Completion({
                 preview: md`
-Insert \`#[\` \`]\`.
+Insert \`#[$0]\`.
                 `,
                 target: rangeBefore(ctx.cursor, 'at'.length),
                 snippet: '#[$0]',
@@ -738,7 +749,7 @@ Insert \`#[inline]\`
             }
             return new Completion({
                 preview: md`
-Inserts \`println!("\` \`")\`.
+Inserts \`println!("$0")\`.
                 `,
                 target: rangeBefore(ctx.cursor, 'p'.length),
                 snippet: 'println!("$0");',
