@@ -1,10 +1,11 @@
 import { MarkdownString, Position, Range, Selection, TextEditor } from 'vscode';
 
-import { Scope } from './scope_utils';
+import { Scope } from './scoping_utils';
 import Tape from './tape';
 import { Brackets } from './text_utils';
 
 export const MAX_LINE_SEEK = 50;
+export const MAX_CHAR_SEEK = 2500;
 
 type FlagChar =
     | 'a'

@@ -1,15 +1,24 @@
-import { DocumentSymbol, Position, TextDocument, commands } from 'vscode';
+import { Position, TextDocument, commands } from 'vscode';
+
+
 
 import { CompletionContext } from './completion_utils';
 
+
+
+
+
+
+
+
+
 export type ScopeResolver<ScopeKind extends string> = (
-    symbol: DocumentSymbol,
     ctx: CompletionContext<ScopeKind>,
 ) => ScopeKind[];
 
 /**
  * Represents a member in the scope tree at a particular position in a file.
- * 
+ *
  * @param kind the type of scope, as defined in `lang/<langId>/scopes.ts`
  * @param symbol provides metadata and location data of the scope in question
  */
@@ -17,6 +26,9 @@ export type Scope<ScopeKind extends string> = {
     readonly kind: ScopeKind;
     readonly symbol: DocumentSymbol;
 };
+
+const MAX_SCAN_LINES = 100;
+const MAX_SCAN_CHARS = 5000;
 
 let cachedScope: Scope<any>[] = [];
 let cachedLine = -1;
@@ -66,28 +78,10 @@ export async function getScopes<ScopeKind extends string>(
         document.uri,
     );
     if (!symbols) {
-        return [];
+        return []; // disable scoping as fallback
     }
 
     // return full stack of scopes containing pos
     // e.g. [Mod, Impl, Function] if you're inside a method
     return walkSymbols(symbols, pos, ctx, resolver);
-}
-
-function walkSymbols<ScopeKind extends string>(
-    symbols: DocumentSymbol[],
-    pos: Position,
-    ctx: CompletionContext<ScopeKind>,
-    resolver: ScopeResolver<ScopeKind>,
-): Scope<ScopeKind>[] {
-    for (const symbol of symbols) {
-        if (!symbol.range.contains(pos)) {
-            continue;
-        }
-        const kinds = resolver(symbol, ctx);
-        const scopes = kinds.map(kind => ({ kind, symbol }));
-        const children = walkSymbols(symbol.children, pos, ctx, resolver);
-        return [...scopes, ...children];
-    }
-    return [];
 }

@@ -31,6 +31,9 @@ export function getOpenBracket(close: string): OpenBracket | undefined {
     return OPEN_BRACKETS[idx];
 }
 
+/**
+ *
+ */
 export function enumerate<K extends number | string | symbol, V>(o: {
     [T in K]?: V;
 }): [number, [K, V]][] {
@@ -41,6 +44,9 @@ export function enumerate<K extends number | string | symbol, V>(o: {
     );
 }
 
+/**
+ *
+ */
 export function findWord(s: string, query: NonEmptyString): number {
     if (!query) {
         return -1;
@@ -98,6 +104,7 @@ export function after(cursor: Position, skip: number = 0): Position {
     return new Position(cursor.line, cursor.character + skip + 1);
 }
 
+/** Returns a Markdown string, which can be used for documentation. */
 export function toMarkdown(
     s: string | TemplateStringsArray,
     ...values: any[]
@@ -105,28 +112,34 @@ export function toMarkdown(
     return new MarkdownString(dedent(s, values));
 }
 
+/** Concatenates the strings and applies PascalCase. */
 export function toPascalCase(chunks: string[]): string {
     return chunks.map(capitalize).join('');
 }
 
+/** Concatenates the strings and applies SCREAMING_SNAKE_CASE. */
 export function toScreamCase(chunks: string[]): string {
     return chunks.map(s => s.toUpperCase()).join('_');
 }
 
+/** Concatenates the strings and applies snake_case. */
 export function toSnakeCase(chunks: string[]): string {
     return chunks.map(s => s.toLowerCase()).join('_');
 }
 
+/** Concatenates the strings and applies camelCase. */
 export function toCamelCase(chunks: string[]): string {
     return chunks
         .map((s, idx) => (idx === 0 ? s.toLowerCase() : capitalize(s)))
         .join('');
 }
 
+/** Concatenates the strings and applies kebab-case. */
 export function toKebabCase(chunks: string[]): string {
     return chunks.map(s => s.toLowerCase()).join('-');
 }
 
+/** Returns the same string with the first character capitalized. */
 export function capitalize(s: string): string {
     if (!s) {
         return '';
@@ -134,14 +147,17 @@ export function capitalize(s: string): string {
     return s[0].toUpperCase() + s.slice(1);
 }
 
+/** Returns true if the character is an uppercase letter. */
 export function isUpperLetter(ch: string): boolean {
     return ch >= 'A' && ch <= 'Z';
 }
 
+/** Returns true if the character is a lowercase letter. */
 export function isLowerLetter(ch: string): boolean {
     return ch >= 'a' && ch <= 'z';
 }
 
+/** Returns true if the character is an uppercase or lowercase letter. */
 export function isLetter(ch: string): boolean {
     return isLowerLetter(ch) || isUpperLetter(ch);
 }

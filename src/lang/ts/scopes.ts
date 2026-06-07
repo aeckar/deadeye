@@ -1,6 +1,6 @@
 import { SymbolKind } from 'vscode';
 
-import { ScopeResolver } from '../../scope_utils';
+import { ScopeResolver } from '../../scoping_utils';
 
 export type TsScopeKind =
     /* Declaration-level */
@@ -13,7 +13,7 @@ export type TsScopeKind =
     | 'namespace' // Namespaces or Modules
     | 'object'; // Inside literal object assignments
 
-    /* Expression/Statement */
+/* Expression/Statement */
 
 const typescript: ScopeResolver<TsScopeKind> = symbol => {
     const kind = (() => {

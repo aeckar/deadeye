@@ -33,7 +33,7 @@ import {
 } from './completion_utils';
 import completionFamilies from './lang/completions';
 import scopeResolvers from './lang/scope_resolvers';
-import { Scope, getCachedScopes } from './scope_utils';
+import { Scope, getCachedScopes } from './scoping_utils';
 import Tape from './tape';
 
 let strategy: CompletionStrategy | undefined;
