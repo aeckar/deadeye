@@ -1,3 +1,4 @@
+import { MarkdownString, Range } from 'vscode';
 import {
     Completion,
     CompletionFamily,
@@ -6,7 +7,12 @@ import {
 import { rangeBefore } from '../../misc';
 import { after } from '../../misc';
 import Tape from '../../tape';
-import { findWord, isLetter, match, toMarkdown as md } from '../../text_utils';
+import {
+    errorHtml,
+    findWord,
+    isLetter,
+    toMarkdown as md,
+} from '../../text_utils';
 import { consumeRustTarget } from './lang_utils';
 import { RustScopeKind } from './scoping';
 
@@ -280,6 +286,13 @@ const rust: CompletionFamily<RustScopeKind>[] = [
             Adds a modifier to a function.
 
             \`c/* start here */f\` → \`const /* stop here */fn \`
+
+            Enforces canonical modifier order
+            (\`pub\` → \`const\`/\`async\` → \`unsafe\` → \`extern\`).
+
+            **Errors:**
+
+            - \`c\` and \`a\` flags are both passed (\`const async fn\` is not valid Rust)
         `,
         trigger: null,
         minLookbehind: 1,
@@ -292,25 +305,25 @@ const rust: CompletionFamily<RustScopeKind>[] = [
             if (!right.consumeAt('fn')) {
                 return undefined;
             }
-            const snippet = match(left.next()!, {
-                p: 'pub ',
-                c: 'const ',
-                a: 'async ',
-                u: 'unsafe ',
-                x: 'extern "$0" ',
+            const expansion = left.consumeMatch({
+                p: 'pub',
+                c: 'const',
+                a: 'async',
+                u: 'unsafe',
+                x: 'extern "$0"',
             });
-            if (!snippet) {
+            if (!expansion) {
                 return undefined;
             }
+            let [_, kword] = expansion;
             return new Completion({
-                preview: md`Insert \`${snippet}\`.`,
+                preview: md`Insert \`${kword} \` before \`fn\`.`,
                 target: rangeBefore(ctx.cursor, 1),
-                snippet,
+                snippet: kword + ' ',
             });
         },
     },
     {
-        // todo contextualize flags
         docs: md`
             Declares a function.
 
@@ -324,6 +337,10 @@ const rust: CompletionFamily<RustScopeKind>[] = [
             | u    | <u>u</u>nsafe                     |
             | x    | e<u>x</u>tern "/\* stop here \*/" |
 
+            Enforces canonical modifier order
+            (\`pub\` → \`const\`/\`async\` → \`unsafe\` → \`extern\`).
+
+            **Basic form:** \`f\`
             **Constraints:**
 
             - First word in line
@@ -332,6 +349,11 @@ const rust: CompletionFamily<RustScopeKind>[] = [
                 - \`impl\`
                 - \`mod\`
                 - \`trait\`
+
+            **Errors:**
+
+            - \`c\` and \`a\` flags are both passed (\`const async fn\` is not valid Rust)
+            - aa i
         `,
         minLookbehind: 'f'.length,
         scoping: [['toplevel'], ['...impl'], ['...mod'], ['...trait']],
@@ -340,7 +362,7 @@ const rust: CompletionFamily<RustScopeKind>[] = [
             if (!tape.consumeAt('f')) {
                 return undefined;
             }
-            const flags = tape.consumeFlags({
+            const flags = tape.consumeFlags(ctx.cursor, {
                 p: 'pub ',
                 c: 'const ',
                 a: 'async ',
@@ -350,6 +372,16 @@ const rust: CompletionFamily<RustScopeKind>[] = [
             if (!flags) {
                 return undefined;
             }
+            let errors: Range[] = [];
+            let causes: string[] = [];
+            if (flags.has('c') && flags.has('a')) {
+                errors.push(flags.get('c')!.range);
+                errors.push(flags.get('a')!.range);
+                causes.push(
+                    errorHtml('`c` + `a`: `const async fn` is invalid'),
+                );
+            }
+            // todo: make sure each flag agrees with context, or add to errors
             let snippet = '';
             for (const key of ['p', 'c', 'a', 'u', 'x'] as const) {
                 if (flags.has(key)) {
@@ -357,9 +389,11 @@ const rust: CompletionFamily<RustScopeKind>[] = [
                 }
             }
             snippet += 'fn ';
+            const diagnostics = causes.map(e => '\n\n' + e).join('');
             return new Completion({
-                preview: md`Insert \`${snippet}\`.`,
+                preview: md`Insert \`${snippet}\`.${diagnostics}`,
                 target: rangeBefore(ctx.cursor, flags.size + 'f'.length),
+                errors,
                 snippet,
             });
         },
@@ -490,12 +524,12 @@ Insert \`if\` block, then move to conditional.
             Macros with \`p\` are declared as \`#[macro_export]\`, and are hoisted
             to the top-level scope of the parent crate.
 
-            | Basic Form | Expansion    |
-            | :--------- | :----------- |
-            | u          | use          |
-            | s          | struct       |
-            | e          | enum         |
-            | m          | macro_rules! |
+            | Basic Form/Terminator | Expansion    |
+            | :-------------------- | :----------- |
+            | u                     | use          |
+            | s                     | struct       |
+            | e                     | enum         |
+            | m                     | macro_rules! |
 
             **Constraints:**
 
@@ -527,11 +561,11 @@ Insert \`if\` block, then move to conditional.
                 // since we are at the margin, no need to prepend indent
                 pub = '#[macro_export]\n';
             }
-            const snippet = pub + kword;
+            const expansion = pub + kword;
             return new Completion({
-                preview: md`Insert \`${snippet}\`.`,
+                preview: md`Insert \`${expansion}\`.`,
                 target: rangeBefore(ctx.cursor),
-                snippet: snippet + ' ',
+                snippet: expansion + ' ',
             });
         },
     },
@@ -549,6 +583,8 @@ Insert \`if\` block, then move to conditional.
 
             **Basic form:** \`.s\`
 
+            **Terminator:** \`s\`
+
             **Constraints:**
 
             - Function scope
@@ -560,7 +596,7 @@ Insert \`if\` block, then move to conditional.
             if (!tape.consumeAt('s')) {
                 return undefined;
             }
-            const flags = tape.consumeFlags({
+            const flags = tape.consumeFlags(ctx.cursor, {
                 r: '&',
                 m: 'mut ',
                 '-ad': "'{} ",
@@ -770,7 +806,7 @@ Inserts \`println!("$0")\`.
             | s     | <u>s</u>elf              | \`self\`    |
             | a..=d |                          | \`&'a\`     |
 
-            **Basic form:** \`p\`
+            **Basic form/Terminator:** \`p\`
 
             **Constraints:**
 
@@ -782,7 +818,7 @@ Inserts \`println!("$0")\`.
             if (!tape.consumeAt('p')) {
                 return undefined;
             }
-            const flags = tape.consumeFlags({
+            const flags = tape.consumeFlags(ctx.cursor, {
                 v: 'mut ',
                 r: '&',
                 m: 'mut ',

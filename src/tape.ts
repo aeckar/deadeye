@@ -1,7 +1,7 @@
 //! Cursor data structure.
-import { Position } from 'vscode';
+import { Position, Range } from 'vscode';
 
-import { Flag } from './completion_utils';
+import { Flag, FlagMatch } from './completion_utils';
 import { enumerate } from './misc';
 import { isLowerLetter, isUpperLetter } from './text_utils';
 
@@ -228,10 +228,11 @@ export default class Tape {
     /**
      * Consumes the next chunks, with whitespace possibly in betweeen them.
      *
+     * This is useful for lookahead/lookbehind of potentially delimited language symbols.
+     * 
      * @return the matches to each chunks, as well as any whitespace between them.
      * If a match to any chunk fails, `undefined` is returned.
      */
-    // todo i dont rember what this is for...
     consumeChunks(chunks: string[]): string[] | undefined {
         const start = this.pos;
         let parts = [];
@@ -265,32 +266,35 @@ export default class Tape {
      *
      * @return the pairs whose flag was matched.
      */
-    consumeFlags(flags: { [Key in Flag]?: string }):
-        | Map<Flag, string>
-        | undefined {
-        let expansions: [number, string][] = [];
-        const enumerated = enumerate(flags);
+    consumeFlags(
+        cursor: Position,
+        possibleFlags: { [Key in Flag]?: string },
+    ): Map<Flag, FlagMatch> | undefined {
+        let expansions: [number, string, Range][] = [];
         while (!this.isExhausted()) {
             let found = false;
-            for (const [idx, [flag, expansion]] of enumerate(flags)) {
+            for (const [idx, [flag, expansion]] of enumerate(possibleFlags)) {
                 if (!this.cur()) {
                     break;
                 }
                 const ch = this.cur()!;
                 const isRange = flag[0] === '-';
                 if (isRange) {
-                    // flag is range
                     if (ch >= flag[1] && ch <= flag[2]) {
                         found = true;
                     }
-                } else if (this.cur() === flag) {
+                } else if (ch === flag) {
                     found = true;
                 }
                 if (found) {
+                    const charPos = cursor.translate(0, -(this.pos + 1));
+                    const range = new Range(charPos, charPos.translate(0, 1));
                     this.adv();
-                    if (isRange) {
-                        expansions.push([idx, expansion.replaceAll('{}', ch)]);
-                    }
+                    expansions.push([
+                        idx,
+                        isRange ? expansion.replaceAll('{}', ch) : expansion,
+                        range,
+                    ]);
                     break;
                 }
             }
@@ -304,8 +308,11 @@ export default class Tape {
         }
         return new Map(
             expansions
-                .sort(([idx1, _], [idx2, __]) => idx1 - idx2)
-                .map(([idx, e]) => [Object.entries(flags)[idx][0] as Flag, e]),
+                .sort(([idx1], [idx2]) => idx1 - idx2)
+                .map(([idx, expansion, range]) => [
+                    Object.entries(possibleFlags)[idx][0] as Flag,
+                    { expansion, range },
+                ]),
         );
     }
 
@@ -316,10 +323,10 @@ export default class Tape {
      *
      * @return the pair whose key matched, or `undefined` if none did.
      */
-    consumeMatch(key: { [Key in string]: string }):
+    consumeMatch(possible: { [Key in string]: string }):
         | [string, string]
         | undefined {
-        for (const [k, v] of Object.entries(key)) {
+        for (const [k, v] of Object.entries(possible)) {
             if (this.isAt(k)) {
                 this.pos += k.length;
                 return [k, v];

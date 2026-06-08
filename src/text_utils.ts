@@ -17,6 +17,7 @@ export const CLOSE_BRACKETS = [')', '}', ']', '>'] as const;
 /**
  * Returns the appropriate closing bracket, or `undefined`
  * if the given character is not an opener.
+ * @see getOpenBracket
  */
 export function getCloseBracket(open: string): CloseBracket | undefined {
     const idx = OPEN_BRACKETS.indexOf(open as OpenBracket);
@@ -29,6 +30,8 @@ export function getCloseBracket(open: string): CloseBracket | undefined {
 /**
  * Returns the appropriate opening bracket, or `undefined`
  * if the given character is not a closer.
+ * 
+ * @see getCloseBracket
  */
 export function getOpenBracket(close: string): OpenBracket | undefined {
     const idx = CLOSE_BRACKETS.indexOf(close as CloseBracket);
@@ -38,7 +41,6 @@ export function getOpenBracket(close: string): OpenBracket | undefined {
     return OPEN_BRACKETS[idx];
 }
 
-//todo make fn to transform inline code blocks to fenced langid code block for syntax highlighting
 /** Expands each tab stop (`$0`, `${1:C}) to a more descriptive form. */
 export function expandTabStops(s: MarkdownString): MarkdownString {
     return new MarkdownString(
@@ -48,17 +50,30 @@ export function expandTabStops(s: MarkdownString): MarkdownString {
     );
 }
 
-/** Returns the value paired to the key matching the given string, or `undefined` if none exists. */
-export function match(
-    s: string,
-    key: { [Key in string]: string },
-): string | undefined {
-    for (const [k, v] of Object.entries(key)) {
-        if (s === k) {
-            return v;
-        }
-    }
-    return undefined;
+/**
+ * Returns the same string formatted in HTML as a distinct paragraph containing red text.
+ * Prefixes the error message with `Error: `.
+ *
+ * # Implementation
+ *
+ * An attempt was made to pass the cause of errors to a property in `Completion`,
+ * but the abstraction caused more work than it saved. Therefore, errors should be
+ * constructed manually and listed at the end of the `preview` string.
+
+ * @see warnHtml
+ */
+export function errorHtml(cause: string): string {
+    return `<p><span style="color:#e06c75">Error: ${cause}</span></p>`;
+}
+
+/**
+ * Returns the same string formatted in HTML as a distinct paragraph containing amber text.
+ * Prefixes the warning message with `Warning: `.
+ * 
+ * @see errorHtml
+ */
+export function warnHtml(cause: string): string {
+    return `<p><span style="color:#e5a550">Warning: ${cause}</span></p>`;
 }
 
 /**

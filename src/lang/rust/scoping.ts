@@ -29,9 +29,8 @@ export type RustScopeKind =
     | 'match-arm'
     | 'type-param';
 
-const rust: ScopeResolver<RustScopeKind> = (symbol, ctx) => {
-    const kind = toDeclarationScopes(symbol);
-    return [...kind, ...innerScopes(kind, ctx)];
+const rust: ScopeResolver<RustScopeKind> = (ctx) => {
+    
 };
 
 /*
@@ -51,42 +50,4 @@ A raw scanner satisfies all four. The symbol tree satisfies none of them fully. 
 
 
 //todo for all other c-like too: optimize doc comment (make single line /** */, etc)
-
-function toDeclarationScope(symbol: DocumentSymbol): RustScopeKind {
-    switch (symbol.kind) {
-        case SymbolKind.Module:
-            return 'mod';
-        case SymbolKind.Constant:
-            return 'assignment';
-        case SymbolKind.Interface:
-            return 'trait';
-        case SymbolKind.Enum:
-            return 'enum';
-        case SymbolKind.EnumMember:
-            return 'enum-member';
-        case SymbolKind.Struct:
-            return 'struct';
-        case SymbolKind.Field:
-            return 'field';
-        case SymbolKind.Function:
-        case SymbolKind.Method:
-            return 'fn';
-        case SymbolKind.Class:
-            return 'impl';
-        case SymbolKind.Variable:
-            return 'assignment';
-        case SymbolKind.TypeParameter:
-            return 'type-param';
-        default:
-            return 'toplevel';
-    }
-}
-
-function innerScopes(
-    kind: RustScopeKind[],
-    ctx: CompletionContext<RustScopeKind>,
-): RustScopeKind[] {
-    return [];
-}
-
-export default rust;
+//  should have option for ws between tags and content

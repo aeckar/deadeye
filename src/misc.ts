@@ -36,3 +36,29 @@ export function enumerate<K extends number | string | symbol, V>(o: {
         ([key, val], idx) => [idx, [key, val]] as [number, [K, V]],
     );
 }
+
+/** A valid key for any entry in a JavaScript object. */
+export type JsKey = string | number | symbol;
+
+/** A key-value pair that may exist as an entry in a JavaScript object. */
+export type JsEntry<K extends JsKey, V> = {
+    key: K;
+    value: V;
+};
+
+/**
+ * Returns the value paired to the key matching the query, or `undefined` if none exists.
+ *
+ * For completion matching, values should not have a trailing space.
+ */
+export function match<K extends JsKey, V>(
+    query: K,
+    possible: { [Key in K]: V },
+): JsEntry<K, V> | undefined {
+    for (const [key, value] of Object.entries(possible) as [K, V][]) {
+        if (query === key) {
+            return { key, value };
+        }
+    }
+    return undefined;
+}

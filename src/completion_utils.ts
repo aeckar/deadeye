@@ -1,7 +1,7 @@
 //! Data structures and algorithms used to match completion snippets.
 import { MarkdownString, Position, Range, TextEditor, window } from 'vscode';
 
-import { Scope } from './scoping_utils';
+import { Scope, ScopeResolver } from './scoping_utils';
 import Tape from './tape';
 import { Brackets } from './text_utils';
 
@@ -61,6 +61,12 @@ export type Flag = FlagChar | `-${FlagChar}${FlagChar}`;
  */
 export type Trigger = ' ' | ';' | 'enter' | null;
 
+/** Returned as values in the map returned by `Tape.consumeFlags`. */
+export type FlagMatch = {
+    readonly expansion: string;
+    readonly range: Range;
+};
+
 /**
  * A shorthand for a programming language element.
  *
@@ -93,31 +99,44 @@ export type CompletionFamily<ScopeKind extends string> = {
     ) => Completion | undefined;
 };
 
-// Use U+FF0F to escape `*/` in doc comment
-/**
- * The result of {@link CompletionFamily.resolver}.
- *
- * @param preview A short description of what the completion of the shorthand does.
- * This is dynamically created to describe **exactly** how the code is modified. This contrasts
- * with {@link CompletionFamily.docs}, which is a general description of
- * the shorthand or family of shorthands. Ran through `expandTabStops` before rendering.
- * @param target The location of the actual shorthand, which is deleted.
- * most likely due to fast typing.
- * @param snippet The snippet to be inserted.
- * @param errors The ranges in the source file within `target`
- * that represent malformed auxillary constructs in the matched completion.
- * If the trigger is pressed, the completion will fire according to the
- * portion of the completion that is well-formed.
- * @param insertAt If defined, is the position of the snippet to be inserted. Otherwise,
- * the snippet is inserted at the position of the cursor after the target is deleted.
- * @param newCursorPos The final position of the cursor after the snippet has been inserted.
- */
+/** The result of {@link CompletionFamily.resolver}. */
 export class Completion {
+    /**
+     * A short description of what the completion of the shorthand does.
+     *
+     * This is created after each match to describe **exactly** how the code is modified.
+     * This contrasts with {@link CompletionFamily.docs}, which is a general description of
+     * the shorthand or family of shorthands.
+     *
+     * This is through `expandTabStops` before rendering.
+     *
+     * This must be given for every completion, even if {@link CompletionFamily.trigger} is `null`,
+     * in case future APIs use expose this functionality to the user.
+     */
     readonly preview: MarkdownString;
+
+    /** The location of the actual shorthand, which is replaced. */
     readonly target: Range;
+
+    /** The snippet that replaces the {@link target}. */
     readonly snippet: string;
+
+    /**
+     * The ranges in the source file within `target`
+     * that represent malformed auxillary constructs in the matched completion.
+     *
+     * If the trigger is pressed, the completion will fire according to the
+     * portion of the completion that is well-formed.
+     */
     readonly errors?: Range[];
+
+    /**
+     * If defined, is the position of the snippet to be inserted. Otherwise,
+     * the snippet is inserted at the position of the cursor after the target is deleted.
+     */
     readonly insertAt?: Position;
+
+    /** The final position of the cursor after the snippet has been inserted. */
     readonly endCursorPos?: Position;
 
     constructor(args: {
@@ -132,10 +151,12 @@ export class Completion {
             const invalid = args.errors.filter(e => !args.target.contains(e));
             if (invalid.length > 0) {
                 const strings = invalid
-                    .map(
-                        r =>
-                            `[${r.start.line}:${r.start.character}-${r.end.line}:${r.end.character}]`,
-                    )
+                    .map(e => {
+                        return (
+                            `[${e.start.line}:${e.start.character}` +
+                            `-${e.end.line}:${e.end.character}]`
+                        );
+                    })
                     .join(', ');
                 window.showWarningMessage(
                     `Deadeye: Error range(s) outside of target: ${strings}`,
@@ -164,23 +185,65 @@ export type CompletionStrategy = {
     readonly position: Position;
 };
 
+//todo completion: populate function with existing vars of same name as params
 /** Passed to {@link CompletionFamily.resolver}. */
 export class CompletionContext<ScopeKind extends string> {
     readonly line: Tape;
     readonly cursor: Position;
     readonly editor: TextEditor;
-    readonly scopeTree?: Scope<ScopeKind>[];
+    readonly scopes?: Scope<ScopeKind>[];
 
     constructor(
-        curLine: Tape,
+        line: Tape,
         cursor: Position,
         editor: TextEditor,
-        scopeTree?: Scope<ScopeKind>[],
+        scopes?: Scope<ScopeKind>[],
     ) {
-        this.line = curLine;
+        this.line = line;
         this.cursor = cursor;
         this.editor = editor;
-        this.scopeTree = scopeTree;
+        this.scopes = scopes;
+    }
+
+    private static line(
+        key: string,
+        cursor: Position,
+        editor: TextEditor,
+    ): Tape {
+        return Tape.of(editor.document.lineAt(cursor.line).text + key);
+    }
+
+    static unscoped(key: string, cursor: Position, editor: TextEditor) {
+        return new CompletionContext(
+            CompletionContext.line(key, cursor, editor),
+            cursor,
+            editor,
+        );
+    }
+
+    static scoped<ScopeKind extends string>(
+        key: string,
+        cursor: Position,
+        editor: TextEditor,
+        resolver: ScopeResolver<ScopeKind>,
+    ) {
+        const scopes = resolver(
+            CompletionContext.unscoped(
+                key,
+                cursor,
+                editor,
+            ) as CompletionContext<ScopeKind>,
+        );
+        return new CompletionContext(
+            CompletionContext.line(key, cursor, editor),
+            cursor,
+            editor,
+            scopes,
+        );
+    }
+
+    at(cursor: Position): CompletionContext<ScopeKind> {
+        return new CompletionContext(this.line, cursor, this.editor);
     }
 
     /** Returns a tape over the current line up to the cursor. */

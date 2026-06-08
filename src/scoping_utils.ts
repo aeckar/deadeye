@@ -9,7 +9,7 @@ import { CompletionContext } from './completion_utils';
  */
 export type ScopeResolver<ScopeKind extends string> = (
     ctx: CompletionContext<ScopeKind>,
-) => ScopeKind[];
+) => Scope<ScopeKind>[];
 
 /**
  * Represents a member in the scope tree at a particular position in a file.

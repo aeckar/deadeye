@@ -1,36 +1,31 @@
-import {
-    CompletionFamily,
-    CompletionSingle,
-    MAX_LINE_SEEK,
-} from '../../completion_utils';
+import { CompletionFamily } from '../../completion_utils';
 import { rangeBefore } from '../../misc';
-import { after } from '../../misc';
-import { isLetter, toMarkdown as md } from '../../text_utils';
-import { TsScopeKind } from './scopes';
+import { toMarkdown as md } from '../../text_utils';
+import { TsScopeKind } from './scoping';
 
 // Simple, non-contextual substitutions triggered globally or inline
-const substitutions: CompletionSingle[] = [
-    {
-        title: 'Inserts an arrow function template',
-        target: 'c',
-        snippet: '($1) => ',
-    },
-    {
-        title: 'Inserts an async arrow function template',
-        target: 'ac',
-        snippet: 'async ($1) => $0',
-    },
-    {
-        title: 'Inserts a console.log statement',
-        target: 'clg',
-        snippet: 'console.log($0);',
-    },
-    {
-        title: 'Inserts a read-only type property modifier',
-        target: 'ro',
-        snippet: 'readonly ',
-    },
-];
+// const substitutions: CompletionSingle[] = [
+//     {
+//         title: 'Inserts an arrow function template',
+//         target: 'c',
+//         snippet: '($1) => ',
+//     },
+//     {
+//         title: 'Inserts an async arrow function template',
+//         target: 'ac',
+//         snippet: 'async ($1) => $0',
+//     },
+//     {
+//         title: 'Inserts a console.log statement',
+//         target: 'clg',
+//         snippet: 'console.log($0);',
+//     },
+//     {
+//         title: 'Inserts a read-only type property modifier',
+//         target: 'ro',
+//         snippet: 'readonly ',
+//     },
+// ];
 
 // todo hot completion: auto-cap assignment to key if atomic symbolic constant (true, false, undefined)
 // todo technically already performing spec engineering thru doc comment validation...

@@ -12,6 +12,10 @@
 //! - Top-level functions should use `function` notation over arrow function constants
 //! to easily discern from top-level constants ... unless its a closure with captured variables
 //! or you are implementing a closure type
+// Use U+FF0F to escape `*/` in doc comment
+// todo vocab--completion (family),
+//  shorthand, snippet, terminator, trigger, basic form, preview, docs
+
 import {
     ExtensionContext,
     Hover,
@@ -109,6 +113,8 @@ export function activate(context: ExtensionContext) {
             if (!strategy || !strategy.completion.target.contains(position)) {
                 return null;
             }
+            // Since there can be multiple code blocks in a preview, don't bother
+            // highlighting them by turning them into fenced code blocks.
             return new Hover(expandTabStops(strategy.completion.preview));
         },
     });
