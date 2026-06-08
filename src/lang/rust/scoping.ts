@@ -9,14 +9,15 @@ import { ScopeResolver } from '../../scoping_utils';
 // }
 
 export type RustScopeKind =
-    /* Declaration-level -- map directly to `SymbolKind` */
-    | 'toplevel'
+    /* blocks */
     | 'struct'
     | 'impl'
     | 'fn'
     | 'enum'
     | 'trait'
     | 'mod'
+    | 'extern'
+    | 'macro'
 
     /* Expression/Statement -- applies to macro syntax also */
     | 'assignment'
@@ -24,13 +25,13 @@ export type RustScopeKind =
     | 'condition'
     | 'conditional'
     | 'loop'
-    | 'macro'
-    | 'extern'
     | 'match-arm'
-    | 'type-param';
+    | 'type-param'
+    | 'struct-init' //<id>{}
+    | '';
 
-const rust: ScopeResolver<RustScopeKind> = (ctx) => {
-    
+const rust: ScopeResolver<RustScopeKind> = ctx => {
+    return [];
 };
 
 /*
@@ -48,6 +49,7 @@ Only needs 1-3 levels of depth
 A raw scanner satisfies all four. The symbol tree satisfies none of them fully. You would have hit every one of those walls eventually and ended up at the scanner anyway.
 */
 
-
 //todo for all other c-like too: optimize doc comment (make single line /** */, etc)
 //  should have option for ws between tags and content
+
+//todo completion: populate function with existing vars of same name as params

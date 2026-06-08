@@ -8,7 +8,7 @@ import { CompletionContext } from './completion_utils';
  * This then provides scope resolution for a given `langId`.
  */
 export type ScopeResolver<ScopeKind extends string> = (
-    ctx: CompletionContext<ScopeKind>,
+    ctx: CompletionContext,
 ) => Scope<ScopeKind>[];
 
 /**

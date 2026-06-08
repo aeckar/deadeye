@@ -356,7 +356,7 @@ const rust: CompletionFamily<RustScopeKind>[] = [
             - aa i
         `,
         minLookbehind: 'f'.length,
-        scoping: [['toplevel'], ['...impl'], ['...mod'], ['...trait']],
+        scoping: [[], ['...impl'], ['...mod'], ['...trait']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
             if (!tape.consumeAt('f')) {
@@ -537,7 +537,7 @@ Insert \`if\` block, then move to conditional.
             - First word in line
         `,
         minLookbehind: 1,
-        scoping: [['toplevel']],
+        scoping: [[]],
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
             const type = tape.consumeMatch({
@@ -642,7 +642,7 @@ Wrap as slice type.
             - First word in line
         `,
         minLookbehind: 'x'.length,
-        scoping: [['toplevel']],
+        scoping: [[]],
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             console.log(tape.raw);
@@ -708,7 +708,7 @@ Insert \`#[$0]\`.
             - First word in line
         `,
         minLookbehind: 'mustuse'.length,
-        scoping: [['toplevel'], ['...impl']],
+        scoping: [[], ['...impl']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
@@ -748,7 +748,7 @@ Insert \`#[must_use]\`.
             - First word in line
         `,
         minLookbehind: 'il'.length,
-        scoping: [['toplevel'], ['...impl']],
+        scoping: [[], ['...impl']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();

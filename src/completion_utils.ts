@@ -88,6 +88,7 @@ export type FlagMatch = {
  * @param scoping The possible scope trees required for this shorthand to match.
  * Nested scopes are not required to be adjacent; they must simply be present in the same order.
  * If not provided, this matches in all scopes.
+ * An empty array is considered to be the top-level scope.
  */
 export type CompletionFamily<ScopeKind extends string> = {
     readonly docs: MarkdownString;
@@ -95,7 +96,7 @@ export type CompletionFamily<ScopeKind extends string> = {
     readonly trigger?: Trigger;
     readonly scoping?: (ScopeKind | `...${ScopeKind}`)[][];
     readonly resolver: (
-        ctx: CompletionContext<ScopeKind>,
+        ctx: ScopedCompletionContext<ScopeKind>,
     ) => Completion | undefined;
 };
 
@@ -122,13 +123,24 @@ export class Completion {
     readonly snippet: string;
 
     /**
-     * The ranges in the source file within `target`
-     * that represent malformed auxillary constructs in the matched completion.
+     * The ranges in the source file within `target` that represent tokens
+     * in the shorthand that would be replaced with illegal language constructs if triggered.
      *
      * If the trigger is pressed, the completion will fire according to the
-     * portion of the completion that is well-formed.
+     * all parts of the shorthand that are not highlighted as errors, as
+     * enforced by the completion resolver.
      */
     readonly errors?: Range[];
+
+    /**
+     * The ranges in the source file within `target`
+     * that represent unoptimal tokens in the shorthand.
+     *
+     * If the trigger is pressed, the completion will fire according to the
+     * all parts of the shorthand that are not highlighted as errors, as
+     * enforced by the completion resolver.
+     */
+    readonly warnings?: Range[];
 
     /**
      * If defined, is the position of the snippet to be inserted. Otherwise,
@@ -185,65 +197,27 @@ export type CompletionStrategy = {
     readonly position: Position;
 };
 
-//todo completion: populate function with existing vars of same name as params
 /** Passed to {@link CompletionFamily.resolver}. */
-export class CompletionContext<ScopeKind extends string> {
+export class CompletionContext {
     readonly line: Tape;
     readonly cursor: Position;
     readonly editor: TextEditor;
-    readonly scopes?: Scope<ScopeKind>[];
+    protected readonly keyIn: string;
 
-    constructor(
-        line: Tape,
-        cursor: Position,
-        editor: TextEditor,
-        scopes?: Scope<ScopeKind>[],
-    ) {
-        this.line = line;
+    constructor(keyIn: string, cursor: Position, editor: TextEditor) {
+        this.line = Tape.of(editor.document.lineAt(cursor.line).text + keyIn);
         this.cursor = cursor;
         this.editor = editor;
-        this.scopes = scopes;
+        this.keyIn = keyIn;
     }
 
-    private static line(
-        key: string,
-        cursor: Position,
-        editor: TextEditor,
-    ): Tape {
-        return Tape.of(editor.document.lineAt(cursor.line).text + key);
-    }
-
-    static unscoped(key: string, cursor: Position, editor: TextEditor) {
-        return new CompletionContext(
-            CompletionContext.line(key, cursor, editor),
-            cursor,
-            editor,
+    toScoped<ScopeKind extends string>(resolver: ScopeResolver<ScopeKind>) {
+        return ScopedCompletionContext.withResolver(
+            this.keyIn,
+            this.cursor,
+            this.editor,
+            resolver,
         );
-    }
-
-    static scoped<ScopeKind extends string>(
-        key: string,
-        cursor: Position,
-        editor: TextEditor,
-        resolver: ScopeResolver<ScopeKind>,
-    ) {
-        const scopes = resolver(
-            CompletionContext.unscoped(
-                key,
-                cursor,
-                editor,
-            ) as CompletionContext<ScopeKind>,
-        );
-        return new CompletionContext(
-            CompletionContext.line(key, cursor, editor),
-            cursor,
-            editor,
-            scopes,
-        );
-    }
-
-    at(cursor: Position): CompletionContext<ScopeKind> {
-        return new CompletionContext(this.line, cursor, this.editor);
     }
 
     /** Returns a tape over the current line up to the cursor. */
@@ -380,5 +354,44 @@ export class CompletionContext<ScopeKind extends string> {
             }
         }
         return undefined;
+    }
+}
+
+export class ScopedCompletionContext<
+    ScopeKind extends string,
+> extends CompletionContext {
+    readonly scopes: Scope<ScopeKind>[];
+
+    constructor(
+        keyIn: string,
+        cursor: Position,
+        editor: TextEditor,
+        scopes: Scope<ScopeKind>[],
+    ) {
+        super(keyIn, cursor, editor);
+        this.scopes = scopes;
+    }
+
+    static withResolver<ScopeKind extends string>(
+        keyIn: string,
+        cursor: Position,
+        editor: TextEditor,
+        resolver: ScopeResolver<ScopeKind>,
+    ) {
+        return new ScopedCompletionContext(
+            keyIn,
+            cursor,
+            editor,
+            resolver(new CompletionContext(keyIn, cursor, editor)),
+        );
+    }
+
+    clone(): ScopedCompletionContext<ScopeKind> {
+        return new ScopedCompletionContext(
+            this.keyIn,
+            this.cursor,
+            this.editor,
+            this.scopes,
+        );
     }
 }

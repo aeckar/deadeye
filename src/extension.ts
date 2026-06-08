@@ -15,11 +15,11 @@
 // Use U+FF0F to escape `*/` in doc comment
 // todo vocab--completion (family),
 //  shorthand, snippet, terminator, trigger, basic form, preview, docs
+// all classes should have prop constructor (also make this a completion)
 
 import {
     ExtensionContext,
     Hover,
-    MarkdownString,
     Position,
     Selection,
     SnippetString,
@@ -32,13 +32,11 @@ import {
 
 import {
     Completion,
-    CompletionContext,
     CompletionStrategy,
+    ScopedCompletionContext,
 } from './completion_utils';
 import completionFamilies from './lang/completion_families';
 import scopeResolvers from './lang/scope_resolvers';
-import { Scope } from './scoping_utils';
-import Tape from './tape';
 import { expandTabStops } from './text_utils';
 
 let strategy: CompletionStrategy | undefined;
@@ -76,8 +74,8 @@ export function activate(context: ExtensionContext) {
             if (!editor) {
                 return;
             }
-            const key = (args.text as string).trim(); // sometimes preceded by space
-            if (!key) {
+            const keyIn = (args.text as string).trim(); // sometimes preceded by space
+            if (!keyIn) {
                 // pressed space
                 if (!strategy) {
                     // fixme for hot completions
@@ -91,7 +89,7 @@ export function activate(context: ExtensionContext) {
                 return;
             }
 
-            await updateStrategy(key, editor);
+            await updateStrategy(keyIn, editor);
             commands.executeCommand('default:type', args); // manually perform insertion
             if (strategy) {
                 editor.setDecorations(decoration, [strategy.completion.target]);
@@ -128,34 +126,22 @@ export function activate(context: ExtensionContext) {
 }
 
 /** Runs every line-based completion for the current language. */
-async function updateStrategy(key: string, editor: TextEditor) {
+async function updateStrategy(keyIn: string, editor: TextEditor) {
     const active = editor.selection.active;
-    const position = new Position(active.line, active.character + 1); // adjust for key-in
+    const cursor = new Position(active.line, active.character + 1); // adjust for key-in
     const langId = editor.document.languageId;
-    const line = editor.document.lineAt(position.line).text + key;
-    if (!line) {
-        return; // ensure line is not empty before passing to resolvers
-    }
-    const newContext = (scopeTree: Scope<any>[]): CompletionContext<any> => {
-        return new CompletionContext(
-            Tape.of(line),
-            position,
-            editor,
-            scopeTree,
-        );
-    };
-    // const scopeTree = await getCachedScopes(
-    //     editor.document,
-    //     position,
-    //     newContext([]),
-    //     scopeResolvers[langId],
-    // );
+    const ctx = ScopedCompletionContext.withResolver(
+        keyIn,
+        cursor,
+        editor,
+        scopeResolvers[langId],
+    );
     for (const family of completionFamilies[langId]) {
-        const completion = family.resolver(newContext(scopeTree));
+        const completion = family.resolver(ctx.clone());    // clone for fresh line buffer
         if (!completion) {
             continue;
         }
-        strategy = { family, completion, position };
+        strategy = { family, completion, position: cursor };
         return;
     }
 }
