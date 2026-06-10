@@ -47,7 +47,7 @@ export default class Tape {
     }
 
     /** Returns a new instance over the original string. */
-    static of(raw: string, pos = 0) {
+    static over(raw: string, pos = 0) {
         return new Tape(raw, pos, false);
     }
 
@@ -60,7 +60,7 @@ export default class Tape {
 
     /** Returns a new instance over a slice over the original string. */
     slice(start: number, end = this.raw.length): Tape {
-        return Tape.of(this.raw.slice(start, end));
+        return Tape.over(this.raw.slice(start, end));
     }
 
     /** Returns a new instance over the original string up to the position of the cursor. */
@@ -229,7 +229,7 @@ export default class Tape {
      * Consumes the next chunks, with whitespace possibly in betweeen them.
      *
      * This is useful for lookahead/lookbehind of potentially delimited language symbols.
-     * 
+     *
      * @return the matches to each chunks, as well as any whitespace between them.
      * If a match to any chunk fails, `undefined` is returned.
      */

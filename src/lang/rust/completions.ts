@@ -835,7 +835,7 @@ Inserts \`println!("$0")\`.
             if (flags.has('r')) {
                 let ref = '&';
                 const lifetime = [...flags.values()].find(
-                    sub => sub[1] >= 'a' && sub[1] <= 'd',
+                    sub => sub.expansion[1] >= 'a' && sub.expansion[1] <= 'd',
                 );
                 if (lifetime) {
                     ref += lifetime;

@@ -1,4 +1,4 @@
-import { ScopeResolver } from '../scoping_utils';
+import { ScopeResolver } from '../completion_utils';
 import rust from './rust/scoping';
 import typescript from './ts/scoping';
 

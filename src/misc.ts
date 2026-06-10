@@ -62,3 +62,21 @@ export function match<K extends JsKey, V>(
     }
     return undefined;
 }
+
+/** A range of indices. */
+export class Span {
+    /** The index of the first element. */
+    begin: number;
+
+    /** The index of the last element (exclusive). */
+    end: number;
+
+    constructor(begin: number, end: number) {
+        this.begin = begin;
+        this.end = end;
+    }
+
+    get length() {
+        return this.end - this.begin;
+    }
+}

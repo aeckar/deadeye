@@ -1,7 +1,6 @@
 //! Data structures and algorithms used to match completion snippets.
 import { MarkdownString, Position, Range, TextEditor, window } from 'vscode';
 
-import { Scope, ScopeResolver } from './scoping_utils';
 import Tape from './tape';
 import { Brackets } from './text_utils';
 
@@ -197,7 +196,13 @@ export type CompletionStrategy = {
     readonly position: Position;
 };
 
-/** Passed to {@link CompletionFamily.resolver}. */
+/**
+ * Used to resolve {@link Scope scopes}.
+ *
+ * {@link Completion Completions} are {@link CompletionFamily.resolver resolved}
+ * use the child class {@link ScopedCompletionContext}, since it contains the
+ * scope tree for the current position of the cursor.
+ */
 export class CompletionContext {
     readonly line: Tape;
     readonly cursor: Position;
@@ -205,7 +210,7 @@ export class CompletionContext {
     protected readonly keyIn: string;
 
     constructor(keyIn: string, cursor: Position, editor: TextEditor) {
-        this.line = Tape.of(editor.document.lineAt(cursor.line).text + keyIn);
+        this.line = Tape.over(editor.document.lineAt(cursor.line).text + keyIn);
         this.cursor = cursor;
         this.editor = editor;
         this.keyIn = keyIn;
@@ -236,6 +241,14 @@ export class CompletionContext {
 
     seekCloser(brackets: Brackets): Position | undefined {
         return this.seekCloserRecursive(brackets, this.cursor, true);
+    }
+
+    fileUpToCursor(): Tape {
+        return Tape.over(
+            this.editor.document.getText(
+                new Range(new Position(0, 0), this.cursor),
+            ),
+        );
     }
 
     private static OTHER_BRACKETS: Record<string, string> = {
@@ -357,6 +370,38 @@ export class CompletionContext {
     }
 }
 
+/**
+ * Implemented by a top-level constant for each language,
+ * which is then be passed as an entry to `scopeResolvers` (`lang/scope_resolvers.ts`).
+ * This then provides scope resolution for a given `langId`.
+ */
+export type ScopeResolver<ScopeKind extends string> = (
+    ctx: CompletionContext,
+) => Scope<ScopeKind>[];
+
+/**
+ * Represents a member in the scope tree at a particular position in a file.
+ *
+ * @param kind the type of scope, as defined in `lang/<langId>/scopes.ts`
+ * @param markerPos the position of the first character of the scope marker
+ * (`if`, `fn`, `impl`, `mod`, etc.), which is primarily useful to hot completions
+ * that modify the scope signature.
+ * @param openPos the position of the opening bracket that denotes this scope.
+ */
+export type Scope<ScopeKind extends string> = {
+    readonly kind: ScopeKind;
+    readonly markerPos: Position;
+    readonly openPos: Position;
+};
+
+/**
+ * Contains the scope tree for the current cursor position.
+ *
+ * {@link Completion Completions} are {@link CompletionFamily.resolver resolved}
+ * using instances of this class.
+ *
+ * @see CompletionContext
+ */
 export class ScopedCompletionContext<
     ScopeKind extends string,
 > extends CompletionContext {

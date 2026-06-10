@@ -78,7 +78,7 @@ export function activate(context: ExtensionContext) {
             if (!keyIn) {
                 // pressed space
                 if (!strategy) {
-                    // fixme for hot completions
+                    // fixme for hot completions, other triggers
                     editor.edit(editBuilder => {
                         editBuilder.insert(editor.selection.active, ' ');
                     });
@@ -88,9 +88,8 @@ export function activate(context: ExtensionContext) {
                 strategy = undefined;
                 return;
             }
-
-            await updateStrategy(keyIn, editor);
             commands.executeCommand('default:type', args); // manually perform insertion
+            await updateStrategy(keyIn, editor);
             if (strategy) {
                 editor.setDecorations(decoration, [strategy.completion.target]);
             }

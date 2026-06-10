@@ -30,7 +30,7 @@ export function getCloseBracket(open: string): CloseBracket | undefined {
 /**
  * Returns the appropriate opening bracket, or `undefined`
  * if the given character is not a closer.
- * 
+ *
  * @see getCloseBracket
  */
 export function getOpenBracket(close: string): OpenBracket | undefined {
@@ -69,7 +69,7 @@ export function errorHtml(cause: string): string {
 /**
  * Returns the same string formatted in HTML as a distinct paragraph containing amber text.
  * Prefixes the warning message with `Warning: `.
- * 
+ *
  * @see errorHtml
  */
 export function warnHtml(cause: string): string {

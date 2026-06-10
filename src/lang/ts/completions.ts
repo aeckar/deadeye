@@ -30,6 +30,9 @@ import { TsScopeKind } from './scoping';
 // todo hot completion: auto-cap assignment to key if atomic symbolic constant (true, false, undefined)
 // todo technically already performing spec engineering thru doc comment validation...
 
+// todo completion: string type union, with checker
+// todo completion: type<->class
+//todo completion: make note comment into section comment
 const typescript: CompletionFamily<TsScopeKind>[] = [
     {
         docs: md`
