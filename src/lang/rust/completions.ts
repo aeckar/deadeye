@@ -16,7 +16,20 @@ import {
 import { consumeRustTarget } from './lang_utils';
 import { RustScopeKind } from './scoping';
 
+// optimizing docs should add proper punctation, capitalization
+// toggle mode for automatic tab-out by delimiter
+// shortcut for auto-append semi and commas to all lines within range??
+    // no, have them complete instead
+// { before / } after identifier inserts space
+// language idea: imports with clashing names is ok as long as signature is different
+// language idea over ts/s: unique keys :)
+
 const builtins = /str|bool|char|[ui]([8136][624][8]?|size)|f[36][24]/g;
+
+// .inz = is not zero
+// .iz = is zero
+// .ino = is negative one
+// .inno = is not negative one
 
 // const subsitutitons: CompletionSingle[] = [
 //     {

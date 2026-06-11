@@ -3,7 +3,7 @@ import { Position, Range } from 'vscode';
 
 import { Flag, FlagMatch } from './completion_utils';
 import { enumerate } from './misc';
-import { isLowerLetter, isUpperLetter } from './text_utils';
+import { isLetter, isLowerLetter, isUpperLetter } from './text_utils';
 
 /**
  * A lightweight cursor over a string for non-linear parsing.
@@ -444,10 +444,40 @@ export default class Tape {
 
     /**
      * Returns true if the substring starting at the current position
-     * starts with the given string.
+     * starts with `query`.
      */
     isAt(query: string): boolean {
         return this.raw.startsWith(query, this.pos);
+    }
+
+    /**
+     * Returns true if this substring starting at the given position
+     * starts with `query`. For any letters at the beginning or end of the query,
+     * returns false if the adjacent character, if any, is also a letter.
+     * 
+     * This function should **not** be used for general identifiers,
+     * because it recognizes underscores, dashes, and trailing digits as boundary markers.
+     */
+    isAtWord(query: string, pos: number = this.pos): boolean {
+        if (!query) {
+            return true;
+        }
+        const idx = this.raw.indexOf(query, pos); // handles out-of-bounds `pos`
+        if (isLetter(this.raw[idx])) {
+            // check boundary before match
+            const prevIdx = idx - 1;
+            if (prevIdx >= 0 && isLetter(this.raw[prevIdx])) {
+                return false;
+            }
+        }
+        if (isLetter(this.raw[idx + query.length - 1])) {
+            // check boundary after match
+            const nextIdx = idx + query.length;
+            if (nextIdx < this.raw.length && isLetter(this.raw[nextIdx])) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Returns true if the character at the given position has clearance on its left side. */

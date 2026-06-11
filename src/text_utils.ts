@@ -88,7 +88,7 @@ export function findWord(s: string, query: string): number {
     while (index !== -1) {
         let isMatch = true;
 
-        // Check boundary before match
+        // === Check boundary before match ===
         if (isLetter(query[0])) {
             const prevCharIndex = index - 1;
             if (prevCharIndex >= 0 && isLetter(s[prevCharIndex])) {
@@ -96,7 +96,7 @@ export function findWord(s: string, query: string): number {
             }
         }
 
-        // Check boundary after match
+        // === Check boundary after match ===
         if (isMatch && isLetter(query[query.length - 1])) {
             const nextCharIndex = index + query.length;
             if (nextCharIndex < s.length && isLetter(s[nextCharIndex])) {
@@ -108,7 +108,7 @@ export function findWord(s: string, query: string): number {
             return index;
         }
 
-        // Move past current index to find next occurrence
+        // === Move past current index to find next occurrence ===
         index = s.indexOf(query, index + 1);
     }
     return -1;
@@ -117,7 +117,7 @@ export function findWord(s: string, query: string): number {
 /** Returns a Markdown string, which can be used for documentation. */
 export function toMarkdown(
     s: string | TemplateStringsArray,
-    ...values: any[]
+    ...values: readonly any[]
 ): MarkdownString {
     return new MarkdownString(dedent(s, values));
 }

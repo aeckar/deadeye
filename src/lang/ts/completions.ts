@@ -125,9 +125,7 @@ Wrap expression with \`await\`.
         scoping: [['class']],
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
-
-            // Consume valid structural flags backwards
-            const flags = tape.consumeFlags({
+            const flags = tape.consumeFlags(ctx.cursor, {
                 m: 'method',
                 v: 'variable',
                 f: 'async ',
