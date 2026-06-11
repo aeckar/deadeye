@@ -1,4 +1,11 @@
-import { map, sortBy, UniqueKeys } from '../misc';
+import {
+    AssertNoOverlap,
+    AssertUniqueKeys,
+    Keys,
+    map,
+    sortBy,
+    UniqueKeys,
+} from '../misc';
 
 /** A range of indices. */
 export class Span {
@@ -99,30 +106,9 @@ export class Token<Kind extends string> {
 
     // todo cascade changes
 }
-
 export type Vocabulary<TokenNames extends string> = Map<TokenNames, string> & {
-    __brand?: TokenNames; // Keeps TokenNames from being erased by TypeScript
+    __brand?: TokenNames;
 };
-
-type ExtractTokens<T> = T extends Vocabulary<infer Names> ? Names : never;
-
-/**
- * todo doc
- */
-type UniqueKeys<
-    Parents extends readonly any[],
-    SeenKeys = never,
-> = Parents extends readonly [infer Head, ...infer Tail]
-    ? ExtractTokens<Head> & SeenKeys extends never
-        ? [Head, ...UniqueKeys<Tail, SeenKeys | ExtractTokens<Head>>]
-        : [
-              {
-                  ERROR: '❌ Duplicate key detected across parent vocabularies!';
-                  DuplicateKeys: ExtractTokens<Head> & SeenKeys;
-              },
-              ...any[],
-          ]
-    : [];
 
 export namespace Vocabulary {
     export const BRACKETS = Vocabulary.newInstance({
@@ -143,19 +129,17 @@ export namespace Vocabulary {
         Entries extends Record<string, string>,
         const Parents extends readonly Vocabulary<any>[],
     >(
-        entries: Entries & {
-            [K in keyof Entries]: K extends ExtractTokens<Parents[number]>
-                ? never
-                : string;
-        },
-        ...parents: Parents & UniqueKeys<Parents>
-    ): Vocabulary<(keyof Entries & string) | ExtractTokens<Parents[number]>> {
+        entries: Entries & AssertNoOverlap<Entries, Parents>,
+        ...parents: Parents & AssertUniqueKeys<Parents>
+    ): Vocabulary<(keyof Entries & string) | Keys<Parents[number]>> {
         const vocab: Record<string, string> = {};
+
         for (const parent of parents) {
             for (const [key, value] of parent.entries()) {
                 vocab[key] = value;
             }
         }
+
         Object.assign(vocab, entries);
         return new Map(Object.entries(vocab)) as any;
     }

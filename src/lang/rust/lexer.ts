@@ -121,7 +121,6 @@ export const SYMBOLS = Vocabulary.newInstance(
         XOR: '^',
         SHL: '<<',
         SHR: '>>',
-        OPEN_PAR: '(',  // bruh
         RANGE_INCL: '..=',
         RANGE: '..',
     },

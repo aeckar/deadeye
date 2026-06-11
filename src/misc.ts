@@ -3,13 +3,45 @@ import { Position, Range } from 'vscode';
 // use record
 // use `keyof any`
 
+/**
+ * Returns the string type of each key in this object.
+ *
+ * Works for {@link Map maps}, {@link Record records}, and plain JavaScript objects.
+ *
+ * Used to enforce unique keys when performing simulated inheritance of JavaScript objects.
+ * ```js
+ * export function combineStructures<
+ *    Primary extends Record<string, any>,
+ *    const Parents extends readonly any[],
+ * >(
+ *    primary: Primary & EnforceNoOverlap<Primary, Parents>,
+ *    ...parents: Parents & ValidateUniqueKeys<Parents>
+ * ): void {
+ *    // runtime merge logic
+ * }
+ * ```
+ */
+export type Keys<T> =
+    T extends Map<infer K, any>
+        ? K & string
+        : T extends Record<infer K, any>
+          ? K & string
+          : keyof T & string;
 
+/** Ensures unique keys for tuple arrays (e.g., rest arguments). */
+export type AssertUniqueKeys<
+    Targets extends readonly any[],
+    SeenKeys = never,
+> = Targets extends readonly [infer Head, ...infer Tail]
+    ? Keys<Head> & SeenKeys extends never
+        ? [Head, ...AssertUniqueKeys<Tail, SeenKeys | Keys<Head>>]
+        : never
+    : [];
 
-function createExclusiveTupleFriendly<T extends any[]>(
-    ...args: T & UniqueKeys<T>
-): T {
-    return args;
-}
+/** Ensures a primary object does not conflict with a list of parents. */
+export type AssertNoOverlap<Primary, Parents extends readonly any[]> = {
+    [K in keyof Primary]: K extends Keys<Parents[number]> ? never : Primary[K];
+};
 
 /**
  * Compares two values.
