@@ -124,7 +124,7 @@ export const SYMBOLS = Vocabulary.newInstance(
         RANGE_INCL: '..=',
         RANGE: '..',
     },
-    Vocabulary.BRACKETS,// todo group c-like operators
+    Vocabulary.BRACKETS, // todo group c-like operators
 );
 
 export default function tokenize(file: Tape): Token<RustTokenKind> {
@@ -139,3 +139,49 @@ export default function tokenize(file: Tape): Token<RustTokenKind> {
 
     //return tail
 }
+//todo universal indentation on (|) + [ENTER]
+
+/*language idea:
+
+[a,b] types, type spread
+params send type to type params
+fn's can have same name as props
+no inheritance, use rust data model
+steal from rust, since rust is crab, but also existing parsing modules
+allow var shadowing
+new keywords: `from`
+from creates type pool, which is inferred after arg passing
+P[<id or _ or + or |>]
+`is Type` is default implicit, warn to remove
+predicates in `where`:
+    `||`: check shapes are disjoint
+    `&&`: check intersection of shapes
+
+        and these can be prefixes:
+    `from` `!from`: is subset of other shape
+    `is` `!is`: shares same shape or type
+
+| is type union (multiple possible types)
++ is type addition (amalgam of types)
+- is type subtraction
+
+ensure param list is decluttered
+
+type pool props (prefer :: over `as` for clearer operation precedence)
+    sum: + of every type
+    union: | of every type
+
+pub fn my_fn(child: C <- {}) -> int
+```
+pub fn inherit(
+    child: C <- {},
+    ...parents: P !<- {},
+) -> T
+where
+    P[i] || P[j],
+    P[_] || C,
+    T == P::sum + C, 
+{
+}
+```
+*/
