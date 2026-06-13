@@ -21,7 +21,7 @@ import { Position, Range } from 'vscode';
  * }
  * ```
  */
-export type Keys<T> =
+export type Key<T> =
     T extends Map<infer K, any>
         ? K & string
         : T extends Record<infer K, any>
@@ -33,14 +33,14 @@ export type AssertUniqueKeys<
     Targets extends readonly any[],
     SeenKeys = never,
 > = Targets extends readonly [infer Head, ...infer Tail]
-    ? Keys<Head> & SeenKeys extends never
-        ? [Head, ...AssertUniqueKeys<Tail, SeenKeys | Keys<Head>>]
+    ? Key<Head> & SeenKeys extends never
+        ? [Head, ...AssertUniqueKeys<Tail, SeenKeys | Key<Head>>]
         : never
     : [];
 
 /** Ensures a primary object does not conflict with a list of parents. */
 export type AssertNoOverlap<Primary, Parents extends readonly any[]> = {
-    [K in keyof Primary]: K extends Keys<Parents[number]> ? never : Primary[K];
+    [K in keyof Primary]: K extends Key<Parents[number]> ? never : Primary[K];
 };
 
 /**
@@ -50,6 +50,9 @@ export type AssertNoOverlap<Primary, Parents extends readonly any[]> = {
  * - -1 if `cur` is less than `next`
  * - 0 if `cur` and `next` are equal
  * - 1 if `cur` is greater than `next`
+ *
+ * According to ECMA-262 Section 23.1.3.30,
+ * all sorting functions provided by JavaScript are stable.
  */
 export type Comparator<T> = (cur: T, next: T) => number;
 
@@ -140,17 +143,17 @@ export function match<K extends keyof any, V>(
 }
 
 /**
- * Returns a map, sorted using the given comparator, for the given entries.
+ * Returns a map, sorted using the given comparators in order, for the given entries.
  *
  * As guaranteed by ECMA-262 Section 24.1, the order of map entries is persistent.
  * This enables preemptive sorting of entries using `compareFn`.
  */
 export function map<K extends keyof any, V>(
     o: Record<K, V>,
-    compareFn?: Comparator<Property<K, V>>,
+    ...compareFns: Comparator<Property<K, V>>[]
 ): Map<K, V> {
     let jsEntries = entries(o);
-    if (compareFn) {
+    for (const compareFn of compareFns) {
         jsEntries = jsEntries.sort(compareFn);
     }
     return jsEntries.reduce((sorted, { key, value }) => {
@@ -161,7 +164,7 @@ export function map<K extends keyof any, V>(
 
 /**
  * Returns a comparator that maps every entry in a collection to a weight value,
- * where higher weights are placed before lower ones when recombined into a sorted collection.
+ * where higher weights are placed after lower ones when recombined into a sorted collection.
  */
 export function sortBy<K extends keyof any, V>(
     keyMap: (entry: Property<K, V>) => number,

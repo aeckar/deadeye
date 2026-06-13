@@ -1,143 +1,135 @@
-import { map, sortBy } from '../../misc';
+import { Key } from '../../misc';
 import Tape from '../../tape';
 import { Token, Vocabulary } from '../lexer_utils';
 
-export const KEYWORD_LIST = [
-    // Strict Keywords
-    'as',
-    'async',
-    'await',
-    'break',
-    'const',
-    'continue',
-    'crate',
-    'dyn',
-    'else',
-    'enum',
-    'extern',
-    'false',
-    'fn',
-    'for',
-    'if',
-    'impl',
-    'in',
-    'let',
-    'loop',
-    'match',
-    'mod',
-    'move',
-    'mut',
-    'pub',
-    'ref',
-    'return',
-    'self',
-    'Self',
-    'static',
-    'struct',
-    'super',
-    'trait',
-    'true',
-    'type',
-    'unsafe',
-    'use',
-    'where',
-    'while',
-    'macro_rules!',
-
-    // Reserved Keywords
-    'abstract',
-    'become',
-    'box',
-    'do',
-    'final',
-    'macro',
-    'override',
-    'priv',
-    'try',
-    'typeof',
-    'unsized',
-    'virtual',
-    'yield',
-
-    // Contextual Keywords
-    'union', // must be followed by open brace
-] as const;
-
-export const KEYWORD_SET = new Set(KEYWORD_LIST);
-
-export type Keyword = (typeof KEYWORD_LIST)[number];
-
+//todo enforce no two tokens with same capture
 // assume post-2018 rust: dyn is STRICT KWORD
 //Rust quirk: block comments can be nested.
+// always use non capturing groups for perf
+// expanded types may be diff, so segregate str/chr and byte str/chr
+// always use sticky \y flag for perf
+// . vs \s\S -- latter catches newlines too
+// string match is more perf than regex match of same string
 
-export type RustTokenKind = 'ROOT' | Keyword | '';
+//todo lifetimes/labels, invalid/unclosed, shebang, raw str, raw id
+export const VOCAB = Vocabulary.newInstance({
+    keywords: [
+        // === Strict Keywords ===
+        'as',
+        'async',
+        'await',
+        'break',
+        'const',
+        'continue',
+        'crate',
+        'dyn',
+        'else',
+        'enum',
+        'extern',
+        'false',
+        'fn',
+        'for',
+        'if',
+        'impl',
+        'in',
+        'let',
+        'loop',
+        'match',
+        'mod',
+        'move',
+        'mut',
+        'pub',
+        'ref',
+        'return',
+        'self',
+        'Self',
+        'static',
+        'struct',
+        'super',
+        'trait',
+        'true',
+        'type',
+        'unsafe',
+        'use',
+        'where',
+        'while',
+        'macro_rules!',
 
-export const SYMBOLS = Vocabulary.newInstance(
-    {
-        // === Punctuation & Arrows ===
+        // === Reserved Keywords ===
+        'abstract',
+        'become',
+        'box',
+        'do',
+        'final',
+        'macro',
+        'override',
+        'priv',
+        'try',
+        'typeof',
+        'unsized',
+        'virtual',
+        'yield',
+
+        // === Contextual Keywords ===
+        'union', // must be followed by open brace
+    ],
+    declare: {
         FAT_ARROW: '=>',
         THIN_ARROW: '->',
         PATH_SEP: '::',
-        EQUALS: '=',
-        COLON: ':',
-        DOT: '.',
-        COMMA: ',',
-        SEMICOLON: ';',
         QMARK: '?',
-
-        // === Basic Arithmetic ===
-        PLUS: '+',
-        MINUS: '-',
-        ASTERISK: '*',
-        SLASH: '/',
-        PERCENT: '%',
-
-        // === Compound Assignment ===
-        PLUS_ASSIGN: '+=',
-        MINUS_ASSIGN: '-=',
-        MULT_ASSIGN: '*=',
-        DIV_ASSIGN: '/=',
-        REM_ASSIGN: '%=',
-        AND_ASSIGN: '&=',
-        OR_ASSIGN: '|=',
-        XOR_ASSIGN: '^=',
-        SHL_ASSIGN: '<<=',
-        SHR_ASSIGN: '>>=',
-
-        // === Comparison & Logic ===
-        EQ_EQ: '==',
-        NOT_EQ: '!=',
-        LE: '<=',
-        GE: '>=',
-        AND_AND: '&&',
-        OR_OR: '||',
-        NOT: '!',
-        LESS: '<',
-        GREATER: '>',
-
-        // === Bitwise & Ranges ===
-        AND: '&',
-        OR: '|',
-        XOR: '^',
-        SHL: '<<',
-        SHR: '>>',
         RANGE_INCL: '..=',
         RANGE: '..',
+        STRING: /"[\s\S]*?"/y,
+        BYTE_STRING: /b"[\s\S]*?"/y,
+        BYTE_CHAR: /b'\\?.'/y,
+        FLOAT: new RegExp(
+            `[0-9_]+(?:\.[0-9_]+(?:[eE][-+]?[0-9_]+)?)?(?:f(?:32|64|128))?`,
+            'y',
+        ),
+        INTEGER: new RegExp(
+            `(?:[0-9_]+|0b[01_]+|0o[0-7_]+|0x[0-9a-fA-F_]+)(?:[iu](?:8|16|32|64|128))?`,
+            'y',
+        ),
     },
-    Vocabulary.BRACKETS, // todo group c-like operators
-);
+    inherit: [
+        Vocabulary.BRACKETS,
+        Vocabulary.ARITHMETIC_ASSIGN,
+        Vocabulary.REM_ASSIGN,
+        Vocabulary.BIT_OPS_ASSIGN,
+        Vocabulary.BOOL_LOGIC,
+        Vocabulary.C_COMMENTS,
+        Vocabulary.C_PUNCT,
+        Vocabulary.C_ID,
+        Vocabulary.C_CHAR,
+    ],
+    ignore: /\s/y,
+});
 
-export default function tokenize(file: Tape): Token<RustTokenKind> {
+export default function tokenize(
+    file: Tape,
+    vocab: Vocabulary<any>,
+): Token<Key<typeof vocab>> {
     let node = Token.root();
-    for (const kword in KEYWORD_LIST) {
-        if (file.isAtWord(kword)) {
-            node = node.append(kword);
-            file.pos += kword.length;
-            break;
+    if (vocab.has('$ignore')) {
+        for (const [name, query] of VOCAB.entries()) {
+            if (file.isAtWord(kword)) {
+                node = node.append(kword);
+                file.pos += kword.length;
+                break;
+            }
+        }
+    } else {
+        for (const [name, query] of VOCAB.entries()) {
+            if (file.isAtWord(kword)) {
+                node = node.append(kword);
+                file.pos += kword.length;
+                break;
+            }
         }
     }
 
-    //return tail
+    return node;
 }
 //todo universal indentation on (|) + [ENTER]
 

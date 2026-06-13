@@ -2,6 +2,20 @@
 import dedent from 'dedent-js';
 import { MarkdownString } from 'vscode';
 
+/**
+ * Returns a Markdown string, which can be used for documentation.
+ *
+ * This function should be used as a raw string prefix (e.g. `md'text'`).//todo find doppelganger
+ */
+export function toMarkdown(
+    s: string | TemplateStringsArray,
+    ...values: readonly any[]
+): MarkdownString {
+    return new MarkdownString(dedent(s, values));
+}
+
+/* ======================================== Scannerless Parsing ======================================== */
+
 export type Brackets = (typeof BRACKETS)[number];
 export type OpenBracket = (typeof OPEN_BRACKETS)[number];
 export type CloseBracket = (typeof CLOSE_BRACKETS)[number];
@@ -49,6 +63,8 @@ export function expandTabStops(s: MarkdownString): MarkdownString {
             .replace(/\$\{?(\d)(?::.*?\})?/, '/* placeholder $1 */'),
     );
 }
+
+/* ============================================ Diagnostics ============================================ */
 
 /**
  * Returns the same string formatted in HTML as a distinct paragraph containing red text.
@@ -114,13 +130,7 @@ export function findWord(s: string, query: string): number {
     return -1;
 }
 
-/** Returns a Markdown string, which can be used for documentation. */
-export function toMarkdown(
-    s: string | TemplateStringsArray,
-    ...values: readonly any[]
-): MarkdownString {
-    return new MarkdownString(dedent(s, values));
-}
+/* ======================================== Letter Case ======================================== */
 
 /** Concatenates the strings and applies PascalCase. */
 export function toPascalCase(chunks: string[]): string {

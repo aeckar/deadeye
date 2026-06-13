@@ -1,11 +1,16 @@
-import {
-    AssertNoOverlap,
-    AssertUniqueKeys,
-    Keys,
-    map,
-    sortBy,
-    UniqueKeys,
-} from '../misc';
+import { AssertNoOverlap, AssertUniqueKeys, Key, map, sortBy } from '../misc';
+
+/** Can be used to test for a token. */
+export type Query = string | RegExp;
+
+/**
+ * Returns a record where each property is a keyword in the array
+ * assigned to the name of the token emitted when it is matched,
+ * which is the keyword in all uppercase letters.
+ */
+export function keywords(...kwords: string[]): Record<string, Query> {
+    return Object.fromEntries(kwords.map(e => [e.toUpperCase(), e]));
+}
 
 /** A range of indices. */
 export class Span {
@@ -27,13 +32,13 @@ export class Span {
 
 /** A token, implemented as a node in a linked list. */
 export class Token<Kind extends string> {
-    readonly kind: Kind;
+    readonly kind: Kind | '';
     readonly span: Span;
     private _prev?: Token<Kind>;
     private _next?: Token<Kind>;
 
     private constructor(
-        kind: Kind,
+        kind: Kind | '',
         span: Span,
         prev?: Token<Kind>,
         next?: Token<Kind>,
@@ -103,44 +108,162 @@ export class Token<Kind extends string> {
         }
         return node;
     }
-
-    // todo cascade changes
 }
-export type Vocabulary<TokenNames extends string> = Map<TokenNames, string> & {
+
+/**
+ * Configuration properties for a vocabulary.
+ * @param ignore If a pattern is assigned to the property `$ignore` determines which characters are ignored
+ * before the first token and after each subsequent token (e.g., whitespace).
+ * @param keywords List of keywords that are matched exactly, whose token names are
+ * the keyword in all uppercase letters, and that are tested such that they must be a whole word.
+ */
+export type VocabularyConfig = {
+    ignore?: RegExp;
+    keywords?: readonly string[];
+};
+
+export type Vocabulary<TokenNames extends string> = {
     __brand?: TokenNames;
+    tokens: Map<TokenNames, Query>;
+    config: VocabularyConfig;
 };
 
 export namespace Vocabulary {
     export const BRACKETS = Vocabulary.newInstance({
-        OPEN_PAR: '(',
-        CLOSE_PAR: ')',
-        OPEN_BRAC: '[',
-        CLOSE_BRAC: ']',
-        OPEN_CURLY: '{',
-        CLOSE_CURLY: '}',
+        declare: {
+            OPEN_PAR: '(',
+            CLOSE_PAR: ')',
+            OPEN_BRAC: '[',
+            CLOSE_BRAC: ']',
+            OPEN_CURLY: '{',
+            CLOSE_CURLY: '}',
+        },
+    });
+
+    export const ARITHMETIC = Vocabulary.newInstance({
+        declare: {
+            PLUS: '+',
+            MINUS: '-',
+            ASTERISK: '*',
+            SLASH: '/',
+        },
+    });
+
+    export const ARITHMETIC_ASSIGN = Vocabulary.newInstance({
+        declare: {
+            PLUS_ASSIGN: '+=',
+            MINUS_ASSIGN: '-=',
+            MULT_ASSIGN: '*=',
+            DIV_ASSIGN: '/=',
+        },
+        inherit: [Vocabulary.ARITHMETIC],
+    });
+
+    export const REM_ASSIGN = Vocabulary.newInstance({
+        declare: {
+            REM: '%',
+            REM_ASSIGN: '%=',
+        },
+    });
+
+    export const BIT_OPS = Vocabulary.newInstance({
+        declare: {
+            AND: '&',
+            OR: '|',
+            XOR: '^',
+            SHL: '<<',
+            SHR: '>>',
+        },
+    });
+
+    export const BIT_OPS_ASSIGN = Vocabulary.newInstance({
+        declare: {
+            AND_ASSIGN: '&=',
+            OR_ASSIGN: '|=',
+            XOR_ASSIGN: '^=',
+            SHL_ASSIGN: '<<=',
+            SHR_ASSIGN: '>>=',
+        },
+    });
+
+    export const BOOL_LOGIC = Vocabulary.newInstance({
+        declare: {
+            AND_AND: '&&',
+            OR_OR: '||',
+            NOT: '!',
+            LESS: '<',
+            GREATER: '>',
+            EQ_EQ: '==',
+            NOT_EQ: '!=',
+            LE: '<=',
+            GE: '>=',
+        },
+    });
+
+    export const C_COMMENTS = Vocabulary.newInstance({
+        declare: {
+            LINE_COMMENT: /\/\/.*/y,
+            BLOCK_COMMENT: /\/\*[\s\S]*?\*\//y,
+        },
+    });
+
+    export const C_PUNCT = Vocabulary.newInstance({
+        declare: {
+            EQUALS: '=',
+            COLON: ':',
+            DOT: '.',
+            COMMA: ',',
+            SEMICOLON: ';',
+        },
+    });
+
+    export const C_ID = Vocabulary.newInstance({
+        declare: {
+            ID: /[a-zA-Z_][a-zA-Z_0-9]*/y,
+        },
+    });
+
+    export const C_CHAR = Vocabulary.newInstance({
+        declare: {
+            CHAR: /'\\?.'/y,
+        },
     });
 
     /**
      * Returns a map of name-capture entries for each token.
      *
-     * The returned map is sorted by length to ensure correct precedence.
+     * The returned map is sorted by the length of each string query to ensure correct precedence.
+     * For pattern queries, the length of the name of the token is used instead.
+     * Both groups are sorted in ascending order.
+     *
+     * Strings queries are made the first entries in the map to defer
+     * pattern testing and potentially improve performance.
      */
     export function newInstance<
-        Entries extends Record<string, string>,
+        Entries extends Record<string, Query>,
         const Parents extends readonly Vocabulary<any>[],
-    >(
-        entries: Entries & AssertNoOverlap<Entries, Parents>,
-        ...parents: Parents & AssertUniqueKeys<Parents>
-    ): Vocabulary<(keyof Entries & string) | Keys<Parents[number]>> {
-        const vocab: Record<string, string> = {};
-
-        for (const parent of parents) {
-            for (const [key, value] of parent.entries()) {
+    >(args: {
+        declare: Entries & AssertNoOverlap<Entries, Parents> & VocabularyConfig;
+        config?: VocabularyConfig;
+        inherit?: Parents & AssertUniqueKeys<Parents>[];
+    }): Vocabulary<(keyof Entries & string) | Key<Parents[number]>> {
+        const vocab: Record<string, Query> = {};
+        for (const parent of args.inherit ?? []) {
+            for (const [key, value] of parent.tokens.entries()) {
                 vocab[key] = value;
             }
         }
-
-        Object.assign(vocab, entries);
-        return new Map(Object.entries(vocab)) as any;
+        Object.assign(vocab, args.declare);
+        const tokens = map(
+            vocab,
+            sortBy(({ key, value }) =>
+                typeof value === 'string' ? value.length : key.length,
+            ),
+            sortBy(({ key: _, value }) => (typeof value === 'string' ? -1 : 1)),
+        );
+        return {
+            tokens,
+            config: args.config ?? {},
+        };
     }
 }
