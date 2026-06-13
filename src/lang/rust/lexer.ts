@@ -1,6 +1,5 @@
-import { Key } from '../../misc';
 import Tape from '../../tape';
-import { Token, Vocabulary } from '../lexer_utils';
+import { Language, Token } from '../lexer_utils';
 
 //todo enforce no two tokens with same capture
 // assume post-2018 rust: dyn is STRICT KWORD
@@ -10,9 +9,9 @@ import { Token, Vocabulary } from '../lexer_utils';
 // always use sticky \y flag for perf
 // . vs \s\S -- latter catches newlines too
 // string match is more perf than regex match of same string
-
+// place inner fn's at very end for readbility
 //todo lifetimes/labels, invalid/unclosed, shebang, raw str, raw id
-export const VOCAB = Vocabulary.newInstance({
+export const RUST = Language.newInstance({
     keywords: [
         // === Strict Keywords ===
         'as',
@@ -93,43 +92,103 @@ export const VOCAB = Vocabulary.newInstance({
         ),
     },
     inherit: [
-        Vocabulary.BRACKETS,
-        Vocabulary.ARITHMETIC_ASSIGN,
-        Vocabulary.REM_ASSIGN,
-        Vocabulary.BIT_OPS_ASSIGN,
-        Vocabulary.BOOL_LOGIC,
-        Vocabulary.C_COMMENTS,
-        Vocabulary.C_PUNCT,
-        Vocabulary.C_ID,
-        Vocabulary.C_CHAR,
+        Language.BRACKETS,
+        Language.ARITHMETIC_ASSIGN,
+        Language.REM_ASSIGN,
+        Language.BIT_OPS_ASSIGN,
+        Language.BOOL_LOGIC,
+        Language.C_COMMENTS,
+        Language.C_PUNCT,
+        Language.C_ID,
+        Language.C_CHAR,
     ],
     ignore: /\s/y,
 });
 
-export default function tokenize(
-    file: Tape,
-    vocab: Vocabulary<any>,
-): Token<Key<typeof vocab>> {
+//todo cascade token changes
+
+export default function tokenize(file: Tape, lang: Language): Token {
     let node = Token.root();
-    if (vocab.has('$ignore')) {
-        for (const [name, query] of VOCAB.entries()) {
-            if (file.isAtWord(kword)) {
-                node = node.append(kword);
-                file.pos += kword.length;
-                break;
+    const ignore = lang.ignore;
+    if (ignore) {
+        skip(ignore);
+        while (!file.isExhausted()) {
+            const start = file.pos;
+            testStrings();
+            if (file.pos !== start) {
+                skip(ignore);
+                continue;
+            }
+            testKeywords();
+            if (file.pos !== start) {
+                skip(ignore);
+                continue;
+            }
+            testPatterns();
+            if (file.pos !== start) {
+                skip(ignore);
+                continue;
             }
         }
     } else {
-        for (const [name, query] of VOCAB.entries()) {
+        while (!file.isExhausted()) {
+            const start = file.pos;
+            testStrings();
+            if (file.pos !== start) {
+                continue;
+            }
+            testKeywords();
+            if (file.pos !== start) {
+                continue;
+            }
+            testPatterns();
+            if (file.pos !== start) {
+                continue;
+            }
+        }
+    }
+    return node;
+
+    function skip(ignore: RegExp) {
+        ignore.lastIndex = file.pos;
+        if (ignore.test(file.raw)) {
+            file.pos = ignore.lastIndex; // advance cursor
+        }
+    }
+    
+    function testPatterns() {
+        for (const [name, query] of lang.patterns.entries()) {
+            query.lastIndex = file.pos;
+            if (query.test(file.raw)) {
+                const length = query.lastIndex - file.pos;
+                node = node.append(name, length);
+                file.pos += length;
+                break;
+            }
+        }
+    }
+
+    function testKeywords() {
+        for (const [name, kword] of lang.keywords) {
             if (file.isAtWord(kword)) {
-                node = node.append(kword);
+                // Execute check for letter on both ends,
+                // as some keywords contain leading/trailing symbols
+                node = node.append(name, kword.length);
                 file.pos += kword.length;
                 break;
             }
         }
     }
 
-    return node;
+    function testStrings() {
+        for (const [name, query] of lang.strings.entries()) {
+            if (file.isAt(query)) {
+                node = node.append(name, query.length);
+                file.pos += query.length;
+                break;
+            }
+        }
+    }
 }
 //todo universal indentation on (|) + [ENTER]
 

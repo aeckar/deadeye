@@ -1,16 +1,4 @@
-import { AssertNoOverlap, AssertUniqueKeys, Key, map, sortBy } from '../misc';
-
-/** Can be used to test for a token. */
-export type Query = string | RegExp;
-
-/**
- * Returns a record where each property is a keyword in the array
- * assigned to the name of the token emitted when it is matched,
- * which is the keyword in all uppercase letters.
- */
-export function keywords(...kwords: string[]): Record<string, Query> {
-    return Object.fromEntries(kwords.map(e => [e.toUpperCase(), e]));
-}
+import { map, sortBy } from '../misc';
 
 /** A range of indices. */
 export class Span {
@@ -31,29 +19,24 @@ export class Span {
 }
 
 /** A token, implemented as a node in a linked list. */
-export class Token<Kind extends string> {
-    readonly kind: Kind | '';
+export class Token {
     readonly span: Span;
-    private _prev?: Token<Kind>;
-    private _next?: Token<Kind>;
+    readonly kind?: string;
+    private _prev?: Token;
+    private _next?: Token;
 
-    private constructor(
-        kind: Kind | '',
-        span: Span,
-        prev?: Token<Kind>,
-        next?: Token<Kind>,
-    ) {
+    private constructor(span: Span, kind?: string, prev?: Token, next?: Token) {
         this.kind = kind;
         this.span = span;
         this._prev = prev;
         this._next = next;
     }
 
-    get prev(): Token<Kind> | undefined {
+    get prev(): Token | undefined {
         return this._prev;
     }
 
-    get next(): Token<Kind> | undefined {
+    get next(): Token | undefined {
         return this._next;
     }
 
@@ -65,8 +48,8 @@ export class Token<Kind extends string> {
      * The returned token should act as an anchor for all trailing tokens.
      * Once the token stream is complete, this node is popped from the beginning of the list.
      */
-    static root<Kind extends string>(): Token<Kind> {
-        return new Token('' as Kind, new Span(0, 0));
+    static root(): Token {
+        return new Token(new Span(0, 0));
     }
 
     /**
@@ -75,10 +58,10 @@ export class Token<Kind extends string> {
      *
      * @returns The inserted token.
      */
-    append(kind: Kind, length: number = kind.length): Token<Kind> {
+    append(kind?: string, length: number = kind?.length ?? 0): Token {
         const node = new Token(
-            kind,
             new Span(this.span.begin, this.span.begin + length),
+            kind,
             this,
             this._next,
         );
@@ -95,10 +78,10 @@ export class Token<Kind extends string> {
      *
      * @returns The inserted token.
      */
-    prepend(kind: Kind, length: number = kind.length): Token<Kind> {
+    prepend(kind: string, length: number = kind.length): Token {
         const node = new Token(
-            kind,
             new Span(this.span.begin - length, this.span.begin),
+            kind,
             this._prev,
             this,
         );
@@ -110,26 +93,103 @@ export class Token<Kind extends string> {
     }
 }
 
-/**
- * Configuration properties for a vocabulary.
- * @param ignore If a pattern is assigned to the property `$ignore` determines which characters are ignored
- * before the first token and after each subsequent token (e.g., whitespace).
- * @param keywords List of keywords that are matched exactly, whose token names are
- * the keyword in all uppercase letters, and that are tested such that they must be a whole word.
- */
-export type VocabularyConfig = {
+export type VocabularyConfig = {};
+
+/** Specifies a vocabulary of tokens that can be used to tokenize a source file. */
+export class Language {
+    /**
+     * Tokens matching an exact keywordose token names.
+     * This are tested such that they must be a whole word.
+     */
+    keywords: Map<string, string>;
+
+    /** Tokens matching exact strings. */
+    strings: Map<string, string>;
+
+    /** Tokens matching regular expressions. */
+    patterns: Map<string, RegExp>;
+
+    /**
+     * If a pattern is assigned to the property `$ignore` determines which characters are ignored
+     * before the first token and after each subsequent token (e.g., whitespace).
+     */
     ignore?: RegExp;
-    keywords?: readonly string[];
-};
 
-export type Vocabulary<TokenNames extends string> = {
-    __brand?: TokenNames;
-    tokens: Map<TokenNames, Query>;
-    config: VocabularyConfig;
-};
+    private constructor(
+        keywords: readonly string[],
+        strings: Map<string, string>,
+        patterns: Map<string, RegExp>,
+        ignore?: RegExp,
+    ) {
+        this.keywords = new Map(keywords.map(e => [e.toUpperCase(), e]));
+        this.strings = strings;
+        this.patterns = patterns;
+        this.ignore = ignore;
+    }
 
-export namespace Vocabulary {
-    export const BRACKETS = Vocabulary.newInstance({
+    /**
+     * Returns a map of name-capture entries for each token.
+     *
+     * Evaluation order:
+     * 1. String
+     * 2. Keyword
+     * 3. Pattern
+     *
+     * Precedence rules:
+     * - **String:** Longer queries are matched first
+     * - **Pattern:** Declaration order
+     * - **Keyword:** Declaration order
+     *
+     * # Implementation
+     *
+     * An attempt was made to enforce vocabulary inheritance rules, but the consequences were:
+     * 1. Too complex for not enough benefit
+     * 2. Fragile API
+     *
+     * `declare` combines both string and pattern tokens to discourage clashing token names.
+     */
+    static newInstance(args: {
+        declare: { [K in string]: string | RegExp };
+        keywords?: readonly string[];
+        inherit?: Language[];
+        ignore?: RegExp;
+    }): Language {
+        const keywords = [...(args.keywords ?? [])];
+        const strings: Record<string, string> = {};
+        const patterns: Record<string, RegExp> = {};
+        for (const parent of args.inherit ?? []) {
+            for (const [name, query] of parent.strings.entries()) {
+                strings[name] = query;
+            }
+            for (const [name, query] of parent.patterns.entries()) {
+                patterns[name] = query;
+            }
+            for (const [_, kword] of parent.keywords) {
+                keywords.push(kword);
+            }
+        }
+        for (const name in args.declare) {
+            if (typeof args.declare[name] === 'string') {
+                strings[name] = args.declare[name];
+            } else {
+                patterns[name] = args.declare[name];
+            }
+        }
+        return new Language(
+            keywords,
+            map(
+                strings,
+                sortBy(prop => prop.value.length),
+            ),
+            map(patterns),
+            args.ignore,
+        );
+    }
+}
+
+/** Contains common language configurations. */
+export namespace Language {
+    export const BRACKETS = Language.newInstance({
         declare: {
             OPEN_PAR: '(',
             CLOSE_PAR: ')',
@@ -140,7 +200,7 @@ export namespace Vocabulary {
         },
     });
 
-    export const ARITHMETIC = Vocabulary.newInstance({
+    export const ARITHMETIC = Language.newInstance({
         declare: {
             PLUS: '+',
             MINUS: '-',
@@ -149,24 +209,24 @@ export namespace Vocabulary {
         },
     });
 
-    export const ARITHMETIC_ASSIGN = Vocabulary.newInstance({
+    export const ARITHMETIC_ASSIGN = Language.newInstance({
         declare: {
             PLUS_ASSIGN: '+=',
             MINUS_ASSIGN: '-=',
             MULT_ASSIGN: '*=',
             DIV_ASSIGN: '/=',
         },
-        inherit: [Vocabulary.ARITHMETIC],
+        inherit: [Language.ARITHMETIC],
     });
 
-    export const REM_ASSIGN = Vocabulary.newInstance({
+    export const REM_ASSIGN = Language.newInstance({
         declare: {
             REM: '%',
             REM_ASSIGN: '%=',
         },
     });
 
-    export const BIT_OPS = Vocabulary.newInstance({
+    export const BIT_OPS = Language.newInstance({
         declare: {
             AND: '&',
             OR: '|',
@@ -176,7 +236,7 @@ export namespace Vocabulary {
         },
     });
 
-    export const BIT_OPS_ASSIGN = Vocabulary.newInstance({
+    export const BIT_OPS_ASSIGN = Language.newInstance({
         declare: {
             AND_ASSIGN: '&=',
             OR_ASSIGN: '|=',
@@ -186,7 +246,7 @@ export namespace Vocabulary {
         },
     });
 
-    export const BOOL_LOGIC = Vocabulary.newInstance({
+    export const BOOL_LOGIC = Language.newInstance({
         declare: {
             AND_AND: '&&',
             OR_OR: '||',
@@ -200,14 +260,14 @@ export namespace Vocabulary {
         },
     });
 
-    export const C_COMMENTS = Vocabulary.newInstance({
+    export const C_COMMENTS = Language.newInstance({
         declare: {
             LINE_COMMENT: /\/\/.*/y,
             BLOCK_COMMENT: /\/\*[\s\S]*?\*\//y,
         },
     });
 
-    export const C_PUNCT = Vocabulary.newInstance({
+    export const C_PUNCT = Language.newInstance({
         declare: {
             EQUALS: '=',
             COLON: ':',
@@ -217,53 +277,15 @@ export namespace Vocabulary {
         },
     });
 
-    export const C_ID = Vocabulary.newInstance({
+    export const C_ID = Language.newInstance({
         declare: {
             ID: /[a-zA-Z_][a-zA-Z_0-9]*/y,
         },
     });
 
-    export const C_CHAR = Vocabulary.newInstance({
+    export const C_CHAR = Language.newInstance({
         declare: {
             CHAR: /'\\?.'/y,
         },
     });
-
-    /**
-     * Returns a map of name-capture entries for each token.
-     *
-     * The returned map is sorted by the length of each string query to ensure correct precedence.
-     * For pattern queries, the length of the name of the token is used instead.
-     * Both groups are sorted in ascending order.
-     *
-     * Strings queries are made the first entries in the map to defer
-     * pattern testing and potentially improve performance.
-     */
-    export function newInstance<
-        Entries extends Record<string, Query>,
-        const Parents extends readonly Vocabulary<any>[],
-    >(args: {
-        declare: Entries & AssertNoOverlap<Entries, Parents> & VocabularyConfig;
-        config?: VocabularyConfig;
-        inherit?: Parents & AssertUniqueKeys<Parents>[];
-    }): Vocabulary<(keyof Entries & string) | Key<Parents[number]>> {
-        const vocab: Record<string, Query> = {};
-        for (const parent of args.inherit ?? []) {
-            for (const [key, value] of parent.tokens.entries()) {
-                vocab[key] = value;
-            }
-        }
-        Object.assign(vocab, args.declare);
-        const tokens = map(
-            vocab,
-            sortBy(({ key, value }) =>
-                typeof value === 'string' ? value.length : key.length,
-            ),
-            sortBy(({ key: _, value }) => (typeof value === 'string' ? -1 : 1)),
-        );
-        return {
-            tokens,
-            config: args.config ?? {},
-        };
-    }
 }
