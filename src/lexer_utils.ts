@@ -1,4 +1,5 @@
-import { map, sortBy } from '../misc';
+import { map, sortBy } from './misc';
+import Tape from './tape';
 
 /** A range of indices. */
 export class Span {
@@ -18,7 +19,11 @@ export class Span {
     }
 }
 
-/** A token, implemented as a node in a linked list. */
+/**
+ * A token, implemented as a node in a linked list.
+ *
+ * Tokens matching an empty query will not be emitted.
+ */
 export class Token {
     readonly span: Span;
     readonly kind?: string;
@@ -288,4 +293,108 @@ export namespace Language {
             CHAR: /'\\?.'/y,
         },
     });
+}
+
+const REST_OF_LINE = /.+/y;
+
+export default function tokenize(file: Tape, lang: Language): Token {
+    let node = Token.root();
+    const ignore = lang.ignore;
+    if (ignore) {
+        skip(ignore);
+        while (!file.isExhausted()) {
+            const start = file.pos;
+            testStrings();
+            if (file.pos !== start) {
+                skip(ignore);
+                continue;
+            }
+            testKeywords();
+            if (file.pos !== start) {
+                skip(ignore);
+                continue;
+            }
+            testPatterns();
+            if (file.pos !== start) {
+                skip(ignore);
+                continue;
+            }
+            attemptRecovery();
+        }
+    } else {
+        while (!file.isExhausted()) {
+            const start = file.pos;
+            testStrings();
+            if (file.pos !== start) {
+                continue;
+            }
+            testKeywords();
+            if (file.pos !== start) {
+                continue;
+            }
+            testPatterns();
+            if (file.pos !== start) {
+                continue;
+            }
+            attemptRecovery();
+        }
+    }
+    return node;
+
+    function attemptRecovery() {
+        if (file.isExhausted()) {
+            return; // proceed with termination
+        }
+        const start = file.pos;
+        REST_OF_LINE.lastIndex = start;
+        while (!REST_OF_LINE.test(file.raw)) {
+            file.pos += 1;
+            if (file.isExhausted()) {
+                break;
+            }
+            REST_OF_LINE.lastIndex = file.pos;
+        }
+        node = node.append('UNKNOWN', start - file.pos);
+    }
+
+    function skip(sticky: RegExp) {
+        sticky.lastIndex = file.pos;
+        if (sticky.test(file.raw)) {
+            file.pos = sticky.lastIndex; // advance cursor
+        }
+    }
+
+    function testPatterns() {
+        for (const [name, query] of lang.patterns.entries()) {
+            query.lastIndex = file.pos;
+            if (query.test(file.raw)) {
+                const length = query.lastIndex - file.pos;
+                node = node.append(name, length);
+                file.pos += length;
+                break;
+            }
+        }
+    }
+
+    function testKeywords() {
+        for (const [name, kword] of lang.keywords) {
+            if (file.isAtWord(kword)) {
+                // Execute check for letter on both ends,
+                // as some keywords contain leading/trailing symbols
+                node = node.append(name, kword.length);
+                file.pos += kword.length;
+                break;
+            }
+        }
+    }
+
+    function testStrings() {
+        for (const [name, query] of lang.strings.entries()) {
+            if (file.isAt(query)) {
+                node = node.append(name, query.length);
+                file.pos += query.length;
+                break;
+            }
+        }
+    }
 }

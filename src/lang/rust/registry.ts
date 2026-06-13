@@ -1,11 +1,10 @@
-import { MarkdownString, Range } from 'vscode';
+import { Range } from 'vscode';
 import {
     Completion,
     CompletionFamily,
     MAX_LINE_SEEK,
 } from '../../completion_utils';
-import { rangeBefore } from '../../misc';
-import { after } from '../../misc';
+import { after, rangeBefore } from '../../misc';
 import Tape from '../../tape';
 import {
     errorHtml,
@@ -13,13 +12,13 @@ import {
     isLetter,
     toMarkdown as md,
 } from '../../text_utils';
-import { consumeRustTarget } from './lang_utils';
-import { RustScopeKind } from './scoping';
+import { RustScopeKind } from './context';
+import { consumeRustTarget } from './language';
 
 // optimizing docs should add proper punctation, capitalization
 // toggle mode for automatic tab-out by delimiter
 // shortcut for auto-append semi and commas to all lines within range??
-    // no, have them complete instead
+// no, have them complete instead
 // { before / } after identifier inserts space
 // language idea: imports with clashing names is ok as long as signature is different
 // language idea over ts/s: unique keys :)

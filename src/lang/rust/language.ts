@@ -1,3 +1,4 @@
+import { Language } from '../../lexer_utils';
 import Tape from '../../tape';
 import { getCloseBracket, getOpenBracket } from '../../text_utils';
 
@@ -149,3 +150,99 @@ export function consumeRustTarget(tape: Tape): string {
     }
     return consumeForward(tape);
 }
+
+export const rust = Language.newInstance({
+    keywords: [
+        // === Strict Keywords ===
+        'as',
+        'async',
+        'await',
+        'break',
+        'const',
+        'continue',
+        'crate',
+        'dyn',
+        'else',
+        'enum',
+        'extern',
+        'false',
+        'fn',
+        'for',
+        'if',
+        'impl',
+        'in',
+        'let',
+        'loop',
+        'match',
+        'mod',
+        'move',
+        'mut',
+        'pub',
+        'ref',
+        'return',
+        'self',
+        'Self',
+        'static',
+        'struct',
+        'super',
+        'trait',
+        'true',
+        'type',
+        'unsafe',
+        'use',
+        'where',
+        'while',
+        'macro_rules!',
+
+        // === Reserved Keywords ===
+        'abstract',
+        'become',
+        'box',
+        'do',
+        'final',
+        'macro',
+        'override',
+        'priv',
+        'try',
+        'typeof',
+        'unsized',
+        'virtual',
+        'yield',
+
+        // === Contextual Keywords ===
+        'union', // must be followed by open brace
+    ],
+    declare: {
+        FAT_ARROW: '=>',
+        THIN_ARROW: '->',
+        PATH_SEP: '::',
+        QMARK: '?',
+        RANGE_INCL: '..=',
+        RANGE: '..',
+        STRING: /"[\s\S]*?"/y,
+        BYTE_STRING: /b"[\s\S]*?"/y,
+        BYTE_CHAR: /b'\\?.'/y,
+        FLOAT: new RegExp(
+            `[0-9_]+(?:\.[0-9_]+(?:[eE][-+]?[0-9_]+)?)?(?:f(?:32|64|128))?`,
+            'y',
+        ),
+        INTEGER: new RegExp(
+            `(?:[0-9_]+|0b[01_]+|0o[0-7_]+|0x[0-9a-fA-F_]+)(?:[iu](?:8|16|32|64|128))?`,
+            'y',
+        ),
+    },
+    inherit: [
+        Language.BRACKETS,
+        Language.ARITHMETIC_ASSIGN,
+        Language.REM_ASSIGN,
+        Language.BIT_OPS_ASSIGN,
+        Language.BOOL_LOGIC,
+        Language.C_COMMENTS,
+        Language.C_PUNCT,
+        Language.C_ID,
+        Language.C_CHAR,
+    ],
+    ignore: /\s/y,
+});
+
+export default rust;

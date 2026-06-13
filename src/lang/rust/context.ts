@@ -79,28 +79,10 @@ export type RustScopeKind =
 // $flatten(other) = $other .. { | {
 // $ty = struct | union | enum
 
-const rust: ScopeResolver<RustScopeKind> = ctx => {
+export const rust: ScopeResolver<RustScopeKind> = ctx => {
     const tape = ctx.fileUpToCursor();
 
     return [];
 };
 
-/*
-keep assignment purely as an expression/statement scope detected by the text parser
-*/
-
-/*
-Yes. The symbol tree approach was me anchoring to the VS Code API you were already using rather than thinking from first principles about your actual constraints. Your requirements were always:
-
-Must work on freshly typed code
-Must handle expression-level scopes the LSP can't see
-Must be synchronous and instant
-Only needs 1-3 levels of depth
-
-A raw scanner satisfies all four. The symbol tree satisfies none of them fully. You would have hit every one of those walls eventually and ended up at the scanner anyway.
-*/
-
-//todo for all other c-like too: optimize doc comment (make single line /** */, etc)
-//  should have option for ws between tags and content
-
-//todo completion: populate function with existing vars of same name as params
+export default rust;

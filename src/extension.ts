@@ -17,6 +17,94 @@
 //  shorthand, snippet, terminator, trigger, basic form, preview, docs
 // all classes should have prop constructor (also make this a completion)
 
+//todo cascade token changes
+//todo universal indentation on (|) + [ENTER]
+//todo enforce no two tokens with same capture
+// assume post-2018 rust: dyn is STRICT KWORD
+//Rust quirk: block comments can be nested.
+// always use non capturing groups for perf
+// expanded types may be diff, so segregate str/chr and byte str/chr
+// always use sticky \y flag for perf
+// . vs \s\S -- latter catches newlines too
+// string match is more perf than regex match of same string
+// place inner fn's at very end for readbility
+//todo lifetimes/labels, invalid/unclosed, shebang, raw str, raw id
+
+/*language idea:
+
+[a,b] types, type spread
+params send type to type params
+fn's can have same name as props
+no inheritance, use rust data model
+steal from rust, since rust is crab, but also existing parsing modules
+allow var shadowing
+new keywords: `from`
+from creates type pool, which is inferred after arg passing
+P[<id or _ or + or |>]
+`is Type` is default implicit, warn to remove
+predicates in `where`:
+    `||`: check shapes are disjoint
+    `&&`: check intersection of shapes
+
+        and these can be prefixes:
+    `from` `!from`: is subset of other shape
+    `is` `!is`: shares same shape or type
+
+| is type union (multiple possible types)
++ is type addition (amalgam of types)
+- is type subtraction
+
+ensure param list is decluttered
+
+type pool props (prefer :: over `as` for clearer operation precedence)
+    sum: + of every type
+    union: | of every type
+
+pub fn my_fn(child: C <- {}) -> int
+```
+pub fn inherit(
+    child: C <- {},
+    ...parents: P !<- {},
+) -> T
+where
+    P[i] || P[j],
+    P[_] || C,
+    T == P::sum + C, 
+{
+}
+```
+*/
+
+/*
+keep assignment purely as an expression/statement scope detected by the text parser
+*/
+
+/*
+Yes. The symbol tree approach was me anchoring to the VS Code API you were already using rather than thinking from first principles about your actual constraints. Your requirements were always:
+
+Must work on freshly typed code
+Must handle expression-level scopes the LSP can't see
+Must be synchronous and instant
+Only needs 1-3 levels of depth
+
+A raw scanner satisfies all four. The symbol tree satisfies none of them fully. You would have hit every one of those walls eventually and ended up at the scanner anyway.
+*/
+
+//todo for all other c-like too: optimize doc comment (make single line /** */, etc)
+//  should have option for ws between tags and content
+
+//todo completion: populate function with existing vars of same name as params
+
+// lgx lg
+
+//todo space after function in js -- insert smart parentheses
+
+// todo create shared utils, shorthands for c-like languages/ts & js/js frameworks
+// todo bash/batch/powershell
+// no dockerfile/docker-compose support, since simple enough + case-insensitive
+
+//this.<var> = <arg> in ctor
+
 import {
     ExtensionContext,
     Hover,
@@ -35,8 +123,8 @@ import {
     CompletionStrategy,
     ScopedCompletionContext,
 } from './completion_utils';
-import completionFamilies from './lang/completion_families';
-import scopeResolvers from './lang/scope_resolvers';
+import completionFamilies from './lang/registry';
+import scopeResolvers from './lang/context';
 import { expandTabStops } from './text_utils';
 
 let strategy: CompletionStrategy | undefined;
@@ -136,7 +224,7 @@ async function updateStrategy(keyIn: string, editor: TextEditor) {
         scopeResolvers[langId],
     );
     for (const family of completionFamilies[langId]) {
-        const completion = family.resolver(ctx.clone());    // clone for fresh line buffer
+        const completion = family.resolver(ctx.clone()); // clone for fresh line buffer
         if (!completion) {
             continue;
         }

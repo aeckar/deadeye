@@ -1,7 +1,7 @@
 import { CompletionFamily } from '../../completion_utils';
 import { rangeBefore } from '../../misc';
 import { toMarkdown as md } from '../../text_utils';
-import { TsScopeKind } from './scoping';
+import { TsScopeKind } from './context';
 
 // Simple, non-contextual substitutions triggered globally or inline
 // const substitutions: CompletionSingle[] = [
