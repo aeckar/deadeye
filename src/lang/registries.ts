@@ -1,4 +1,4 @@
-import { CompletionFamily } from '../completion_utils';
+import { CompletionFamily } from '../registry_utils';
 import rust from './rust/registry';
 import typescript from './ts/registry';
 

@@ -1,14 +1,17 @@
-import { ScopeResolver } from '../../completion_utils';
+import { tokenize } from '../../language_utils';
+import { ScopeResolver } from '../../registry_utils';
+import { rust as lang } from './language';
 
-// fn parse float;kind is string value is byte;uqw;    // `;` or ` ` after `->` to skip to body
-// fn parse_float(kind: string, value: u8) -> u64 {
-//     /*stop here */
-// }
-
+/**
+ * ```
+ * $flatten(other) = $other .. '{' | '{'
+ * $ty = 'struct' | 'u2nion' | 'enum'
+ * ```
+ */
 export type RustScopeKind =
-    // struct .. {
-    // union .. {
-    // Scope marker pos: |${struct | union}
+    // 'struct' .. '{'
+    // 'union' .. '{'
+    // Scope marker pos: |${'struct' | 'union'}
     | 'struct'
 
     // fn .. {
@@ -29,8 +32,8 @@ export type RustScopeKind =
     // Scope marker pos: |mod
     | 'mod'
 
-    // extern .. $flatten(fn)
-    // Scope marker pos: |extern
+    // 'extern' .. $flatten(fn)
+    // Scope marker pos: |'extern'
     | 'extern'
 
     // async .. $flatten(fn)
@@ -76,13 +79,26 @@ export type RustScopeKind =
     | 'struct-init' // $id {
     | '';
 
-// $flatten(other) = $other .. { | {
-// $ty = struct | union | enum
-
 export const rust: ScopeResolver<RustScopeKind> = ctx => {
-    const tape = ctx.fileUpToCursor();
+    const file = ctx.fileUpToCursor();
+    let scopes: RustScopeKind[] = [];
+    let node = tokenize(file, lang);
+    let next: Token | undefined;
+    while (!node.isEof()) {
+        next = node.consumeEither('STRUCT', 'UNION');
+        if (next) {
+            node = next;
+            next = node.seek('OPEN_CURLY');
+            if (next) {
+                node = next;
+                scopes.push('struct');
+                continue;
+            }
+        }
+        next = node.consume;
 
-    return [];
+        return [];
+    }
 };
 
 export default rust;

@@ -1,6 +1,6 @@
-import { ScopeResolver } from '../completion_utils';
-import rust from './rust/context';
-import typescript from './ts/context';
+import { ScopeResolver } from '../registry_utils';
+import rust from './rust/resolver';
+import typescript from './ts/resolver';
 
 /**
  * Contains scope resolver of every supported language.

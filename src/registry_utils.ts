@@ -4,6 +4,7 @@ import { MarkdownString, Position, Range, TextEditor, window } from 'vscode';
 import Tape from './tape';
 import { Brackets } from './text_utils';
 
+export const MAX_TOKEN_SEEK = 50;
 export const MAX_LINE_SEEK = 50;
 export const MAX_CHAR_SEEK = 2500;
 

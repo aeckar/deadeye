@@ -1,8 +1,8 @@
 //! Cursor data structure.
 import { Position, Range } from 'vscode';
 
-import { Flag, FlagMatch } from './completion_utils';
 import { enumerate } from './misc';
+import { Flag, FlagMatch } from './registry_utils';
 import { isLetter, isLowerLetter, isUpperLetter } from './text_utils';
 
 /**
@@ -454,7 +454,7 @@ export default class Tape {
      * Returns true if this substring starting at the given position
      * starts with `query`. For any letters at the beginning or end of the query,
      * returns false if the adjacent character, if any, is also a letter.
-     * 
+     *
      * This function should **not** be used for general identifiers,
      * because it recognizes underscores, dashes, and trailing digits as boundary markers.
      */

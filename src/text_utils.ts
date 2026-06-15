@@ -1,4 +1,6 @@
-//! Text-manipulation utilities.
+//! General utilities related to text manipulation.
+//!
+//! For tokenization and language-specific functionality, refer to `language_utils.ts`.
 import dedent from 'dedent-js';
 import { MarkdownString } from 'vscode';
 

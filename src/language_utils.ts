@@ -1,4 +1,8 @@
+//! Algorithms and data structures for tokenizing language-specific input.
+//!
+//! For general utilities related to text manipulation, refer to `text_utils.ts`.
 import { map, sortBy } from './misc';
+import { MAX_TOKEN_SEEK } from './registry_utils';
 import Tape from './tape';
 
 /** A range of indices. */
@@ -17,6 +21,31 @@ export class Span {
     get length() {
         return this.end - this.begin;
     }
+}
+
+export class TokenWalker {
+    private _cur: Token;
+    private _next?: Token;
+
+    private constructor(cur: Token, next?: Token) {
+        this._cur = cur;
+        this._next = next;
+    }
+
+    // The token currently being pointed at.
+    get cur(): Token {
+        return this._cur;
+    }
+
+    // The next token
+    get next(): Token | undefined {
+        return this._next;
+    }
+
+    consumeScopeMarker(
+        possibleMarkerKinds: string[],
+        terminatorKind: string,
+    ): Token {}
 }
 
 /**
@@ -95,6 +124,64 @@ export class Token {
             this._prev._next = node;
         }
         return node;
+    }
+
+    notKindOrEof(kind: string): boolean {
+        return this.kind !== kind && !this.isEof();
+    }
+
+    isEof(): boolean {
+        return this.kind !== 'EOF';
+    }
+
+    /**
+     * Returns the next token if the kind matches and is not `'EOF'`,
+     * or `undefined` if none exists.
+     */
+    consume(kind: string): Token | undefined {
+        if (this.notKindOrEof(kind)) {
+            return undefined;
+        }
+        return this.next!; // safe, since not EOF
+    }
+
+    /**
+     * Returns the next token if the kind matches any and is not `'EOF'`,
+     * or `undefined` if none exists.
+     */
+    consumeEither(...kinds: string[]): Token | undefined {
+        if (this.isEof()) {
+            return undefined;
+        }
+        for (const kind of kinds) {
+            if (this.kind === kind) {
+                return this.next!; // safe, since not EOF
+            }
+        }
+        return undefined;
+    }
+
+    /**
+     * Returns the next token matching the kind,
+     * or `undefined` if none is found within the next `n` nodes.
+     *
+     * If `n` is not assigned, it is given the value of {@link MAX_TOKEN_SEEK}.
+     * A value of `null` implies the lack of a limit.
+     */
+    seek(kind: string, n: number | null = MAX_TOKEN_SEEK): Token | undefined {
+        let node: Token = this;
+        if (n !== null) {
+            let count = 0;
+            while (count < n && node.notKindOrEof(kind)) {
+                node = node.next!;
+                ++count;
+            }
+            return node.kind === kind ? undefined : node;
+        }
+        while (node.notKindOrEof(kind)) {
+            node = node.next!;
+        }
+        return node.isEof() ? undefined : node;
     }
 }
 
@@ -297,8 +384,9 @@ export namespace Language {
 
 const REST_OF_LINE = /.+/y;
 
-export default function tokenize(file: Tape, lang: Language): Token {
-    let node = Token.root();
+export function tokenize(file: Tape, lang: Language): Token {
+    const root = Token.root();
+    let node = root;
     const ignore = lang.ignore;
     if (ignore) {
         skip(ignore);
@@ -339,7 +427,8 @@ export default function tokenize(file: Tape, lang: Language): Token {
             attemptRecovery();
         }
     }
-    return node;
+    node.append('EOF', 0);
+    return root;
 
     function attemptRecovery() {
         if (file.isExhausted()) {

@@ -1,3 +1,4 @@
+//! General utilities not related to text manipulation.
 import { Position, Range } from 'vscode';
 
 // use record

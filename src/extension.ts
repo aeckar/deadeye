@@ -30,6 +30,35 @@
 // place inner fn's at very end for readbility
 //todo lifetimes/labels, invalid/unclosed, shebang, raw str, raw id
 
+//for md/txt:
+
+// create keybinding for command that takes to end of line and ensures space before cursor
+// turn off suggestions for words
+// [ENTER] completions must be full word
+// ; for inline completions
+// embrace word wrap, do NOT implement auto-wrapper (md is meant to be edited constantly)
+
+// hot completion for `--`  -->  `——` (em dash)
+// ;l ;r ;lr ;x ;ge ;le --common unicode characters
+// ;i ;b ;u ;r ;bi ;<combos>    --align to close previous
+// ;;   -- close html tag
+// <; x btick count>c   -- inline code
+// ;a<url>  --wrap as link or embed (infer type, extra ; to stop inside [])
+
+//END OF LINE:
+// [langId?] code[ENTER]     -- drop into code block with langId
+// now[ENTER]     --timestamp, then newline (only word in line)
+// ul[ENTER] ol[ENTER] -- conv line to list item, then continue list, add newline
+// h[ENTER] h [ENTER] h  [ENTER] -- conv line to heading, then newline x2 (x2 for parser compat, convention)
+// [c?table|rtable|crtable|rctable][ENTER] --make table with above cells or table comment (only word in line, copy, hide raw as comment, allow re-trigger, semantic centering)
+// q[ENTER] -- conv line to blockquote, then newline
+// q [ENTER] -- conv all lines in adj lines to blockquote, then newline x2
+
+//ALL LANGUAGES, COMMON CONSTRAINTS: (only thing is its hard to commonize this, since each completion
+// parses in different directions, uses different strategies)
+//  -only word in line
+//  -whole word/not adjacent to non-ws chars
+
 /*language idea:
 
 [a,b] types, type spread
@@ -104,6 +133,10 @@ A raw scanner satisfies all four. The symbol tree satisfies none of them fully. 
 // no dockerfile/docker-compose support, since simple enough + case-insensitive
 
 //this.<var> = <arg> in ctor
+// fn parse float;kind is string value is byte;uqw;    // `;` or ` ` after `->` to skip to body
+// fn parse_float(kind: string, value: u8) -> u64 {
+//     /*stop here */
+// }
 
 import {
     ExtensionContext,
@@ -118,13 +151,13 @@ import {
     window,
 } from 'vscode';
 
+import completionFamilies from './lang/registries';
+import scopeResolvers from './lang/resolvers';
 import {
     Completion,
     CompletionStrategy,
     ScopedCompletionContext,
-} from './completion_utils';
-import completionFamilies from './lang/registry';
-import scopeResolvers from './lang/context';
+} from './registry_utils';
 import { expandTabStops } from './text_utils';
 
 let strategy: CompletionStrategy | undefined;

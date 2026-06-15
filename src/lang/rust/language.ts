@@ -1,9 +1,12 @@
-import { Language } from '../../lexer_utils';
+import { Language } from '../../language_utils';
 import Tape from '../../tape';
 import { getCloseBracket, getOpenBracket } from '../../text_utils';
 
 const STOP = '=,{};';
 const SIGIL = '&*!+-';
+
+//ctrl-space for suggestions!
+//wI suppose I'll figure out what to name the files once I finish the project.
 
 /**
  * Consumes a Rust type/path target from the current tape position.
@@ -144,7 +147,6 @@ export function consumeRustTarget(tape: Tape): string {
         }
         return result;
     }
-
     if (tape.isReversed) {
         return consumeReversed(tape);
     }

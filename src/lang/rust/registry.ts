@@ -1,10 +1,10 @@
 import { Range } from 'vscode';
+import { after, rangeBefore } from '../../misc';
 import {
     Completion,
     CompletionFamily,
     MAX_LINE_SEEK,
-} from '../../completion_utils';
-import { after, rangeBefore } from '../../misc';
+} from '../../registry_utils';
 import Tape from '../../tape';
 import {
     errorHtml,
@@ -12,8 +12,8 @@ import {
     isLetter,
     toMarkdown as md,
 } from '../../text_utils';
-import { RustScopeKind } from './context';
 import { consumeRustTarget } from './language';
+import { RustScopeKind } from './resolver';
 
 // optimizing docs should add proper punctation, capitalization
 // toggle mode for automatic tab-out by delimiter
@@ -355,7 +355,7 @@ const rust: CompletionFamily<RustScopeKind>[] = [
             **Basic form:** \`f\`
             **Constraints:**
 
-            - First word in line
+            - Only word in line
             - In any of the following scopes:
                 - Top-level
                 - \`impl\`
@@ -451,7 +451,7 @@ Insert \`if\` block, then move to conditional.
             **Constraints:**
 
             - Function scope
-            - First word in line
+            - Only word in line
         `,
         minLookbehind: 'l'.length,
         scoping: [['fn']],
@@ -546,7 +546,7 @@ Insert \`if\` block, then move to conditional.
             **Constraints:**
 
             - Top-level scope
-            - First word in line
+            - Only word in line
         `,
         minLookbehind: 1,
         scoping: [[]],
@@ -651,7 +651,7 @@ Wrap as slice type.
             **Constraints:**
 
             - Top-level scope
-            - First word in line
+            - Only word in line
         `,
         minLookbehind: 'x'.length,
         scoping: [[]],
@@ -717,7 +717,7 @@ Insert \`#[$0]\`.
             **Constraints:**
 
             - Top-level or \`impl\` scope
-            - First word in line
+            - Only word in line
         `,
         minLookbehind: 'mustuse'.length,
         scoping: [[], ['...impl']],
@@ -757,7 +757,7 @@ Insert \`#[must_use]\`.
             **Constraints:**
 
             - Top-level or \`impl\` scope
-            - First word in line
+            - Only word in line
         `,
         minLookbehind: 'il'.length,
         scoping: [[], ['...impl']],
@@ -785,7 +785,7 @@ Insert \`#[inline]\`
             **Constraints:**
 
             - Function scope
-            - First word in line
+            - Only word in line
         `,
         minLookbehind: 'p'.length,
         scoping: [['...fn']],
