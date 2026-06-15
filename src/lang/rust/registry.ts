@@ -11,7 +11,7 @@ import {
     findWord,
     isLetter,
     toMarkdown as md,
-} from '../../text_utils';
+} from '../../text_manip';
 import { consumeRustTarget } from './language';
 import { RustScopeKind } from './resolver';
 

@@ -13,8 +13,6 @@
 //! to easily discern from top-level constants ... unless its a closure with captured variables
 //! or you are implementing a closure type
 // Use U+FF0F to escape `*/` in doc comment
-// todo vocab--completion (family),
-//  shorthand, snippet, terminator, trigger, basic form, preview, docs
 // all classes should have prop constructor (also make this a completion)
 
 //todo cascade token changes
@@ -32,6 +30,7 @@
 
 //for md/txt:
 
+// on press enter or trigger transform completion, format sentence/paragraph/item
 // create keybinding for command that takes to end of line and ensures space before cursor
 // turn off suggestions for words
 // [ENTER] completions must be full word
@@ -58,6 +57,9 @@
 // parses in different directions, uses different strategies)
 //  -only word in line
 //  -whole word/not adjacent to non-ws chars
+
+// use record
+// use `keyof any`
 
 /*language idea:
 
@@ -158,7 +160,7 @@ import {
     CompletionStrategy,
     ScopedCompletionContext,
 } from './registry_api';
-import { expandTabStops } from './text_utils';
+import { expandTabStops } from './text_manip';
 
 let strategy: CompletionStrategy | undefined;
 let decorationSyncTimeout: NodeJS.Timeout | undefined; // todo store by window/lang

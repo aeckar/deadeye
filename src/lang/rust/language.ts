@@ -1,6 +1,6 @@
 import { Language } from '../../language_api';
 import Tape from '../../tape';
-import { getCloseBracket, getOpenBracket } from '../../text_utils';
+import { getCloseBracket, getOpenBracket } from '../../text_manip';
 
 const STOP = '=,{};';
 const SIGIL = '&*!+-';

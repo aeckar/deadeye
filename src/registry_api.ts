@@ -1,10 +1,10 @@
 //! Algorithms and data structures used to parse completion shorthands.
 //!
-//! 
+//! A
 import { MarkdownString, Position, Range, TextEditor, window } from 'vscode';
 
 import Tape from './tape';
-import { Brackets } from './text_utils';
+import { Brackets } from './text_manip';
 
 export const MAX_TOKEN_SEEK = 50;
 export const MAX_LINE_SEEK = 50;

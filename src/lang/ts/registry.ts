@@ -1,6 +1,6 @@
 import { rangeBefore } from '../../misc';
 import { CompletionFamily } from '../../registry_api';
-import { toMarkdown as md } from '../../text_utils';
+import { toMarkdown as md } from '../../text_manip';
 import { TsScopeKind } from './resolver';
 
 // Simple, non-contextual substitutions triggered globally or inline

@@ -1,10 +1,8 @@
 //! General utilities not related to text manipulation.
 //!
 //! Algorithms and data structures defined here should be generalizable to any project.
+//!
 import { Position, Range } from 'vscode';
-
-// use record
-// use `keyof any`
 
 /**
  * Compares two values.
@@ -19,7 +17,12 @@ import { Position, Range } from 'vscode';
  */
 export type Comparator<T> = (cur: T, next: T) => number;
 
-/** A key-value pair that may exist as an entry in a JavaScript object. */
+/**
+ * A key-value pair that may exist as an entry in a JavaScript object.
+ * 
+ * Use of this class over standard 2-tuples encourages conciseness,
+ * especially when the key and value cannot be easily discerned from their types.
+ */
 export class Property<K extends keyof any, V> {
     readonly key: K;
     readonly value: V;
@@ -56,22 +59,23 @@ export function rangeBefore(
         new Position(cursor.line, cursor.character),
     );
 }
+
 export function after(cursor: Position, skip: number = 0): Position {
     return new Position(cursor.line, cursor.character + skip + 1);
-} /**
- * Collects each key-value pair in the given object and returns
- * an array of each paired to its index.
+}
+
+/**
+ * Collects each key-value pair in the given object and yields each preceded by its index.
  *
  * Most often used for indexed iteration.
  */
-
-export function enumerate<K extends number | string | symbol, V>(o: {
+export function propertiesIndexed<K extends number | string | symbol, V>(o: {
     [T in K]?: V;
-}): [number, [K, V]][] {
+}): [number, Property<K, V>][] {
     // Object.entries returns [string, unknown][], so cast to the expected types
     const entries = Object.entries(o) as unknown as [K, V][];
     return entries.map(
-        ([key, val], idx) => [idx, [key, val]] as [number, [K, V]],
+        ([key, val], idx) => [idx, new Property(key, val)] as [number, Property<K, V>],
     );
 }
 
@@ -80,12 +84,19 @@ export function enumerate<K extends number | string | symbol, V>(o: {
  *
  * Unlike {@link Object.entries}, encourages type safety and allows for type inference.
  */
-export function entries<K extends keyof any, V>(
+export function properties<K extends keyof any, V>(
     o: Record<K, V>,
 ): Property<K, V>[] {
     return (Object.entries(o) as [K, V][]).map(([k, v]) => {
         return new Property(k, v);
     });
+}
+
+/** Collects each character in the given string and yields it preceded by its index. */
+export function* charsIndexed(s: string): Generator<[number, string]> {
+    for (let i = 0; i < s.length; i++) {
+        yield [i, s[i]];
+    }
 }
 
 /**
@@ -97,9 +108,9 @@ export function match<K extends keyof any, V>(
     query: K,
     possible: Record<K, V>,
 ): Property<K, V> | undefined {
-    for (const entry of entries(possible)) {
-        if (query === entry.key) {
-            return entry;
+    for (const prop of properties(possible)) {
+        if (query === prop.key) {
+            return prop;
         }
     }
     return undefined;
@@ -115,11 +126,11 @@ export function map<K extends keyof any, V>(
     o: Record<K, V>,
     ...compareFns: Comparator<Property<K, V>>[]
 ): Map<K, V> {
-    let jsEntries = entries(o);
+    let props = properties(o);
     for (const compareFn of compareFns) {
-        jsEntries = jsEntries.sort(compareFn);
+        props = props.sort(compareFn);
     }
-    return jsEntries.reduce((sorted, { key, value }) => {
+    return props.reduce((sorted, { key, value }) => {
         sorted.set(key, value);
         return sorted;
     }, new Map());

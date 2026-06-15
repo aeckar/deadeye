@@ -2,15 +2,13 @@
 
 ## **1.1.0** Overview
 
-_Chords_ are sequences of 2-4 characters that immediately perform an action before being deleted.
-When combined, they create an ergonomic editing system designed to:
+_Command chords_ are sequences of 2-4 characters that immediately perform an action before being deleted. When combined, they create an ergonomic editing system designed to:
 
 - Minimize hand travel
 - Eliminate the use of pinky-heavy modifier keys
 - Encourage fluent programming
 
-If a chord is triggered accidentally, you can press undo and the cursor will be returned to the raw
-character sequence.
+If a chord is triggered accidentally, you can press undo and the cursor will be returned to the raw character sequence.
 
 Some chords require an argument, which might be:
 
@@ -18,8 +16,7 @@ Some chords require an argument, which might be:
 - An identifer
 - A file name
 
-These are supplied immediately after the chord, and must be preceded by a trigger.
-By default, `SPACE` is the trigger, but this can be changed in `settings.json`.
+These are supplied immediately after the chord, and must be preceded by a trigger. By default, `SPACE` is the trigger, but this can be changed in `settings.json`.
 
 ```json
 "aeckar.deadeye.chords": {

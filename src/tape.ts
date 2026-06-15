@@ -1,9 +1,9 @@
 //! Cursor data structure.
 import { Position, Range } from 'vscode';
 
-import { enumerate } from './misc';
+import { properties, propertiesIndexed } from './misc';
 import { Flag, FlagMatch } from './registry_api';
-import { isLetter, isLowerLetter, isUpperLetter } from './text_utils';
+import { isLetter, isLowerLetter, isUpperLetter } from './text_manip';
 
 /**
  * A lightweight cursor over a string for non-linear parsing.
@@ -273,7 +273,10 @@ export default class Tape {
         let expansions: [number, string, Range][] = [];
         while (!this.isExhausted()) {
             let found = false;
-            for (const [idx, [flag, expansion]] of enumerate(possibleFlags)) {
+            for (const [
+                idx,
+                { key: flag, value: expansion },
+            ] of propertiesIndexed(possibleFlags)) {
                 if (!this.cur()) {
                     break;
                 }
