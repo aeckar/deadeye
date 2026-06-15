@@ -19,7 +19,7 @@ export type Comparator<T> = (cur: T, next: T) => number;
 
 /**
  * A key-value pair that may exist as an entry in a JavaScript object.
- * 
+ *
  * Use of this class over standard 2-tuples encourages conciseness,
  * especially when the key and value cannot be easily discerned from their types.
  */
@@ -69,13 +69,14 @@ export function after(cursor: Position, skip: number = 0): Position {
  *
  * Most often used for indexed iteration.
  */
-export function propertiesIndexed<K extends number | string | symbol, V>(o: {
+export function propertiesIn<K extends number | string | symbol, V>(o: {
     [T in K]?: V;
 }): [number, Property<K, V>][] {
     // Object.entries returns [string, unknown][], so cast to the expected types
     const entries = Object.entries(o) as unknown as [K, V][];
     return entries.map(
-        ([key, val], idx) => [idx, new Property(key, val)] as [number, Property<K, V>],
+        ([key, val], idx) =>
+            [idx, new Property(key, val)] as [number, Property<K, V>],
     );
 }
 
@@ -93,9 +94,9 @@ export function properties<K extends keyof any, V>(
 }
 
 /** Collects each character in the given string and yields it preceded by its index. */
-export function* charsIndexed(s: string): Generator<[number, string]> {
-    for (let i = 0; i < s.length; i++) {
-        yield [i, s[i]];
+export function* charsIn(s: string): Generator<[number, string]> {
+    for (let idx = 0; idx < s.length; idx++) {
+        yield [idx, s[idx]];
     }
 }
 

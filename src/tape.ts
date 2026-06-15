@@ -1,7 +1,7 @@
 //! Cursor data structure.
 import { Position, Range } from 'vscode';
 
-import { properties, propertiesIndexed } from './misc';
+import { propertiesIn } from './misc';
 import { Flag, FlagMatch } from './registry_api';
 import { isLetter, isLowerLetter, isUpperLetter } from './text_manip';
 
@@ -273,10 +273,9 @@ export default class Tape {
         let expansions: [number, string, Range][] = [];
         while (!this.isExhausted()) {
             let found = false;
-            for (const [
-                idx,
-                { key: flag, value: expansion },
-            ] of propertiesIndexed(possibleFlags)) {
+            for (const [idx, { key: flag, value: expansion }] of propertiesIn(
+                possibleFlags,
+            )) {
                 if (!this.cur()) {
                     break;
                 }
@@ -508,46 +507,5 @@ export default class Tape {
      */
     isAnyClear(start: number): boolean {
         return this.isLeftClear(start) || this.isRightClear(this.pos);
-    }
-
-    /**
-     * Returns true if there are no non-whitespace characters between
-     * the given character and the previous newline, the beginning of the input, or
-     * itself if it is a newline.
-     */
-    isPrefix(pos: number): boolean {
-        if (this.isReversed) {
-            for (let i = pos; i < this.raw.length; i++) {
-                const ch = this.raw[i];
-                if (ch === '\n') {
-                    return true;
-                }
-                if (!Tape.isWs(ch)) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        for (let i = pos; i >= 0; i--) {
-            const ch = this.raw[i];
-            if (ch === '\n') {
-                return true;
-            }
-            if (!Tape.isWs(ch)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Returns true if the current character belongs to a line prefix.
-     *
-     * A character is part of a line prefix if there are no non-whitespace characters between
-     * the current character and the previous newline, the beginning of the input, or
-     * itself if it is a newline.
-     */
-    isCurPrefix(): boolean {
-        return this.isPrefix(this.pos);
     }
 }

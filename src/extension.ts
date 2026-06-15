@@ -28,6 +28,8 @@
 // place inner fn's at very end for readbility
 //todo lifetimes/labels, invalid/unclosed, shebang, raw str, raw id
 
+// use 'begin' for boolean, 'start' for specific idx
+
 //for md/txt:
 
 // on press enter or trigger transform completion, format sentence/paragraph/item
@@ -37,21 +39,27 @@
 // ; for inline completions
 // embrace word wrap, do NOT implement auto-wrapper (md is meant to be edited constantly)
 
+// todo maybe add html, idk
+
 // hot completion for `--`  -->  `——` (em dash)
 // ;l ;r ;lr ;x ;ge ;le --common unicode characters
 // ;i ;b ;u ;r ;bi ;<combos>    --align to close previous
-// ;;   -- close html tag
 // <; x btick count>c   -- inline code
 // ;a<url>  --wrap as link or embed (infer type, extra ; to stop inside [])
 
-//END OF LINE:
+//END OF LINE: (remember, enter on line continues item/bq line automatically)
 // [langId?] code[ENTER]     -- drop into code block with langId
 // now[ENTER]     --timestamp, then newline (only word in line)
-// ul[ENTER] ol[ENTER] -- conv line to list item, then continue list, add newline
+// ul[ENTER] ol[ENTER] -- conv line to list item, press enter (preps next)
+// [(o|u)...]l [ENTER] -- prep all previous adjacent lines, cascading, as list, then newline
 // h[ENTER] h [ENTER] h  [ENTER] -- conv line to heading, then newline x2 (x2 for parser compat, convention)
 // [c?table|rtable|crtable|rctable][ENTER] --make table with above cells or table comment (only word in line, copy, hide raw as comment, allow re-trigger, semantic centering)
 // q[ENTER] -- conv line to blockquote, then newline
 // q [ENTER] -- conv all lines in adj lines to blockquote, then newline x2
+
+// add space =finish off item sequence (or header level)
+// enter on empty item should not just undo prep, but also sep from sequence with newline
+//  (e.g. delete line then x2 newline)
 
 //ALL LANGUAGES, COMMON CONSTRAINTS: (only thing is its hard to commonize this, since each completion
 // parses in different directions, uses different strategies)
