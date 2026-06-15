@@ -1,7 +1,7 @@
 import Tape from '../../tape';
-import { isLowerLetter } from '../../text_manip';
+import { isLetter, isLowerLetter } from '../../text_manip';
 
-// BASICALLY YU GOT 
+// BASICALLY YU GOT
 /*
 capitalize first word in sentence.
 capitalize singular I
@@ -16,32 +16,63 @@ insert space after prefixes
     
 */
 
+// trim ws
+// no multi-spaces between words
+// (c) (tm)
+// number fmt (e.g. 1,000)
+// ` ` after , ; :
 
-// replace -- on copy also, dunno how yet tho
+
 function revise(content: Tape): string {
     if (content.isExhausted()) {
         return '';
     }
     let sentenceBegin = true;
+    let wordBegin = true;
+    let wordStart = 0;
+    let wordBuf = '';
     let revised = '';
-    let wordBegin = Tape.isWs(content.cur()!);
-    do {
+    while (!content.isExhausted()) {
         const ch = content.next()!;
-
-        // === Transform Text ===
-        if (sentenceBegin && isLowerLetter(ch)) {
-            revised += ch.toUpperCase();
-            sentenceBegin = false;
-            wordBegin = true;
+        if (ch === '-' && content.cur() === '-') {
+            // Replace `--` with em dash
+            // This already exists as a hot shorthand,
+            // but having a branch provides redundancy
+            content.pos += 2; // skip `--`
+            revised += '——';
+            wordBegin = false;
             continue;
         }
-        
-        // === Change State ===
-        if (ch === '.') {
-            sentenceBegin = true;
+        if (sentenceBegin && isLowerLetter(ch)) {
+            // Capitalize first letter of sentence
+            revised += ch.toUpperCase();
+            wordBegin = false;
+            sentenceBegin = false;
+            continue;
         }
-        
+        if (
+            wordBegin &&
+            ch === 'i' &&
+            (content.isExhausted() || !isLetter(content.cur()!))
+        ) {
+            // Capitalize singular "I"
+            revised += 'I';
+            wordBegin = false;
+            sentenceBegin = false;
+            continue;
+        }
+        if (ch === '.' || ch === '!' || ch === '?') {
+            wordBegin = false;
+            sentenceBegin = true;
+        } else if (Tape.isWs(ch)) {
+            wordBegin = true;
+        } else if (isLetter(ch)) {
+            wordBegin = false;
+            sentenceBegin = false;
+        } else {
+            wordBegin = false;
+        }
         revised += ch;
-    } while (!content.isExhausted());
+    }
     return revised;
 }
