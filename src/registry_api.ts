@@ -1,4 +1,6 @@
-//! Data structures and algorithms used to match completion snippets.
+//! Algorithms and data structures used to parse completion shorthands.
+//!
+//! 
 import { MarkdownString, Position, Range, TextEditor, window } from 'vscode';
 
 import Tape from './tape';

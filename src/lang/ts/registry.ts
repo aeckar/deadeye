@@ -1,5 +1,5 @@
 import { rangeBefore } from '../../misc';
-import { CompletionFamily } from '../../registry_utils';
+import { CompletionFamily } from '../../registry_api';
 import { toMarkdown as md } from '../../text_utils';
 import { TsScopeKind } from './resolver';
 

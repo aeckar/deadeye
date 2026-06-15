@@ -2,7 +2,7 @@
 import { Position, Range } from 'vscode';
 
 import { enumerate } from './misc';
-import { Flag, FlagMatch } from './registry_utils';
+import { Flag, FlagMatch } from './registry_api';
 import { isLetter, isLowerLetter, isUpperLetter } from './text_utils';
 
 /**

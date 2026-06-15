@@ -1,5 +1,5 @@
-import { tokenize } from '../../language_utils';
-import { ScopeResolver } from '../../registry_utils';
+import { tokenize } from '../../language_api';
+import { ScopeResolver } from '../../registry_api';
 import { rust as lang } from './language';
 
 /**

@@ -157,7 +157,7 @@ import {
     Completion,
     CompletionStrategy,
     ScopedCompletionContext,
-} from './registry_utils';
+} from './registry_api';
 import { expandTabStops } from './text_utils';
 
 let strategy: CompletionStrategy | undefined;

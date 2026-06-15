@@ -4,7 +4,7 @@ import {
     Completion,
     CompletionFamily,
     MAX_LINE_SEEK,
-} from '../../registry_utils';
+} from '../../registry_api';
 import Tape from '../../tape';
 import {
     errorHtml,

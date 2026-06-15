@@ -1,4 +1,4 @@
-import { ScopeResolver } from '../registry_utils';
+import { ScopeResolver } from '../registry_api';
 import rust from './rust/resolver';
 import typescript from './ts/resolver';
 

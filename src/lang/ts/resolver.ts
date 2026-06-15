@@ -1,5 +1,5 @@
 import { SymbolKind } from 'vscode';
-import { ScopeResolver } from '../../registry_utils';
+import { ScopeResolver } from '../../registry_api';
 
 export type TsScopeKind =
     /* Declaration-level */

@@ -1,4 +1,4 @@
-import { Language } from '../language_utils';
+import { Language } from '../language_api';
 import rust from './rust/language';
 import typescript from './ts/language';
 

@@ -1,4 +1,6 @@
 //! General utilities not related to text manipulation.
+//!
+//! Algorithms and data structures defined here should be generalizable to any project.
 import { Position, Range } from 'vscode';
 
 // use record

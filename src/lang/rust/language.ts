@@ -1,4 +1,4 @@
-import { Language } from '../../language_utils';
+import { Language } from '../../language_api';
 import Tape from '../../tape';
 import { getCloseBracket, getOpenBracket } from '../../text_utils';
 

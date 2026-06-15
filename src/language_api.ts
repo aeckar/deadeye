@@ -2,7 +2,7 @@
 //!
 //! For general utilities related to text manipulation, refer to `text_utils.ts`.
 import { map, sortBy } from './misc';
-import { MAX_TOKEN_SEEK } from './registry_utils';
+import { MAX_TOKEN_SEEK } from './registry_api';
 import Tape from './tape';
 
 /** A range of indices. */
