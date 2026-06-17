@@ -2,51 +2,10 @@
 //!
 //! For general utilities related to text manipulation, refer to `text_utils.ts`.
 import { MAX_TOKEN_SEEK } from './completion_api';
-import { map, sortBy } from './misc';
+import { map, sortBy, Span } from './misc';
 import Tape from './tape';
 
-/** A range of indices. */
-export class Span {
-    /** The index of the first element. */
-    begin: number;
-
-    /** The index of the last element (exclusive). */
-    end: number;
-
-    constructor(begin: number, end: number) {
-        this.begin = begin;
-        this.end = end;
-    }
-
-    get length() {
-        return this.end - this.begin;
-    }
-}
-
-export class TokenWalker {
-    private _cur: Token;
-    private _next?: Token;
-
-    private constructor(cur: Token, next?: Token) {
-        this._cur = cur;
-        this._next = next;
-    }
-
-    // The token currently being pointed at.
-    get cur(): Token {
-        return this._cur;
-    }
-
-    // The next token
-    get next(): Token | undefined {
-        return this._next;
-    }
-
-    consumeScopeMarker(
-        possibleMarkerKinds: string[],
-        terminatorKind: string,
-    ): Token {}
-}
+// ======================================= Token Stream API =======================================
 
 /**
  * A token, implemented as a node in a linked list.
@@ -185,7 +144,39 @@ export class Token {
     }
 }
 
-export type VocabularyConfig = {};
+export class TokenWalker {
+    private _cur: Token;
+    private _next?: Token;
+
+    private constructor(cur: Token, next?: Token) {
+        this._cur = cur;
+        this._next = next;
+    }
+
+    // The token currently being pointed at.
+    get cur(): Token {
+        return this._cur;
+    }
+
+    // The next token
+    get next(): Token | undefined {
+        return this._next;
+    }
+
+    consumeScopeMarker(
+        possibleMarkerKinds: string[],
+        terminatorKind: string,
+    ): Token {}
+}
+
+// ================================ Language (Lexer) API + Builder ================================
+
+export type LanguageFactoryArgs = {
+    declare: { [K in string]: string | RegExp };
+    keywords?: readonly string[];
+    inherit?: Language[];
+    ignore?: RegExp;
+};
 
 /** Specifies a vocabulary of tokens that can be used to tokenize a source file. */
 export class Language {
@@ -240,12 +231,7 @@ export class Language {
      *
      * `declare` combines both string and pattern tokens to discourage clashing token names.
      */
-    static newInstance(args: {
-        declare: { [K in string]: string | RegExp };
-        keywords?: readonly string[];
-        inherit?: Language[];
-        ignore?: RegExp;
-    }): Language {
+    static newInstance(args: LanguageFactoryArgs): Language {
         const keywords = [...(args.keywords ?? [])];
         const strings: Record<string, string> = {};
         const patterns: Record<string, RegExp> = {};

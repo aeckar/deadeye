@@ -17,6 +17,24 @@ import { Position, Range } from 'vscode';
  */
 export type Comparator<T> = (cur: T, next: T) => number;
 
+/** A range of indices. */
+export class Span {
+    /** The index of the first element. */
+    begin: number;
+
+    /** The index of the last element (exclusive). */
+    end: number;
+
+    constructor(begin: number, end: number) {
+        this.begin = begin;
+        this.end = end;
+    }
+
+    get length() {
+        return this.end - this.begin;
+    }
+}
+
 /**
  * A key-value pair that may exist as an entry in a JavaScript object.
  *

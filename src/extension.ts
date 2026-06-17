@@ -30,7 +30,15 @@
 
 // use 'begin' for boolean, 'start' for specific idx
 
-// prefer classes to types if not making simple type alias
+// prefer classes to types if not making simple type alias/only used as simple parameter,not persistant
+//  make static functions for translation to arg->property types (`orDefaultX`)
+//  prefer `CtorArgs`/`FactoryArgs` to `Cfg`/`Config`, since -args classes lack persistance, more concise
+
+// ~~  --> ===...
+// large dividers, small dividers
+// show dividers in minimap, make bold
+
+// null is ok for optional params with defined default arg
 
 //for md/txt:
 
@@ -137,7 +145,14 @@ A raw scanner satisfies all four. The symbol tree satisfies none of them fully. 
 
 //todo completion: populate function with existing vars of same name as params
 
+// extract complex {} types for ctor/factory as passable to functions that call ctor/factory
+//  ie registerX() functions, to reduce boiolerplate/encourage conciseness
+
 // lgx lg
+
+//FIX TREND CompletionFamily.orDefaultTrigger() args.trigger)
+//FIX TREND map.not has[TAB] --> !map.has()  -- cancel completion on '('
+//FIX TREND inline extract to function
 
 //todo space after function in js -- insert smart parentheses
 

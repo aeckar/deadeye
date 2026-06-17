@@ -1,8 +1,8 @@
 import { Range } from 'vscode';
 import {
     Completion,
+    CompletionFamilyRegistry,
     MAX_LINE_SEEK,
-    registerCompletions,
 } from '../../completion_api';
 import { after, rangeBefore } from '../../misc';
 import Tape from '../../tape';
@@ -274,11 +274,11 @@ grey squiggly when left of scope marker to show help
 
 // todo convert all completionSingle's to families
 
-const rust = registerCompletions<RustScopeKind>(
+const rust = CompletionFamilyRegistry.newInstance<RustScopeKind>(
     {
         docs: md``,
         minLookbehind: 1,
-        trigger: null,
+        trigger: '',
         resolver(ctx) {},
     },
     {
@@ -306,7 +306,7 @@ const rust = registerCompletions<RustScopeKind>(
 
             - \`c\` and \`a\` flags are both passed (\`const async fn\` is not valid Rust)
         `,
-        trigger: null,
+        trigger: '',
         minLookbehind: 1,
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();

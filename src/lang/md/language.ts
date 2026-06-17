@@ -22,7 +22,6 @@ insert space after prefixes
 // number fmt (e.g. 1,000)
 // ` ` after , ; :
 
-
 function revise(content: Tape): string {
     if (content.isExhausted()) {
         return '';

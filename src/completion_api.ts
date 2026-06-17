@@ -1,29 +1,17 @@
 //! Algorithms and data structures used to parse completion shorthands.
 //!
-//! A
+//! todo explain vocab
 import { MarkdownString, Position, Range, TextEditor, window } from 'vscode';
 
 import Tape from './tape';
-import { Brackets } from './text_manip';
+import { Brackets, toMarkdown as md, reverse } from './text_manip';
+import { rangeBefore } from './misc';
 
 export const MAX_TOKEN_SEEK = 50;
 export const MAX_LINE_SEEK = 50;
 export const MAX_CHAR_SEEK = 2500;
 
-/**
- * 
- */
-export function registerCompletions<ScopeKind extends string>(
-    ...families: CompletionFamily<ScopeKind>[]
-): Map<string, CompletionFamily<ScopeKind>[]>[] {
-    let byTrigger = new Map<string, CompletionFamily<ScopeKind>[]>();
-    for (const family of families) {
-        if (!byTrigger.has(family.trigger)) {
-
-        }
-        familiesByTrigger.set(family.)
-    } 
-}
+// ========================================= Tape Interop =========================================
 
 export type FlagChar =
     | 'a'
@@ -61,6 +49,71 @@ export type FlagChar =
  */
 export type Flag = FlagChar | `-${FlagChar}${FlagChar}`;
 
+/** Returned as values in the map returned by `Tape.consumeFlags`. */
+export type FlagMatch = {
+    readonly expansion: string;
+    readonly range: Range;
+};
+
+// ==================================== Registry API + Builder ====================================
+
+/** Contains all completion families for a given language, grouped by trigger. */
+export type CompletionFamilyRegistry<ScopeKind extends string> = Map<
+    string,
+    CompletionFamily<ScopeKind>[]
+>;
+
+export namespace CompletionFamilyRegistry {
+    /**
+     * Initializes a completion family for each configuration,
+     * then stores each in a map, grouped by trigger.
+     */
+    export function newInstance<ScopeKind extends string>(
+        ...families: CompletionFamilyCtorArgs<ScopeKind>[]
+    ): CompletionFamilyRegistry<ScopeKind> {
+        const byTrigger = new Map<string, CompletionFamily<ScopeKind>[]>();
+        for (const args of families) {
+            const family = new CompletionFamily(args);
+            if (!byTrigger.has(family.trigger)) {
+                byTrigger.set(family.trigger, [family]);
+            } else {
+                byTrigger.get(family.trigger)!.push(family);
+            }
+        }
+        return byTrigger;
+    }
+}
+
+export function substitute<ScopeKind extends string>(
+    target: string,
+    replacement: string,
+    summary: string,
+): CompletionFamilyCtorArgs<ScopeKind> {
+    const length = target.length;
+    return {
+        docs: md`
+        ${summary}
+        
+        \`${target}\` → \`${replacement}\`
+        `,
+        trigger: '',
+        minLookbehind: length,
+        resolver(ctx) {
+            const tape = ctx.leftOfCursor().reversed();
+            if (!tape.isAt(reverse(target))) {
+                return undefined;
+            }
+            return new Completion({
+                preview: md`Insert \`${replacement}\`.`,
+                target: rangeBefore(ctx.cursor, length),
+                snippet: replacement.replaceAll('$', '\\$'),
+            });
+        },
+    };
+}
+
+// ===================================== Family API + Builder =====================================
+
 /**
  * The key used to trigger a completion.
  *
@@ -70,19 +123,13 @@ export type Flag = FlagChar | `-${FlagChar}${FlagChar}`;
  *
  * If provided, a trigger must take the form of either:
  * - ` `
- * - `;`:
- * - (enter)
+ * - `;`
+ * - [ENTER]
  *
- * A `null` trigger means there is no set trigger key,
+ * An empty string means there is no set trigger key,
  * and the completion will fire as soon as it is matched.
  */
-export type Trigger = ' ' | ';' | 'enter' | null;
-
-/** Returned as values in the map returned by `Tape.consumeFlags`. */
-export type FlagMatch = {
-    readonly expansion: string;
-    readonly range: Range;
-};
+export type Trigger = '' | ' ' | ';' | 'enter';
 
 /**
  * A possible configuration of nested scopes.
@@ -101,6 +148,15 @@ export type ScopeTree<ScopeKind extends string> = (
 export type CompletionResolver<ScopeKind extends string> = (
     ctx: ScopedCompletionContext<ScopeKind>,
 ) => Completion | undefined;
+
+export type CompletionFamilyCtorArgs<ScopeKind extends string> = {
+    docs: MarkdownString;
+    minLookbehind: number;
+    resolver: CompletionResolver<ScopeKind>;
+    trigger?: Trigger;
+    scoping?: ScopeTree<ScopeKind>[];
+};
+
 /**
  * A shorthand for a programming language element.
  *
@@ -126,12 +182,16 @@ export class CompletionFamily<ScopeKind extends string> {
      */
     readonly minLookbehind: number;
 
-    /** The key that triggers the completion. */
+    /**
+     * The key that triggers the completion.
+     *
+     * If empty, this completion fires instantly.
+     */
     readonly trigger: Trigger;
 
     /**
      * The possible scope trees required for this shorthand to match.
-     * 
+     *
      * If assigned an empty array, this shorthand matches in every scope.
      */
     readonly scoping: ScopeTree<ScopeKind>[];
@@ -139,19 +199,32 @@ export class CompletionFamily<ScopeKind extends string> {
     /** The logic used to match this shorthand to a dynamic, context-aware completion. */
     readonly resolver: CompletionResolver<ScopeKind>;
 
-    constructor(args: {
-        docs: MarkdownString,
-        minLookbehind: number,
-        resolver: CompletionResolver<ScopeKind>,
-        trigger?: Trigger,
-        scoping?: ScopeTree<ScopeKind>[]?
-    }) {
+    constructor(args: CompletionFamilyCtorArgs<ScopeKind>) {
         this.docs = args.docs;
         this.minLookbehind = args.minLookbehind;
         this.resolver = args.resolver;
-        this.trigger = args.trigger ?? ' ';
-        this.scoping = args.scoping ?? [];
+        this.trigger = CompletionFamily.orDefaultTrigger(args.trigger);
+        this.scoping = CompletionFamily.orDefaultScoping(args.scoping);
     }
+
+    static orDefaultTrigger(trigger?: Trigger): Trigger {
+        return trigger ?? ' ';
+    }
+
+    static orDefaultScoping<ScopeKind extends string>(
+        scoping?: ScopeTree<ScopeKind>[],
+    ): ScopeTree<ScopeKind>[] {
+        return scoping ?? [];
+    }
+}
+
+export type CompletionCtorArgs = {
+    preview: MarkdownString;
+    target: Range;
+    snippet: string;
+    errors?: Range[];
+    insertAt?: Position;
+    endCursorPos?: Position;
 };
 
 /** The result of {@link CompletionFamily.resolver}. */
@@ -205,14 +278,7 @@ export class Completion {
     /** The final position of the cursor after the snippet has been inserted. */
     readonly endCursorPos?: Position;
 
-    constructor(args: {
-        preview: MarkdownString;
-        target: Range;
-        snippet: string;
-        errors?: Range[];
-        insertAt?: Position;
-        endCursorPos?: Position;
-    }) {
+    constructor(args: CompletionCtorArgs) {
         if (args.errors) {
             const invalid = args.errors.filter(e => !args.target.contains(e));
             if (invalid.length > 0) {
@@ -239,17 +305,6 @@ export class Completion {
         this.endCursorPos = args.endCursorPos;
     }
 }
-
-/**
- * Created and stored after a shorthand is matched, and recalled once the trigger is pressed.
- *
- * @param position the position of the cursor the instance this object was created.
- */
-export type CompletionStrategy = {
-    readonly family: CompletionFamily<any>;
-    readonly completion: Completion;
-    readonly position: Position;
-};
 
 /**
  * Used to resolve {@link Scope scopes}.
@@ -424,6 +479,19 @@ export class CompletionContext {
         return undefined;
     }
 }
+
+/**
+ * Created and stored after a shorthand is matched, and recalled once the trigger is pressed.
+ *
+ * @param position the position of the cursor the instance this object was created.
+ */
+export type CompletionStrategy = {
+    readonly family: CompletionFamily<any>;
+    readonly completion: Completion;
+    readonly position: Position;
+};
+
+// ================================= Scope Resolver API + Builder =================================
 
 /**
  * Implemented by a top-level constant for each language,

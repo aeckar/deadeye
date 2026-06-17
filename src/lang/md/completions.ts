@@ -1,7 +1,7 @@
 import {
     Completion,
-    CompletionFamily,
-    registerCompletions,
+    CompletionFamilyCtorArgs,
+    CompletionFamilyRegistry,
 } from '../../completion_api';
 import { rangeBefore } from '../../misc';
 import { toMarkdown as md, reverse } from '../../text_manip';
@@ -10,34 +10,6 @@ import { toMarkdown as md, reverse } from '../../text_manip';
 //dont use tm, rarely ever used by devs and writers
 
 //<mark>
-
-export function substitute<ScopeKind extends string>(
-    target: string,
-    replacement: string,
-    summary: string,
-): CompletionFamily<ScopeKind> {
-    const length = target.length;
-    return {
-        docs: md`
-        ${summary}
-        
-        \`${target}\` → \`${replacement}\`
-        `,
-        trigger: null,
-        minLookbehind: length,
-        resolver(ctx) {
-            const tape = ctx.leftOfCursor().reversed();
-            if (!tape.isAt(reverse(target))) {
-                return undefined;
-            }
-            return new Completion({
-                preview: md`Insert \`${replacement}\`.`,
-                target: rangeBefore(ctx.cursor, length),
-                snippet: replacement.replaceAll('$', '\\$'),
-            });
-        },
-    };
-}
 
 /**
 # Markdown Completions
@@ -65,7 +37,7 @@ Because every common Markdown construct is supported as a completion, it is advi
 
 // try double space/semi
 
-const markdown = registerCompletions(
+const markdown = CompletionFamilyRegistry.newInstance(
     substitute('(c)', '©', 'Inserts a copyright symbol.'),
     substitute('--', '——', 'Inserts an em dash.'),
     {
