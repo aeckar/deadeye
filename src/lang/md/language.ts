@@ -1,5 +1,5 @@
 import Tape from '../../tape';
-import { isLetter, isLowerLetter } from '../../text_manip';
+import { isLetter, isLowerLetter } from '../../text_utils';
 
 // BASICALLY YU GOT
 /*

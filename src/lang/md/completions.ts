@@ -1,5 +1,5 @@
-import { CompletionFamilyRegistry, substitute } from '../../completion_api';
-import { toMarkdown as md } from '../../text_manip';
+import { CompletionRegistry, substitute } from '../../completion_utils';
+import { toMarkdown as md } from '../../text_utils';
 
 // do not highlight hot shorthand - 1
 //dont use tm, rarely ever used by devs and writers
@@ -32,7 +32,7 @@ Because every common Markdown construct is supported as a completion, it is advi
 
 // try double space/semi
 
-const markdown = CompletionFamilyRegistry.newInstance(
+const markdown = CompletionRegistry.newInstance(
     substitute('(c)', '©', 'Inserts a copyright symbol.'),
     substitute('--', '——', 'Inserts an em dash.'),
     {

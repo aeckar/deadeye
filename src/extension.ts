@@ -198,10 +198,10 @@ import {
     CompletionPrefix,
     CompletionStrategy,
     ScopedCompletionContext,
-} from './completion_api';
+} from './completion_utils';
 import completionFamilies from './lang/all_completions';
 import scopeResolvers from './lang/all_resolvers';
-import { expandTabStops } from './text_manip';
+import { expandTabStops } from './text_utils';
 
 let strategy: CompletionStrategy | undefined;
 // let decorationSyncTimeout: NodeJS.Timeout | undefined;

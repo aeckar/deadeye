@@ -1,4 +1,4 @@
-import { CompletionFamily } from '../completion_api';
+import { CompletionFamily } from '../completion_utils';
 import rust from './rust/completions';
 import typescript from './ts/completions';
 

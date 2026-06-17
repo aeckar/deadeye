@@ -1,8 +1,12 @@
 import { MarkdownString, Range } from 'vscode';
-import { ScopedCompletionContext } from './completion_api';
+import {
+    CompletionResolver,
+    ScopedCompletionContext,
+} from './completion_utils';
+import { ScopeTree } from './shared_utils';
 
 /** Contains all prefixes for each sticky completion of given language, grouped by trigger. */
-export type PrefixRegistry = Map<string, Prefix> & {
+export type PrefixRegistry = Map<string, PrefixFamily> & {
     __brand: 'PrefixRegistry';
 };
 
@@ -38,15 +42,20 @@ export type PrefixResolver<ScopeKind extends string> = (
 
 export type PrefixFamilyCtorArgs<ScopeKind extends string> = {
     id: string;
+    docs: MarkdownString;
+    minLookbehind: number;
     resolver: PrefixResolver<ScopeKind>;
+    scoping?: ScopeTree<ScopeKind>[];
 };
 
-export class PrefixFamily {
+export class PrefixFamily<ScopeKind extends string> {
+    readonly id: string;
+
     /**
      * A short description in Markdown, generated dynamically
      * to explain to user exactly what the shorthand does when triggered. This documentation appears
      * next to the cursor shortly after the shorthand is detected but before it is triggered.
-     * 
+     *
      * MAIN DOCS ARE HERE
      */
     readonly docs: MarkdownString;
@@ -68,8 +77,18 @@ export class PrefixFamily {
     /** The logic used to match this shorthand to a dynamic, context-aware completion. */
     readonly resolver: CompletionResolver<ScopeKind>;
 
-    constructor(args: PrefixFamilyCtorArgs) {
-        
+    constructor(args: PrefixFamilyCtorArgs<ScopeKind>) {
+        this.id = args.id;
+        this.docs = args.docs;
+        this.minLookbehind = args.minLookbehind;
+        this.resolver = args.resolver;
+        this.scoping = PrefixFamily.orDefaultScoping(args.scoping);
+    }
+
+    static orDefaultScoping<ScopeKind extends string>(
+        scoping?: ScopeTree<ScopeKind>[],
+    ): ScopeTree<ScopeKind>[] {
+        return scoping ?? [];
     }
 }
 

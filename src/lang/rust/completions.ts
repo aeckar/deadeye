@@ -1,9 +1,8 @@
 import { Range } from 'vscode';
 import {
     Completion,
-    CompletionFamilyRegistry,
-    MAX_LINE_SEEK,
-} from '../../completion_api';
+    CompletionRegistry,
+} from '../../completion_utils';
 import { after, rangeBefore } from '../../misc';
 import Tape from '../../tape';
 import {
@@ -11,9 +10,10 @@ import {
     findWord,
     isLetter,
     toMarkdown as md,
-} from '../../text_manip';
+} from '../../text_utils';
 import { consumeRustTarget } from './language';
 import { RustScopeKind } from './resolver';
+import { MAX_LINE_SEEK } from '../../shared_utils';
 
 // optimizing docs should add proper punctation, capitalization
 // toggle mode for automatic tab-out by delimiter
@@ -274,7 +274,7 @@ grey squiggly when left of scope marker to show help
 
 // todo convert all completionSingle's to families
 
-const rust = CompletionFamilyRegistry.newInstance<RustScopeKind>(
+const rust = CompletionRegistry.newInstance<RustScopeKind>(
     {
         docs: md``,
         minLookbehind: 1,
