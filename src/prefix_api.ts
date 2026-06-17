@@ -1,5 +1,5 @@
 import { MarkdownString, Range } from 'vscode';
-import { ScopedCompletionContext } from './family_api';
+import { ScopedCompletionContext } from './completion_api';
 
 /** Contains all prefixes for each sticky completion of given language, grouped by trigger. */
 export type PrefixRegistry = Map<string, Prefix> & {
@@ -20,6 +20,15 @@ export namespace PrefixRegistry {
         ...prefixes: PrefixFamilyCtorArgs<ScopeKind>[]
     ): PrefixRegistry {
         const byTrigger = new Map() as PrefixRegistry;
+        for (const args of prefixes) {
+            const family = new PrefixFamily(args);
+            if (!byTrigger.has(family.trigger)) {
+                byTrigger.set(family.trigger, [family]);
+            } else {
+                byTrigger.get(family.trigger)!.push(family);
+            }
+        }
+        return byTrigger as PrefixRegistry;
     }
 }
 
@@ -31,6 +40,38 @@ export type PrefixFamilyCtorArgs<ScopeKind extends string> = {
     id: string;
     resolver: PrefixResolver<ScopeKind>;
 };
+
+export class PrefixFamily {
+    /**
+     * A short description in Markdown, generated dynamically
+     * to explain to user exactly what the shorthand does when triggered. This documentation appears
+     * next to the cursor shortly after the shorthand is detected but before it is triggered.
+     * 
+     * MAIN DOCS ARE HERE
+     */
+    readonly docs: MarkdownString;
+
+    /**
+     * The minimum number of previous, consecutive character insertions
+     * for a match to this shorthand to be valid. This is an optimization, often the minimum number
+     * of characters for the base case. Can be assigned `NaN` so this shorthand is always checked.
+     */
+    readonly minLookbehind: number;
+
+    /**
+     * The possible scope trees required for this shorthand to match.
+     *
+     * If assigned an empty array, this shorthand matches in every scope.
+     */
+    readonly scoping: ScopeTree<ScopeKind>[];
+
+    /** The logic used to match this shorthand to a dynamic, context-aware completion. */
+    readonly resolver: CompletionResolver<ScopeKind>;
+
+    constructor(args: PrefixFamilyCtorArgs) {
+        
+    }
+}
 
 /**
  * todo

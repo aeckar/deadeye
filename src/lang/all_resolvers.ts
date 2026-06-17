@@ -1,4 +1,4 @@
-import { ScopeResolver } from '../family_api';
+import { ScopeResolver } from '../completion_api';
 import rust from './rust/resolver';
 import typescript from './ts/resolver';
 

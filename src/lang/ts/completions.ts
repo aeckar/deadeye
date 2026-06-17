@@ -1,4 +1,4 @@
-import { FamilyRegistry } from '../../family_api';
+import { CompletionFamilyRegistry } from '../../completion_api';
 import { rangeBefore } from '../../misc';
 import { toMarkdown as md } from '../../text_manip';
 import { TsScopeKind } from './resolver';
@@ -33,7 +33,7 @@ import { TsScopeKind } from './resolver';
 // todo completion: string type union, with checker
 // todo completion: type<->class
 //todo completion: make note comment into section comment
-const typescript = FamilyRegistry.newInstance<TsScopeKind>(
+const typescript = CompletionFamilyRegistry.newInstance<TsScopeKind>(
     {
         docs: md`
             Inserts block-scoped variable declarations.

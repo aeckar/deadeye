@@ -58,9 +58,9 @@ export type FlagMatch = {
 // ==================================== Registry API + Builder ====================================
 
 /** Contains all completion families for a given language, grouped by trigger. */
-export type FamilyRegistry<ScopeKind extends string> = Map<
+export type CompletionFamilyRegistry<ScopeKind extends string> = Map<
     string,
-    Family<ScopeKind>[]
+    CompletionFamily<ScopeKind>[]
 > & { __brand: 'CompletionFamilyRegistry' };
 
 /**
@@ -68,24 +68,24 @@ export type FamilyRegistry<ScopeKind extends string> = Map<
  *
  * Provides `newInstance` as an initializer.
  */
-export namespace FamilyRegistry {
+export namespace CompletionFamilyRegistry {
     /**
      * Initializes a completion family for each configuration,
      * then stores each in a map, grouped by trigger.
      */
     export function newInstance<ScopeKind extends string>(
-        ...families: FamilyCtorArgs<ScopeKind>[]
-    ): FamilyRegistry<ScopeKind> {
-        const byTrigger = new Map() as FamilyRegistry<ScopeKind>;
+        ...families: CompletionFamilyCtorArgs<ScopeKind>[]
+    ): CompletionFamilyRegistry<ScopeKind> {
+        const byTrigger = new Map() as CompletionFamilyRegistry<ScopeKind>;
         for (const args of families) {
-            const family = new Family(args);
+            const family = new CompletionFamily(args);
             if (!byTrigger.has(family.trigger)) {
                 byTrigger.set(family.trigger, [family]);
             } else {
                 byTrigger.get(family.trigger)!.push(family);
             }
         }
-        return byTrigger as FamilyRegistry<ScopeKind>;
+        return byTrigger as CompletionFamilyRegistry<ScopeKind>;
     }
 }
 
@@ -93,7 +93,7 @@ export function substitute<ScopeKind extends string>(
     target: string,
     replacement: string,
     summary: string,
-): FamilyCtorArgs<ScopeKind> {
+): CompletionFamilyCtorArgs<ScopeKind> {
     const length = target.length;
     return {
         docs: md`
@@ -154,7 +154,7 @@ export type CompletionResolver<ScopeKind extends string> = (
     ctx: ScopedCompletionContext<ScopeKind>,
 ) => Completion | undefined;
 
-export type FamilyCtorArgs<ScopeKind extends string> = {
+export type CompletionFamilyCtorArgs<ScopeKind extends string> = {
     docs: MarkdownString;
     minLookbehind: number;
     resolver: CompletionResolver<ScopeKind>;
@@ -171,12 +171,8 @@ export type FamilyCtorArgs<ScopeKind extends string> = {
  * Unlike chords or motions, shorthands always recognize a trigger. If the user has configured
  * the trigger to be an empty string, the default is used. This is due to the large vocabulary
  * of language-level shorthands, which makes collisions almost guaranteed.
- * 
- * # Implementation
- * 
- * Changed name from `CompletionFamily` to `Family` to reduce length of derived type names.
  */
-export class Family<ScopeKind extends string> {
+export class CompletionFamily<ScopeKind extends string> {
     /**
      * A short description in Markdown, generated dynamically
      * to explain to user exactly what the shorthand does when triggered. This documentation appears
@@ -208,12 +204,12 @@ export class Family<ScopeKind extends string> {
     /** The logic used to match this shorthand to a dynamic, context-aware completion. */
     readonly resolver: CompletionResolver<ScopeKind>;
 
-    constructor(args: FamilyCtorArgs<ScopeKind>) {
+    constructor(args: CompletionFamilyCtorArgs<ScopeKind>) {
         this.docs = args.docs;
         this.minLookbehind = args.minLookbehind;
         this.resolver = args.resolver;
-        this.trigger = Family.orDefaultTrigger(args.trigger);
-        this.scoping = Family.orDefaultScoping(args.scoping);
+        this.trigger = CompletionFamily.orDefaultTrigger(args.trigger);
+        this.scoping = CompletionFamily.orDefaultScoping(args.scoping);
     }
 
     static orDefaultTrigger(trigger?: Trigger): Trigger {
@@ -236,18 +232,18 @@ export type CompletionCtorArgs = {
     endCursorPos?: Position;
 };
 
-/** The result of {@link Family.resolver}. */
+/** The result of {@link CompletionFamily.resolver}. */
 export class Completion {
     /**
      * A short description of what the completion of the shorthand does.
      *
      * This is created after each match to describe **exactly** how the code is modified.
-     * This contrasts with {@link Family.docs}, which is a general description of
+     * This contrasts with {@link CompletionFamily.docs}, which is a general description of
      * the shorthand or family of shorthands.
      *
      * This is through `expandTabStops` before rendering.
      *
-     * This must be given for every completion, even if {@link Family.trigger} is `null`,
+     * This must be given for every completion, even if {@link CompletionFamily.trigger} is `null`,
      * in case future APIs use expose this functionality to the user.
      */
     readonly preview: MarkdownString;
@@ -318,7 +314,7 @@ export class Completion {
 /**
  * Used to resolve {@link Scope scopes}.
  *
- * {@link Completion Completions} are {@link Family.resolver resolved}
+ * {@link Completion Completions} are {@link CompletionFamily.resolver resolved}
  * use the child class {@link ScopedCompletionContext}, since it contains the
  * scope tree for the current position of the cursor.
  */
@@ -491,7 +487,7 @@ export class CompletionContext {
 
 /** Created and stored after a shorthand is matched, and recalled once the trigger is pressed. */
 export type CompletionStrategy = {
-    readonly family: Family<any>;
+    readonly family: CompletionFamily<any>;
     readonly completion: Completion;
 
     /** The position of the cursor the instance this object was created. */

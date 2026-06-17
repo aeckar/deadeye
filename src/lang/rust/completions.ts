@@ -1,5 +1,9 @@
 import { Range } from 'vscode';
-import { Completion, FamilyRegistry, MAX_LINE_SEEK } from '../../family_api';
+import {
+    Completion,
+    CompletionFamilyRegistry,
+    MAX_LINE_SEEK,
+} from '../../completion_api';
 import { after, rangeBefore } from '../../misc';
 import Tape from '../../tape';
 import {
@@ -270,7 +274,7 @@ grey squiggly when left of scope marker to show help
 
 // todo convert all completionSingle's to families
 
-const rust = FamilyRegistry.newInstance<RustScopeKind>(
+const rust = CompletionFamilyRegistry.newInstance<RustScopeKind>(
     {
         docs: md``,
         minLookbehind: 1,

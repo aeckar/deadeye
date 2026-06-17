@@ -198,8 +198,8 @@ import {
     CompletionPrefix,
     CompletionStrategy,
     ScopedCompletionContext,
-} from './family_api';
-import completionFamilies from './lang/all_families';
+} from './completion_api';
+import completionFamilies from './lang/all_completions';
 import scopeResolvers from './lang/all_resolvers';
 import { expandTabStops } from './text_manip';
 
