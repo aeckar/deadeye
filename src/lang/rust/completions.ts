@@ -1,10 +1,10 @@
 import { Range } from 'vscode';
-import { after, rangeBefore } from '../../misc';
 import {
     Completion,
-    CompletionFamily,
     MAX_LINE_SEEK,
-} from '../../registry_api';
+    registerCompletions,
+} from '../../completion_api';
+import { after, rangeBefore } from '../../misc';
 import Tape from '../../tape';
 import {
     errorHtml,
@@ -274,7 +274,7 @@ grey squiggly when left of scope marker to show help
 
 // todo convert all completionSingle's to families
 
-const rust: CompletionFamily<RustScopeKind>[] = [
+const rust = registerCompletions<RustScopeKind>(
     {
         docs: md``,
         minLookbehind: 1,
@@ -309,15 +309,15 @@ const rust: CompletionFamily<RustScopeKind>[] = [
         trigger: null,
         minLookbehind: 1,
         resolver(ctx) {
-            const left = ctx.leftOfCursor().reversed();
-            if (left.isExhausted()) {
+            const tape = ctx.leftOfCursor().reversed();
+            if (tape.isExhausted()) {
                 return undefined;
             }
             const right = ctx.rightOfCursor();
             if (!right.consumeAt('fn')) {
                 return undefined;
             }
-            const expansion = left.consumeMatch({
+            const expansion = tape.consumeMatch({
                 p: 'pub',
                 c: 'const',
                 a: 'async',
@@ -884,7 +884,7 @@ Inserts \`println!("$0")\`.
 
     //     },
     // },
-];
+);
 
 /* 
     },  perhaps on \n after auto-{}?

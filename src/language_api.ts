@@ -1,8 +1,8 @@
 //! Algorithms and data structures for tokenizing language-specific input.
 //!
 //! For general utilities related to text manipulation, refer to `text_utils.ts`.
+import { MAX_TOKEN_SEEK } from './completion_api';
 import { map, sortBy } from './misc';
-import { MAX_TOKEN_SEEK } from './registry_api';
 import Tape from './tape';
 
 /** A range of indices. */

@@ -1,6 +1,6 @@
-import { CompletionFamily } from '../registry_api';
-import rust from './rust/registry';
-import typescript from './ts/registry';
+import { CompletionFamily } from '../completion_api';
+import rust from './rust/completions';
+import typescript from './ts/completions';
 
 /**
  * Contains completion families of every supported language.

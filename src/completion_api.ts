@@ -10,7 +10,22 @@ export const MAX_TOKEN_SEEK = 50;
 export const MAX_LINE_SEEK = 50;
 export const MAX_CHAR_SEEK = 2500;
 
-type FlagChar =
+/**
+ * 
+ */
+export function registerCompletions<ScopeKind extends string>(
+    ...families: CompletionFamily<ScopeKind>[]
+): Map<string, CompletionFamily<ScopeKind>[]>[] {
+    let byTrigger = new Map<string, CompletionFamily<ScopeKind>[]>();
+    for (const family of families) {
+        if (!byTrigger.has(family.trigger)) {
+
+        }
+        familiesByTrigger.set(family.)
+    } 
+}
+
+export type FlagChar =
     | 'a'
     | 'b'
     | 'c'
@@ -70,6 +85,23 @@ export type FlagMatch = {
 };
 
 /**
+ * A possible configuration of nested scopes.
+ *
+ * Scope kinds may be prefixed by `...` to indicate any sequence of scopes leading to that one.
+ *
+ * Nested scopes are not required to be adjacent; they must simply be present in the same order.
+ * If not provided as an argument, the completion is matched in all scopes.
+ * Passing an empty array is considered to be the top-level scope.
+ */
+export type ScopeTree<ScopeKind extends string> = (
+    | ScopeKind
+    | `...${ScopeKind}`
+)[];
+
+export type CompletionResolver<ScopeKind extends string> = (
+    ctx: ScopedCompletionContext<ScopeKind>,
+) => Completion | undefined;
+/**
  * A shorthand for a programming language element.
  *
  * Once a shorthand is detected, the user must key in a trigger (space, by default) to replace the
@@ -78,28 +110,48 @@ export type FlagMatch = {
  * Unlike chords or motions, shorthands always recognize a trigger. If the user has configured
  * the trigger to be an empty string, the default is used. This is due to the large vocabulary
  * of language-level shorthands, which makes collisions almost guaranteed.
- *
- * @param docs A short description in Markdown, generated dynamically
- * to explain to user exactly what the shorthand does when triggered. This documentation appears
- * next to the cursor shortly after the shorthand is detected but before it is triggered.
- * @param minLookbehind The minimum number of previous, consecutive character insertions
- * for a match to this shorthand to be valid. This is an optimization, often the minimum number
- * of characters for the base case. Can be assigned `NaN` so this shorthand is always checked.
- * @param trigger The key that triggers the completion.
- * If not provided, is inferred to be space (` `).
- * @param scoping The possible scope trees required for this shorthand to match.
- * Nested scopes are not required to be adjacent; they must simply be present in the same order.
- * If not provided, this matches in all scopes.
- * An empty array is considered to be the top-level scope.
  */
-export type CompletionFamily<ScopeKind extends string> = {
+export class CompletionFamily<ScopeKind extends string> {
+    /**
+     * A short description in Markdown, generated dynamically
+     * to explain to user exactly what the shorthand does when triggered. This documentation appears
+     * next to the cursor shortly after the shorthand is detected but before it is triggered.
+     */
     readonly docs: MarkdownString;
+
+    /**
+     * The minimum number of previous, consecutive character insertions
+     * for a match to this shorthand to be valid. This is an optimization, often the minimum number
+     * of characters for the base case. Can be assigned `NaN` so this shorthand is always checked.
+     */
     readonly minLookbehind: number;
-    readonly trigger?: Trigger;
-    readonly scoping?: (ScopeKind | `...${ScopeKind}`)[][];
-    readonly resolver: (
-        ctx: ScopedCompletionContext<ScopeKind>,
-    ) => Completion | undefined;
+
+    /** The key that triggers the completion. */
+    readonly trigger: Trigger;
+
+    /**
+     * The possible scope trees required for this shorthand to match.
+     * 
+     * If assigned an empty array, this shorthand matches in every scope.
+     */
+    readonly scoping: ScopeTree<ScopeKind>[];
+
+    /** The logic used to match this shorthand to a dynamic, context-aware completion. */
+    readonly resolver: CompletionResolver<ScopeKind>;
+
+    constructor(args: {
+        docs: MarkdownString,
+        minLookbehind: number,
+        resolver: CompletionResolver<ScopeKind>,
+        trigger?: Trigger,
+        scoping?: ScopeTree<ScopeKind>[]?
+    }) {
+        this.docs = args.docs;
+        this.minLookbehind = args.minLookbehind;
+        this.resolver = args.resolver;
+        this.trigger = args.trigger ?? ' ';
+        this.scoping = args.scoping ?? [];
+    }
 };
 
 /** The result of {@link CompletionFamily.resolver}. */

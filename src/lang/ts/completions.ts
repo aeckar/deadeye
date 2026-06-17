@@ -1,5 +1,5 @@
+import { registerCompletions } from '../../completion_api';
 import { rangeBefore } from '../../misc';
-import { CompletionFamily } from '../../registry_api';
 import { toMarkdown as md } from '../../text_manip';
 import { TsScopeKind } from './resolver';
 
@@ -33,7 +33,7 @@ import { TsScopeKind } from './resolver';
 // todo completion: string type union, with checker
 // todo completion: type<->class
 //todo completion: make note comment into section comment
-const typescript: CompletionFamily<TsScopeKind>[] = [
+const typescript = registerCompletions<TsScopeKind>(
     {
         docs: md`
             Inserts block-scoped variable declarations.
@@ -171,7 +171,7 @@ Wrap expression with \`await\`.
             };
         },
     },
-];
+);
 
 // Fallback helper stub matching your architecture requirements
 function consumeTypeScriptTarget(tape: any): string | undefined {

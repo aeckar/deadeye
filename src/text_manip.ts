@@ -4,16 +4,22 @@
 import dedent from 'dedent-js';
 import { MarkdownString } from 'vscode';
 
+// ` = U+1FEF
 /**
  * Returns a Markdown string, which can be used for documentation.
  *
- * This function should be used as a raw string prefix (e.g. `md'text'`).//todo find doppelganger
+ * This function should be used as a raw string prefix (e.g. `md`text``).
  */
 export function toMarkdown(
     s: string | TemplateStringsArray,
     ...values: readonly any[]
 ): MarkdownString {
     return new MarkdownString(dedent(s, values));
+}
+
+/** Returns a copy of this string when reversed. */
+export function reverse(s: string): string {
+    return s.split('').reverse().join('');
 }
 
 /* ======================================== Scannerless Parsing ======================================== */

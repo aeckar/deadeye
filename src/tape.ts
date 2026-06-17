@@ -1,9 +1,9 @@
 //! Cursor data structure.
 import { Position, Range } from 'vscode';
 
+import { Flag, FlagMatch } from './completion_api';
 import { propertiesIn } from './misc';
-import { Flag, FlagMatch } from './registry_api';
-import { isLetter, isLowerLetter, isUpperLetter } from './text_manip';
+import { isLetter, isLowerLetter, isUpperLetter, reverse } from './text_manip';
 
 /**
  * A lightweight cursor over a string for non-linear parsing.
@@ -80,7 +80,7 @@ export default class Tape {
 
     /** Returns a new instance over the remaining string, reversed. */
     reversed(): Tape {
-        return new Tape(this.rest().split('').reverse().join(''), 0, true);
+        return new Tape(reverse(this.rest()), 0, true);
     }
 
     /* ================================ Context-Free Retrieval ================================ */

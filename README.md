@@ -2,7 +2,7 @@
 
 After writing up a brief description, we recommend including the following sections.
 
-## 
+##
 
 ## Features
 
@@ -26,10 +26,19 @@ This extension contributes the following settings:
 - `myExtension.thing`: Set to `blah` to do something.
 
 ## Known Issues
-TBD
-## Release Notes
+
 TBD
 
-This project follows the best practices defined in the Visual Studio Code [extension guidelines] 
+## Release Notes
+
+TBD
+
+This project follows the best practices defined in the Visual Studio Code [extension guidelines]
 
 [extension guidelines]: https://code.visualstudio.com/api/references/extension-guidelines
+
+## Go further
+
+- Reduce the extension size and improve the startup time by [bundling your extension](https://code.visualstudio.com/api/working-with-extensions/bundling-extension).
+- [Publish your extension](https://code.visualstudio.com/api/working-with-extensions/publishing-extension) on the VS Code extension marketplace.
+- Automate builds by setting up [Continuous Integration](https://code.visualstudio.com/api/working-with-extensions/continuous-integration).

@@ -30,6 +30,8 @@
 
 // use 'begin' for boolean, 'start' for specific idx
 
+// prefer classes to types if not making simple type alias
+
 //for md/txt:
 
 // on press enter or trigger transform completion, format sentence/paragraph/item
@@ -41,7 +43,6 @@
 
 // todo maybe add html, idk
 
-// hot completion for `--`  -->  `——` (em dash)
 // ;l ;r ;lr ;x ;ge ;le --common unicode characters
 // ;i ;b ;u ;r ;bi ;<combos>    --align to close previous
 // <; x btick count>c   -- inline code
@@ -69,6 +70,8 @@
 // use record
 // use `keyof any`
 
+// generally, use Record for input and Map for output/persistence
+// issue with ts is change to class from type when need custom init logic, methods
 /*language idea:
 
 [a,b] types, type spread
@@ -161,17 +164,20 @@ import {
     window,
 } from 'vscode';
 
-import completionFamilies from './lang/registries';
-import scopeResolvers from './lang/resolvers';
 import {
     Completion,
+    CompletionPrefix,
     CompletionStrategy,
     ScopedCompletionContext,
-} from './registry_api';
+} from './completion_api';
+import completionFamilies from './lang/all_completions';
+import scopeResolvers from './lang/all_resolvers';
 import { expandTabStops } from './text_manip';
 
 let strategy: CompletionStrategy | undefined;
-let decorationSyncTimeout: NodeJS.Timeout | undefined; // todo store by window/lang
+// let decorationSyncTimeout: NodeJS.Timeout | undefined;
+
+const prefixes: CompletionPrefix[] = []; //todo
 
 const decoration = window.createTextEditorDecorationType({
     borderColor: new ThemeColor('editorInfo.foreground'),
