@@ -1,1 +1,1 @@
-const rust = Completion
+const rust = regis

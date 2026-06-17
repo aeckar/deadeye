@@ -57,12 +57,26 @@ export type FlagMatch = {
 
 // ==================================== Registry API + Builder ====================================
 
-/** Contains all completion families for a given language, grouped by trigger. */
+/**
+ * Contains all completion families for a given language, grouped by trigger.
+ *
+ * # Implementation
+ *
+ * Normally, a type with custom initialization logic should be declared as a class.
+ * However, we use the newtype pattern (`__brand`) instead, to enforce type-safety
+ * without requiring that the user access map entries through an intermediate property
+ * (e.g. `registry.entries.get(' ')`).
+ */
 export type CompletionFamilyRegistry<ScopeKind extends string> = Map<
     string,
     CompletionFamily<ScopeKind>[]
->;
+> & { __brand: 'CompletionFamilyRegistry' };
 
+/** 
+ * # Namespace
+ * 
+ * Provides `newInstance` as an initializer.
+ */
 export namespace CompletionFamilyRegistry {
     /**
      * Initializes a completion family for each configuration,
@@ -80,7 +94,7 @@ export namespace CompletionFamilyRegistry {
                 byTrigger.get(family.trigger)!.push(family);
             }
         }
-        return byTrigger;
+        return byTrigger as CompletionFamilyRegistry<ScopeKind>;
     }
 }
 

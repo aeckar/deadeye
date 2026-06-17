@@ -265,7 +265,11 @@ export class Language {
     }
 }
 
-/** Contains common language configurations. */
+/**
+ * # Namespace
+ * 
+ * Provides common language configurations.
+ */
 export namespace Language {
     export const BRACKETS = Language.newInstance({
         declare: {

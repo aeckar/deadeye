@@ -16,8 +16,11 @@ export type CompletionPrefix = {
     readonly target: Range;
 };
 
-export function registerCompletionPrefixes(
-    ...prefixes: CompletionPrefix[]
-): CompletionPrefix[] {
-    efe;
+export namespace CompletionPrefix {
+    export function newInstance(
+        ...prefixes: CompletionPrefix[]
+    ): CompletionPrefix[] {
+        efe;
+    }
 }
+

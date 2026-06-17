@@ -34,11 +34,15 @@
 //  make static functions for translation to arg->property types (`orDefaultX`)
 //  prefer `CtorArgs`/`FactoryArgs` to `Cfg`/`Config`, since -args classes lack persistance, more concise
 
+//ts quirk: namespace after class/type, then continue docs with `# Namespace` header
+//ts quirk: restrict inheritance by restricting vis of ctors
 // ~~  --> ===...
 // large dividers, small dividers
 // show dividers in minimap, make bold
 
 // null is ok for optional params with defined default arg
+
+// type branding (eg __brand)
 
 //for md/txt:
 
