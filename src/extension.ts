@@ -30,6 +30,16 @@
 
 // use 'begin' for boolean, 'start' for specific idx
 
+/*
+In TypeScript, you cannot use the # prefix inside a standard object literal {} type.
+The # syntax is exclusively reserved for runtime private properties within JavaScript classes.
+*/
+/*
+Normally, a type with custom initialization logic should be declared as a class.
+ * However, we use the newtype pattern (`__brand`) instead, to enforce type-safety
+ * without requiring that the user access map entries through an intermediate property
+ * (e.g. `registry.entries.get(' ')`).
+*/
 // prefer classes to types if not making simple type alias/only used as simple parameter,not persistant
 //  make static functions for translation to arg->property types (`orDefaultX`)
 //  prefer `CtorArgs`/`FactoryArgs` to `Cfg`/`Config`, since -args classes lack persistance, more concise
@@ -188,8 +198,8 @@ import {
     CompletionPrefix,
     CompletionStrategy,
     ScopedCompletionContext,
-} from './completion_api';
-import completionFamilies from './lang/all_completions';
+} from './family_api';
+import completionFamilies from './lang/all_families';
 import scopeResolvers from './lang/all_resolvers';
 import { expandTabStops } from './text_manip';
 

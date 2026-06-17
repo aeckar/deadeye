@@ -3,9 +3,9 @@
 //! todo explain vocab
 import { MarkdownString, Position, Range, TextEditor, window } from 'vscode';
 
+import { rangeBefore } from './misc';
 import Tape from './tape';
 import { Brackets, toMarkdown as md, reverse } from './text_manip';
-import { rangeBefore } from './misc';
 
 export const MAX_TOKEN_SEEK = 50;
 export const MAX_LINE_SEEK = 50;
@@ -57,44 +57,35 @@ export type FlagMatch = {
 
 // ==================================== Registry API + Builder ====================================
 
-/**
- * Contains all completion families for a given language, grouped by trigger.
- *
- * # Implementation
- *
- * Normally, a type with custom initialization logic should be declared as a class.
- * However, we use the newtype pattern (`__brand`) instead, to enforce type-safety
- * without requiring that the user access map entries through an intermediate property
- * (e.g. `registry.entries.get(' ')`).
- */
-export type CompletionFamilyRegistry<ScopeKind extends string> = Map<
+/** Contains all completion families for a given language, grouped by trigger. */
+export type FamilyRegistry<ScopeKind extends string> = Map<
     string,
-    CompletionFamily<ScopeKind>[]
+    Family<ScopeKind>[]
 > & { __brand: 'CompletionFamilyRegistry' };
 
-/** 
+/**
  * # Namespace
- * 
+ *
  * Provides `newInstance` as an initializer.
  */
-export namespace CompletionFamilyRegistry {
+export namespace FamilyRegistry {
     /**
      * Initializes a completion family for each configuration,
      * then stores each in a map, grouped by trigger.
      */
     export function newInstance<ScopeKind extends string>(
-        ...families: CompletionFamilyCtorArgs<ScopeKind>[]
-    ): CompletionFamilyRegistry<ScopeKind> {
-        const byTrigger = new Map<string, CompletionFamily<ScopeKind>[]>();
+        ...families: FamilyCtorArgs<ScopeKind>[]
+    ): FamilyRegistry<ScopeKind> {
+        const byTrigger = new Map() as FamilyRegistry<ScopeKind>;
         for (const args of families) {
-            const family = new CompletionFamily(args);
+            const family = new Family(args);
             if (!byTrigger.has(family.trigger)) {
                 byTrigger.set(family.trigger, [family]);
             } else {
                 byTrigger.get(family.trigger)!.push(family);
             }
         }
-        return byTrigger as CompletionFamilyRegistry<ScopeKind>;
+        return byTrigger as FamilyRegistry<ScopeKind>;
     }
 }
 
@@ -102,7 +93,7 @@ export function substitute<ScopeKind extends string>(
     target: string,
     replacement: string,
     summary: string,
-): CompletionFamilyCtorArgs<ScopeKind> {
+): FamilyCtorArgs<ScopeKind> {
     const length = target.length;
     return {
         docs: md`
@@ -163,7 +154,7 @@ export type CompletionResolver<ScopeKind extends string> = (
     ctx: ScopedCompletionContext<ScopeKind>,
 ) => Completion | undefined;
 
-export type CompletionFamilyCtorArgs<ScopeKind extends string> = {
+export type FamilyCtorArgs<ScopeKind extends string> = {
     docs: MarkdownString;
     minLookbehind: number;
     resolver: CompletionResolver<ScopeKind>;
@@ -180,8 +171,12 @@ export type CompletionFamilyCtorArgs<ScopeKind extends string> = {
  * Unlike chords or motions, shorthands always recognize a trigger. If the user has configured
  * the trigger to be an empty string, the default is used. This is due to the large vocabulary
  * of language-level shorthands, which makes collisions almost guaranteed.
+ * 
+ * # Implementation
+ * 
+ * Changed name from `CompletionFamily` to `Family` to reduce length of derived type names.
  */
-export class CompletionFamily<ScopeKind extends string> {
+export class Family<ScopeKind extends string> {
     /**
      * A short description in Markdown, generated dynamically
      * to explain to user exactly what the shorthand does when triggered. This documentation appears
@@ -213,12 +208,12 @@ export class CompletionFamily<ScopeKind extends string> {
     /** The logic used to match this shorthand to a dynamic, context-aware completion. */
     readonly resolver: CompletionResolver<ScopeKind>;
 
-    constructor(args: CompletionFamilyCtorArgs<ScopeKind>) {
+    constructor(args: FamilyCtorArgs<ScopeKind>) {
         this.docs = args.docs;
         this.minLookbehind = args.minLookbehind;
         this.resolver = args.resolver;
-        this.trigger = CompletionFamily.orDefaultTrigger(args.trigger);
-        this.scoping = CompletionFamily.orDefaultScoping(args.scoping);
+        this.trigger = Family.orDefaultTrigger(args.trigger);
+        this.scoping = Family.orDefaultScoping(args.scoping);
     }
 
     static orDefaultTrigger(trigger?: Trigger): Trigger {
@@ -241,18 +236,18 @@ export type CompletionCtorArgs = {
     endCursorPos?: Position;
 };
 
-/** The result of {@link CompletionFamily.resolver}. */
+/** The result of {@link Family.resolver}. */
 export class Completion {
     /**
      * A short description of what the completion of the shorthand does.
      *
      * This is created after each match to describe **exactly** how the code is modified.
-     * This contrasts with {@link CompletionFamily.docs}, which is a general description of
+     * This contrasts with {@link Family.docs}, which is a general description of
      * the shorthand or family of shorthands.
      *
      * This is through `expandTabStops` before rendering.
      *
-     * This must be given for every completion, even if {@link CompletionFamily.trigger} is `null`,
+     * This must be given for every completion, even if {@link Family.trigger} is `null`,
      * in case future APIs use expose this functionality to the user.
      */
     readonly preview: MarkdownString;
@@ -323,7 +318,7 @@ export class Completion {
 /**
  * Used to resolve {@link Scope scopes}.
  *
- * {@link Completion Completions} are {@link CompletionFamily.resolver resolved}
+ * {@link Completion Completions} are {@link Family.resolver resolved}
  * use the child class {@link ScopedCompletionContext}, since it contains the
  * scope tree for the current position of the cursor.
  */
@@ -494,14 +489,12 @@ export class CompletionContext {
     }
 }
 
-/**
- * Created and stored after a shorthand is matched, and recalled once the trigger is pressed.
- *
- * @param position the position of the cursor the instance this object was created.
- */
+/** Created and stored after a shorthand is matched, and recalled once the trigger is pressed. */
 export type CompletionStrategy = {
-    readonly family: CompletionFamily<any>;
+    readonly family: Family<any>;
     readonly completion: Completion;
+
+    /** The position of the cursor the instance this object was created. */
     readonly position: Position;
 };
 
@@ -516,25 +509,26 @@ export type ScopeResolver<ScopeKind extends string> = (
     ctx: CompletionContext,
 ) => Scope<ScopeKind>[];
 
-/**
- * Represents a member in the scope tree at a particular position in a file.
- *
- * @param kind the type of scope, as defined in `lang/<langId>/scopes.ts`
- * @param markerPos the position of the first character of the scope marker
- * (`if`, `fn`, `impl`, `mod`, etc.), which is primarily useful to hot completions
- * that modify the scope signature.
- * @param openPos the position of the opening bracket that denotes this scope.
- */
+/** Represents a member in the scope tree at a particular position in a file. */
 export type Scope<ScopeKind extends string> = {
+    /** The type of scope, as defined in `lang/<langId>/scopes.ts`. */
     readonly kind: ScopeKind;
+
+    /**
+     * The position of the first character of the scope marker
+     * (`if`, `fn`, `impl`, `mod`, etc.), which is primarily useful to hot completions
+     * that modify the scope signature.
+     */
     readonly markerPos: Position;
+
+    /** The position of the opening bracket that denotes this scope. */
     readonly openPos: Position;
 };
 
 /**
  * Contains the scope tree for the current cursor position.
  *
- * {@link Completion Completions} are {@link CompletionFamily.resolver resolved}
+ * {@link Completion Completions} and completion prefixes are resolved
  * using instances of this class.
  *
  * @see CompletionContext
