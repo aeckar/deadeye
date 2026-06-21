@@ -22,7 +22,30 @@ export function reverse(s: string): string {
     return s.split('').reverse().join('');
 }
 
-/* ======================================== Scannerless Parsing ======================================== */
+/** Contains the possible chars for the first and subsequent characters in an identifier. */
+export class IdentifierBounds {
+    possibleStart: string;
+    possiblePart: string;
+
+    constructor(possibleStart: string, possiblePart: string) {
+        this.possibleStart = possibleStart;
+        this.possiblePart = possiblePart;
+    }
+
+    isStart(ch: string): boolean {
+        return this.possibleStart.includes(ch);
+    }
+
+    isPart(ch: string): boolean {
+        return this.possiblePart.includes(ch);
+    }
+}
+
+export namespace IdentifierBounds {
+    export const EXACT = new IdentifierBounds('', '');
+}
+
+/* ==================================== Scannerless Parsing ==================================== */
 
 export type Brackets = (typeof BRACKETS)[number];
 export type OpenBracket = (typeof OPEN_BRACKETS)[number];
@@ -72,7 +95,7 @@ export function expandTabStops(s: MarkdownString): MarkdownString {
     );
 }
 
-/* ============================================ Diagnostics ============================================ */
+/* ==================================== Diagnostics ==================================== */
 
 /**
  * Returns the same string formatted in HTML as a distinct paragraph containing red text.
@@ -138,7 +161,7 @@ export function findWord(s: string, query: string): number {
     return -1;
 }
 
-/* ======================================== Letter Case ======================================== */
+/* ==================================== Letter Case ==================================== */
 
 /** Concatenates the strings and applies PascalCase. */
 export function toPascalCase(chunks: string[]): string {
@@ -173,6 +196,11 @@ export function capitalize(s: string): string {
         return '';
     }
     return s[0].toUpperCase() + s.slice(1);
+}
+
+/** Returns true if the character is a digit. */
+export function isDigit(ch: string): boolean {
+    return ch >= '0' && ch <= '9';
 }
 
 /** Returns true if the character is an uppercase letter. */

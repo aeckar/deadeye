@@ -1,9 +1,15 @@
 //! Cursor data structure.
 import { Position, Range } from 'vscode';
 
+import { Flag, FlagMatch } from './completion_utils';
 import { propertiesIn } from './misc';
-import { isLetter, isLowerLetter, isUpperLetter, reverse } from './text_utils';
-import { Flag, FlagMatch } from './shared_utils';
+import {
+    IdentifierBounds,
+    isLetter,
+    isLowerLetter,
+    isUpperLetter,
+    reverse,
+} from './text_utils';
 
 /**
  * A lightweight cursor over a string for non-linear parsing.
@@ -16,6 +22,13 @@ import { Flag, FlagMatch } from './shared_utils';
  *
  * Translated from [`tape.rs`](https://github.com/aeckar/draft/blob/main/crates/draft-core/src/tape.rs)
  * by Claude Sonnet 4.6.
+ *
+ * # API
+ *
+ * Methods moving the cursor according to a predicate (`consume`, `seek`, etc.)
+ * can be supplied a closer missing the second `pos` argument.
+ * This is allowed and encouraged
+ * (see [TypeScript FAQ](https://github.com/Microsoft/TypeScript/wiki/FAQ#why-are-functions-with-fewer-parameters-assignable-to-functions-that-take-more-parameters)).
  */
 export default class Tape {
     readonly raw: string;
@@ -97,19 +110,16 @@ export default class Tape {
 
     /* ======================================= Iteration ======================================= */
 
-    /**
-     * Advances the current position by 1 character.
-     *
-     * @return true if this results in the tape being exhausted.
-     */
-    adv() {
+    /** Advances the current position by 1 character. */
+    adv(): this {
         this.pos += 1;
-        return this.length === 0;
+        return this;
     }
 
     /** Decrements the current position by 1 character. */
-    dec() {
+    dec(): this {
         this.pos -= 1;
+        return this;
     }
 
     /** Returns true if the cursor is past the last character. */
@@ -203,7 +213,7 @@ export default class Tape {
      * @return the substring containing whitespace
      */
     consumeWs(): string {
-        return this.consume((ch, _) => Tape.isWs(ch));
+        return this.consume(ch => Tape.isWs(ch));
     }
 
     /** Consumes the query starting at this position, or returns an empty string. */
@@ -442,6 +452,24 @@ export default class Tape {
         return true;
     }
 
+    /**
+     * Advances `pos` to where `query` is found as a whole word.
+     *
+     * @return `true` if found and `pos` is left pointing at the match,
+     * or `false` and `pos` is restored to its original value.
+     */
+    seekAtIdentifier(query: string, validator: IdentifierBounds): boolean {
+        const start = this.pos;
+        if (!this.seekAt(query)) {
+            return false;
+        }
+        if (this._isAtIdentifier(query, validator, this.pos)) {
+            return true;
+        }
+        this.pos = start;
+        return false;
+    }
+
     /* ==================================== Pattern Testing ==================================== */
 
     /**
@@ -455,27 +483,41 @@ export default class Tape {
     /**
      * Returns true if this substring starting at the given position
      * starts with `query`. For any letters at the beginning or end of the query,
-     * returns false if the adjacent character, if any, is also a letter.
-     *
-     * This function should **not** be used for general identifiers,
-     * because it recognizes underscores, dashes, and trailing digits as boundary markers.
+     * returns false if the adjacent character, if any, is not an identifier boundary.
      */
-    isAtWord(query: string, pos: number = this.pos): boolean {
+    isAtIdentifier(query: string, validator: IdentifierBounds): boolean {
+        return this._isAtIdentifier(
+            query,
+            validator,
+            this.raw.indexOf(query, this.pos),
+        );
+    }
+
+    private _isAtIdentifier(
+        query: string,
+        validator: IdentifierBounds,
+        idx: number,
+    ): boolean {
         if (!query) {
             return true;
         }
-        const idx = this.raw.indexOf(query, pos); // handles out-of-bounds `pos`
+        if (idx === -1) {
+            return false;
+        }
         if (isLetter(this.raw[idx])) {
             // check boundary before match
             const prevIdx = idx - 1;
-            if (prevIdx >= 0 && isLetter(this.raw[prevIdx])) {
+            if (prevIdx >= 0 && validator.isStart(this.raw[prevIdx])) {
                 return false;
             }
         }
         if (isLetter(this.raw[idx + query.length - 1])) {
             // check boundary after match
             const nextIdx = idx + query.length;
-            if (nextIdx < this.raw.length && isLetter(this.raw[nextIdx])) {
+            if (
+                nextIdx < this.raw.length &&
+                validator.isPart(this.raw[nextIdx])
+            ) {
                 return false;
             }
         }
@@ -483,18 +525,26 @@ export default class Tape {
     }
 
     /** Returns true if the character at the given position has clearance on its left side. */
-    isLeftClear(pos: number): boolean {
+    isLeftClear(): boolean {
+        return this._isLeftClear(this.pos);
+    }
+
+    private _isLeftClear(pos: number): boolean {
         if (this.isReversed) {
-            return this.isRightClear(pos);
+            return this._isRightClear(pos);
         }
         const ch = this.raw[pos - 1];
         return ch === undefined || Tape.isWs(ch);
     }
 
     /** Returns true if the character at the given position has clearance on its right side. */
-    isRightClear(pos: number): boolean {
+    isRightClear(): boolean {
+        return this._isRightClear(this.pos);
+    }
+
+    private _isRightClear(pos: number): boolean {
         if (this.isReversed) {
-            return this.isLeftClear(pos);
+            return this._isLeftClear(pos);
         }
         const ch = this.raw[pos + 1];
         return ch === undefined || Tape.isWs(ch);
@@ -504,8 +554,10 @@ export default class Tape {
      * Returns true if the character cluster whose last character is at
      * the current position has the correct clearance to be a closer
      * (has clearance on either side).
+     *
+     * Assumes the current position is at the last character in the cluster.
      */
     isAnyClear(start: number): boolean {
-        return this.isLeftClear(start) || this.isRightClear(this.pos);
+        return this._isLeftClear(start) || this.isRightClear();
     }
 }

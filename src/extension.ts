@@ -195,7 +195,6 @@ import {
 
 import {
     Completion,
-    CompletionPrefix,
     CompletionStrategy,
     ScopedCompletionContext,
 } from './completion_utils';
@@ -205,8 +204,6 @@ import { expandTabStops } from './text_utils';
 
 let strategy: CompletionStrategy | undefined;
 // let decorationSyncTimeout: NodeJS.Timeout | undefined;
-
-const prefixes: CompletionPrefix[] = []; //todo
 
 const decoration = window.createTextEditorDecorationType({
     borderColor: new ThemeColor('editorInfo.foreground'),

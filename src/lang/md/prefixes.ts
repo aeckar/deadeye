@@ -1,1 +1,0 @@
-const rust = regis

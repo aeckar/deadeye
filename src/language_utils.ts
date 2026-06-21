@@ -1,9 +1,10 @@
 //! Algorithms and data structures for tokenizing language-specific input.
 //!
 //! For general utilities related to text manipulation, refer to `text_utils.ts`.
+import { MAX_TOKEN_SEEK } from './completion_utils';
 import { map, sortBy, Span } from './misc';
-import { MAX_TOKEN_SEEK } from './shared_utils';
 import Tape from './tape';
+import { IdentifierBounds } from './text_utils';
 
 // ======================================= Token Stream API =======================================
 
@@ -176,6 +177,7 @@ export type LanguageFactoryArgs = {
     keywords?: readonly string[];
     inherit?: Language[];
     ignore?: RegExp;
+    validator?: IdentifierBounds;
 };
 
 /** Specifies a vocabulary of tokens that can be used to tokenize a source file. */
@@ -198,16 +200,25 @@ export class Language {
      */
     ignore?: RegExp;
 
+    /**
+     * Used to determine boundaries between keywords and other tokens.
+     *
+     * Defaults to `IdentifierBounds.EXACT`.
+     */
+    kwordBounds: IdentifierBounds;
+
     private constructor(
         keywords: readonly string[],
         strings: Map<string, string>,
         patterns: Map<string, RegExp>,
         ignore?: RegExp,
+        kwordBounds?: IdentifierBounds,
     ) {
         this.keywords = new Map(keywords.map(e => [e.toUpperCase(), e]));
         this.strings = strings;
         this.patterns = patterns;
         this.ignore = ignore;
+        this.kwordBounds = kwordBounds ?? IdentifierBounds.EXACT;
     }
 
     /**
@@ -457,7 +468,7 @@ export function tokenize(file: Tape, lang: Language): Token {
 
     function testKeywords() {
         for (const [name, kword] of lang.keywords) {
-            if (file.isAtWord(kword)) {
+            if (file.isAtIdentifier(kword, lang.kwordBounds)) {
                 // Execute check for letter on both ends,
                 // as some keywords contain leading/trailing symbols
                 node = node.append(name, kword.length);

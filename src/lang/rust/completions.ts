@@ -2,6 +2,7 @@ import { Range } from 'vscode';
 import {
     Completion,
     CompletionRegistry,
+    MAX_LINE_SEEK,
 } from '../../completion_utils';
 import { after, rangeBefore } from '../../misc';
 import Tape from '../../tape';
@@ -13,7 +14,6 @@ import {
 } from '../../text_utils';
 import { consumeRustTarget } from './language';
 import { RustScopeKind } from './resolver';
-import { MAX_LINE_SEEK } from '../../shared_utils';
 
 // optimizing docs should add proper punctation, capitalization
 // toggle mode for automatic tab-out by delimiter
@@ -274,7 +274,22 @@ grey squiggly when left of scope marker to show help
 
 // todo convert all completionSingle's to families
 
+//todo api for conflict resolution (byte --> u8 | Byte ?)
+
+//todo default to unsigned
+//todo `let next int as int be` --> `let next_int: u32 = `
+//todo autocorrect keywords according to context
 const rust = CompletionRegistry.newInstance<RustScopeKind>(
+    {
+        docs: md``,
+        minLookbehind: 1,
+        trigger: '',
+        resolver(ctx) {
+            const tape = ctx.leftOfCursor();
+            if (!tape.seekAtIdentifier('let');
+            
+        },
+    },
     {
         docs: md``,
         minLookbehind: 1,

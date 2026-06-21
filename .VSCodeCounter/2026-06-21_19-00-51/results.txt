@@ -1,0 +1,71 @@
+Date : 2026-06-21 19:00:51
+Directory : c:\Users\eckar\Downloads\repos\deadeye
+Total : 31 files,  7165 codes, 1056 comments, 469 blanks, all 8690 lines
+
+Languages
++--------------------+------------+------------+------------+------------+------------+
+| language           | files      | code       | comment    | blank      | total      |
++--------------------+------------+------------+------------+------------+------------+
+| JSON               |          3 |      4,315 |          0 |          3 |      4,318 |
+| TypeScript         |         19 |      2,651 |      1,055 |        392 |      4,098 |
+| Markdown           |          3 |        111 |          0 |         61 |        172 |
+| JavaScript         |          3 |         54 |          0 |          9 |         63 |
+| JSON with Comments |          1 |         20 |          1 |          2 |         23 |
+| Ignore             |          1 |         14 |          0 |          1 |         15 |
+| Python             |          1 |          0 |          0 |          1 |          1 |
++--------------------+------------+------------+------------+------------+------------+
+
+Directories
++--------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                     | files      | code       | comment    | blank      | total      |
++--------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                        |         31 |      7,165 |      1,056 |        469 |      8,690 |
+| . (Files)                                                                |         11 |      4,514 |          1 |         76 |      4,591 |
+| hot-conflict-detector                                                    |          1 |          0 |          0 |          1 |          1 |
+| src                                                                      |         19 |      2,651 |      1,055 |        392 |      4,098 |
+| src (Files)                                                              |          6 |      1,487 |        628 |        227 |      2,342 |
+| src\lang                                                                 |         12 |      1,154 |        420 |        161 |      1,735 |
+| src\lang (Files)                                                         |          3 |         24 |         15 |          9 |         48 |
+| src\lang\md                                                              |          3 |         95 |         52 |         16 |        163 |
+| src\lang\rust                                                            |          3 |        848 |        304 |        115 |      1,267 |
+| src\lang\ts                                                              |          3 |        187 |         49 |         21 |        257 |
+| src\test                                                                 |          1 |         10 |          7 |          4 |         21 |
++--------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++--------------------------------------------------------------------------+--------------------+------------+------------+------------+------------+
+| filename                                                                 | language           | code       | comment    | blank      | total      |
++--------------------------------------------------------------------------+--------------------+------------+------------+------------+------------+
+| c:\Users\eckar\Downloads\repos\deadeye\.prettierrc                       | JSON               |          6 |          0 |          1 |          7 |
+| c:\Users\eckar\Downloads\repos\deadeye\.vscode-test.mjs                  | JavaScript         |          4 |          0 |          2 |          6 |
+| c:\Users\eckar\Downloads\repos\deadeye\.vscodeignore                     | Ignore             |         14 |          0 |          1 |         15 |
+| c:\Users\eckar\Downloads\repos\deadeye\CHANGELOG.md                      | Markdown           |          5 |          0 |          4 |          9 |
+| c:\Users\eckar\Downloads\repos\deadeye\README.md                         | Markdown           |         24 |          0 |         21 |         45 |
+| c:\Users\eckar\Downloads\repos\deadeye\docs.md                           | Markdown           |         82 |          0 |         36 |        118 |
+| c:\Users\eckar\Downloads\repos\deadeye\eslint.config.mjs                 | JavaScript         |         29 |          0 |          5 |         34 |
+| c:\Users\eckar\Downloads\repos\deadeye\hot-conflict-detector\detector.py | Python             |          0 |          0 |          1 |          1 |
+| c:\Users\eckar\Downloads\repos\deadeye\package-lock.json                 | JSON               |      4,266 |          0 |          1 |      4,267 |
+| c:\Users\eckar\Downloads\repos\deadeye\package.json                      | JSON               |         43 |          0 |          1 |         44 |
+| c:\Users\eckar\Downloads\repos\deadeye\src\completion_utils.ts           | TypeScript         |        458 |         85 |         36 |        579 |
+| c:\Users\eckar\Downloads\repos\deadeye\src\extension.ts                  | TypeScript         |        120 |        166 |         38 |        324 |
+| c:\Users\eckar\Downloads\repos\deadeye\src\lang\all_completions.ts       | TypeScript         |          8 |          5 |          3 |         16 |
+| c:\Users\eckar\Downloads\repos\deadeye\src\lang\all_languages.ts         | TypeScript         |          8 |          5 |          3 |         16 |
+| c:\Users\eckar\Downloads\repos\deadeye\src\lang\all_resolvers.ts         | TypeScript         |          8 |          5 |          3 |         16 |
+| c:\Users\eckar\Downloads\repos\deadeye\src\lang\md\completions.ts        | TypeScript         |         45 |         28 |         11 |         84 |
+| c:\Users\eckar\Downloads\repos\deadeye\src\lang\md\language.ts           | TypeScript         |         50 |         24 |          4 |         78 |
+| c:\Users\eckar\Downloads\repos\deadeye\src\lang\md\resolver.ts           | TypeScript         |          0 |          0 |          1 |          1 |
+| c:\Users\eckar\Downloads\repos\deadeye\src\lang\rust\completions.ts      | TypeScript         |        581 |        246 |         84 |        911 |
+| c:\Users\eckar\Downloads\repos\deadeye\src\lang\rust\language.ts         | TypeScript         |        219 |         21 |         11 |        251 |
+| c:\Users\eckar\Downloads\repos\deadeye\src\lang\rust\resolver.ts         | TypeScript         |         48 |         37 |         20 |        105 |
+| c:\Users\eckar\Downloads\repos\deadeye\src\lang\ts\completions.ts        | TypeScript         |        146 |         39 |         13 |        198 |
+| c:\Users\eckar\Downloads\repos\deadeye\src\lang\ts\language.ts           | TypeScript         |          0 |          0 |          1 |          1 |
+| c:\Users\eckar\Downloads\repos\deadeye\src\lang\ts\resolver.ts           | TypeScript         |         41 |         10 |          7 |         58 |
+| c:\Users\eckar\Downloads\repos\deadeye\src\language_utils.ts             | TypeScript         |        354 |         91 |         46 |        491 |
+| c:\Users\eckar\Downloads\repos\deadeye\src\misc.ts                       | TypeScript         |         97 |         49 |         18 |        164 |
+| c:\Users\eckar\Downloads\repos\deadeye\src\tape.ts                       | TypeScript         |        336 |        174 |         54 |        564 |
+| c:\Users\eckar\Downloads\repos\deadeye\src\test\extension.test.ts        | TypeScript         |         10 |          7 |          4 |         21 |
+| c:\Users\eckar\Downloads\repos\deadeye\src\text_utils.ts                 | TypeScript         |        122 |         63 |         35 |        220 |
+| c:\Users\eckar\Downloads\repos\deadeye\tsconfig.json                     | JSON with Comments |         20 |          1 |          2 |         23 |
+| c:\Users\eckar\Downloads\repos\deadeye\vite.config.js                    | JavaScript         |         21 |          0 |          2 |         23 |
+| Total                                                                    |                    |      7,165 |      1,056 |        469 |      8,690 |
++--------------------------------------------------------------------------+--------------------+------------+------------+------------+------------+
