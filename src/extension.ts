@@ -51,8 +51,6 @@ Normally, a type with custom initialization logic should be declared as a class.
 // large dividers, small dividers
 // show dividers in minimap, make bold
 
-// null is ok for optional params with defined default arg
-
 // type branding (eg __brand)
 
 //for md/txt:

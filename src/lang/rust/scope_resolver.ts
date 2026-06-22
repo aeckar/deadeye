@@ -89,21 +89,27 @@ export const rust: ScopeResolver<RustScopeKind> = ctx => {
     const stream = new ScopeStream<RustScopeKind>(tokenize(file, lang));
     while (!stream.isExhausted()) {
         let matched = false;
-        matched = stream.parseScope({ scope: 'const', boundaryMarkers: CURLY });
         matched = stream.parseScope({
-            scope: 'fn-params',
-            boundaryMarkers: ROUND,
-            outerScopeMarker: 'fn',
+            scopeKind: 'const',
+            boundaries: CURLY,
         });
         matched = stream.parseScope({
-            scope: 'struct',
-            boundaryMarkers: CURLY,
-            scopeMarkers: ['STRUCT', 'UNION'],
+            scopeKind: 'fn-params',
+            boundaries: ROUND,
+            outerPrimedScope: 'fn',
+        });
+        matched = stream.parseScope({
+            scopeKind: 'struct',
+            boundaries: CURLY,
+            markers: ['STRUCT', 'UNION'],
         });
         if (matched) {
             continue;
         }
-        matched = stream.parseScope({ scope: 'fn', boundaryMarkers: CURLY }); //...
+        matched = stream.parseScope({
+            scopeKind: 'fn',
+            boundaries: CURLY,
+        }); //...
         if (matched) {
             continue;
         }
