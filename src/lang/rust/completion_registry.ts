@@ -372,7 +372,7 @@ assignment
                 return undefined;
             }
             let [_, kword] = expansion;
-            return new Completion({
+            return Completion.newInstance({
                 preview: md`Insert \`${kword} \` before \`fn\`.`,
                 target: rangeBefore(ctx.cursor, 1),
                 snippet: kword + ' ',
@@ -446,7 +446,7 @@ assignment
             }
             snippet += 'fn ';
             const diagnostics = causes.map(e => '\n\n' + e).join('');
-            return new Completion({
+            return Completion.newInstance({
                 preview: md`Insert \`${snippet}\`.${diagnostics}`,
                 target: rangeBefore(ctx.cursor, flags.size + 'f'.length),
                 errors,
@@ -471,7 +471,7 @@ assignment
             if (!tape.consumeAt('fi') || isLetter(tape.cur() ?? ' ')) {
                 return undefined;
             }
-            return new Completion({
+            return Completion.newInstance({
                 preview: md`
 Insert \`if\` block, then move to conditional.
                 `,
@@ -512,7 +512,7 @@ Insert \`if\` block, then move to conditional.
                 return undefined;
             }
             const expansion = 'let' + mut;
-            return new Completion({
+            return Completion.newInstance({
                 preview: md`Insert \`${expansion}\`.`,
                 target: rangeBefore(ctx.cursor, mut ? 'lm'.length : 'l'.length),
                 snippet: expansion + ' ',
@@ -562,7 +562,7 @@ Insert \`if\` block, then move to conditional.
             if (!closePos) {
                 return undefined;
             }
-            return new Completion({
+            return Completion.newInstance({
                 preview: md`
                     Insert \`else\` block after current \`if\` block, then move there.
                 `,
@@ -621,7 +621,7 @@ Insert \`if\` block, then move to conditional.
                 pub = '#[macro_export]\n';
             }
             const expansion = pub + kword;
-            return new Completion({
+            return Completion.newInstance({
                 preview: md`Insert \`${expansion}\`.`,
                 target: rangeBefore(ctx.cursor),
                 snippet: expansion + ' ',
@@ -676,7 +676,7 @@ Insert \`if\` block, then move to conditional.
                 // missing `r` flag, but reference modifier given--assume reference
                 pre = '&' + pre;
             }
-            return new Completion({
+            return Completion.newInstance({
                 preview: md`
 Wrap as slice type.
                 `,
@@ -711,7 +711,7 @@ Wrap as slice type.
             if (!tape.consumeAt('x') || !tape.isExhausted()) {
                 return undefined;
             }
-            return new Completion({
+            return Completion.newInstance({
                 preview: md`
 Insert \`extern "\${1:C}" \`.
                 `,
@@ -740,7 +740,7 @@ Insert \`extern "\${1:C}" \`.
             ) {
                 return undefined;
             }
-            return new Completion({
+            return Completion.newInstance({
                 preview: md`
 Insert \`#[$0]\`.
                 `,
@@ -781,7 +781,7 @@ Insert \`#[$0]\`.
             ) {
                 return undefined;
             }
-            return new Completion({
+            return Completion.newInstance({
                 preview: md`
 Insert \`#[must_use]\`.
                 `,
@@ -819,7 +819,7 @@ Insert \`#[must_use]\`.
             if (!tape.consumeEither('il', 'inline') || !tape.isExhausted()) {
                 return undefined;
             }
-            return new Completion({
+            return Completion.newInstance({
                 preview: md`
 Insert \`#[inline]\`
                 `,
@@ -848,7 +848,7 @@ Insert \`#[inline]\`
             if (!tape.consumeAt('p') || !tape.isExhausted()) {
                 return undefined;
             }
-            return new Completion({
+            return Completion.newInstance({
                 preview: md`
 Inserts \`println!("$0")\`.
                 `,
@@ -920,7 +920,7 @@ Inserts \`println!("$0")\`.
                 }
                 expansion += '${1:name}: ${2:Type}';
             }
-            return new Completion({
+            return Completion.newInstance({
                 preview: md`Insert parameter layout: \`${expansion}\`.`,
                 target: rangeBefore(ctx.cursor, flags.size + 1),
                 snippet: expansion,

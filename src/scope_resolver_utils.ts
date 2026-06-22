@@ -1,8 +1,8 @@
 import { Position, TextEditor } from 'vscode';
 import { CompletionContext } from './completion_registry_utils';
 import { Token } from './language_utils';
-import { IdentifierRule } from './text_utils';
 import { Span } from './misc';
+import { IdentifierRule } from './text_utils';
 
 /**
  * A possible configuration of nested scopes.
@@ -18,18 +18,34 @@ export type ScopeTree<ScopeKind extends string> = (
     | `...${ScopeKind}`
 )[];
 
-export class ScopedSpan<ScopeKind extends string> extends Span {
-    readonly kind: ScopeKind;
+/** A member in the scope tree at a particular position in a file. */
+export class Scope<ScopeKind extends string> extends Span {
+    constructor(
+        /** The type of scope, as defined in `lang/<langId>/scopes.ts`. */
+        readonly kind: ScopeKind,
 
-    constructor(kind: ScopeKind, begin: number, end: number) {
+        /**
+         * The position of the first character of the scope marker
+         * (`if`, `fn`, `impl`, `mod`, etc.), which is primarily useful to hot completions
+         * that modify the scope signature.
+         */
+        readonly markerPos: number,
+        begin: number,
+        end: number,
+    ) {
         super(begin, end);
-        this.kind = kind;
     }
 }
 
-// flat list is most optimal, surprisingly
+/**
+ * Contains all scopes present within a file.
+ * 
+ * # Implementation
+ * 
+ * For simple lookup, a flat list is most optimal when compared with a heap or search tree.
+ */
 export class FileScopeMap<ScopeKind extends string> {
-    private tree: ScopedSpan<ScopeKind>[] = [];
+    private tree: Scope<ScopeKind>[] = [];
 
     // push(kind: ScopeKind, length: number) {
     //     if (this.tree.length === 0) {
@@ -40,8 +56,8 @@ export class FileScopeMap<ScopeKind extends string> {
     //     this.tree.push(new ScopeSpan(kind, begin, begin + length));
     // }
 
-    push(span: ScopedSpan<ScopeKind>) {
-        this.tree.push(span);
+    push(scope: Scope<ScopeKind>) {
+        this.tree.push(scope);
     }
 }
 
@@ -53,22 +69,6 @@ export class FileScopeMap<ScopeKind extends string> {
 export type ScopeResolver<ScopeKind extends string> = (
     ctx: CompletionContext,
 ) => Scope<ScopeKind>[];
-
-/** Represents a member in the scope tree at a particular position in a file. */
-export type Scope<ScopeKind extends string> = {
-    /** The type of scope, as defined in `lang/<langId>/scopes.ts`. */
-    readonly kind: ScopeKind;
-
-    /**
-     * The position of the first character of the scope marker
-     * (`if`, `fn`, `impl`, `mod`, etc.), which is primarily useful to hot completions
-     * that modify the scope signature.
-     */
-    readonly markerPos: Position;
-
-    /** The position of the opening bracket that denotes this scope. */
-    readonly openPos: Position;
-};
 
 /**
  * Contains the scope tree for the current cursor position.
@@ -122,16 +122,17 @@ export class ScopedCompletionContext<
     }
 }
 
-export class ScopeInstance<ScopeKind extends string> {
+export class IncompleteScope<ScopeKind extends string> {
     constructor(
         readonly kind: ScopeKind,
+        readonly markerPos: number,
         readonly begin: number,
         readonly boundaryMarkers: BoundaryMarkers,
         readonly flatten: boolean,
     ) {}
 
-    close(end: number): ScopedSpan<ScopeKind> {
-        return new ScopedSpan(this.kind, this.begin, end);
+    finish(end: number): Scope<ScopeKind> {
+        return new Scope(this.kind, this.markerPos, this.begin, end);
     }
 }
 
@@ -235,8 +236,8 @@ export class ScopeQuery<ScopeKind extends string> {
 /** A cursor over a token stream to extract scope information. */
 export class ScopeStream<ScopeKind extends string> {
     readonly scopeMap: FileScopeMap<ScopeKind>;
-    readonly primed: ScopeInstance<ScopeKind>[];
-    private readonly open: ScopeInstance<ScopeKind>[];
+    readonly primed: IncompleteScope<ScopeKind>[];
+    private readonly open: IncompleteScope<ScopeKind>[];
 
     private _cur: Token;
 
@@ -298,7 +299,6 @@ export class ScopeStream<ScopeKind extends string> {
             return false;
         }
         const begin = this._cur.span.begin;
-        const stop = boun;
         while (true) {
             this.adv();
             for (const marker of boundaryMarkers) {
@@ -313,7 +313,7 @@ export class ScopeStream<ScopeKind extends string> {
         );
         this._cur = start.next;
         this.primed.push(
-            new ScopeInstance(scope, begin, boundaryMarkers, flatten),
+            new IncompleteScope(scope, begin, boundaryMarkers, flatten),
         );
         return true;
     }
@@ -349,9 +349,9 @@ export class ScopeStream<ScopeKind extends string> {
             if (cur.kind === query.boundaryMarkers.close) {
                 open.pop();
                 while (open.at(-1)!.flatten) {
-                    this.scopeMap.push(open.pop()!.close(scopeEnd));
+                    this.scopeMap.push(open.pop()!.finish(scopeEnd));
                 }
-                this.scopeMap.push(query.close(scopeEnd));
+                this.scopeMap.push(query.finish(scopeEnd));
             }
         }
     }
