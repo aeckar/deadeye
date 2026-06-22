@@ -139,7 +139,8 @@ where
 }
 ```
 */
-
+//todo recognize arbitrary flattening scopes, even if its illegal syntax
+//ts: multi pass routing
 /*
 keep assignment purely as an expression/statement scope detected by the text parser
 */

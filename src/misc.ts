@@ -1,5 +1,6 @@
-//! General utilities generalizable to any project.
+//! Utilities generalizable to most other projects.
 import { Position, Range } from 'vscode';
+import { ScopedSpan } from './scope_resolver_utils';
 
 /**
  * Compares two values.
@@ -29,6 +30,12 @@ export class Span {
 
     get length() {
         return this.end - this.begin;
+    }
+
+    withScope<ScopeKind extends string>(
+        kind: ScopeKind,
+    ): ScopedSpan<ScopeKind> {
+        return new ScopedSpan(kind, this.begin, this.end);
     }
 }
 

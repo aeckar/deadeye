@@ -1,5 +1,6 @@
 import { Position, TextEditor } from 'vscode';
 import { CompletionContext } from './completion_registry_utils';
+import { Token } from './language_utils';
 import { Span } from './misc';
 import { Boundary } from './text_utils';
 
@@ -17,7 +18,7 @@ export type ScopeTree<ScopeKind extends string> = (
     | `...${ScopeKind}`
 )[];
 
-export class ScopeSpan<ScopeKind extends string> extends Span {
+export class ScopedSpan<ScopeKind extends string> extends Span {
     readonly kind: ScopeKind;
 
     constructor(kind: ScopeKind, begin: number, end: number) {
@@ -27,16 +28,20 @@ export class ScopeSpan<ScopeKind extends string> extends Span {
 }
 
 // flat list is most optimal, surprisingly
-export class Scopes<ScopeKind extends string> {
-    private tree: ScopeSpan<ScopeKind>[] = [];
+export class FileScopeMap<ScopeKind extends string> {
+    private tree: ScopedSpan<ScopeKind>[] = [];
 
-    push(kind: ScopeKind, length: number) {
-        if (this.tree.length === 0) {
-            this.tree.push(new ScopeSpan(kind, 0, length));
-            return;
-        }
-        const begin = this.tree.at(-1)!.end;
-        this.tree.push(new ScopeSpan(kind, begin, begin + length));
+    // push(kind: ScopeKind, length: number) {
+    //     if (this.tree.length === 0) {
+    //         this.tree.push(new ScopeSpan(kind, 0, length));
+    //         return;
+    //     }
+    //     const begin = this.tree.at(-1)!.end;
+    //     this.tree.push(new ScopeSpan(kind, begin, begin + length));
+    // }
+
+    push(span: ScopedSpan<ScopeKind>) {
+        this.tree.push(span);
     }
 }
 
@@ -114,5 +119,136 @@ export class ScopedCompletionContext<
             this.boundary,
             this.scopes,
         );
+    }
+}
+
+/** Denotes where a scope begins. */
+export class ScopeQuery<ScopeKind extends string> {
+    readonly kind: ScopeKind;
+    readonly begin: number;
+    readonly opener: ScopeKind;
+    readonly closer: ScopeKind;
+    readonly flatten: boolean;
+
+    constructor(
+        kind: ScopeKind,
+        begin: number,
+        opener: ScopeKind,
+        closer: ScopeKind,
+        flatten: boolean,
+    ) {
+        this.kind = kind;
+        this.begin = begin;
+        this.opener = opener;
+        this.closer = closer;
+        this.flatten = flatten;
+    }
+
+    close(end: number): ScopedSpan<ScopeKind> {
+        return new ScopedSpan(this.kind, this.begin, end);
+    }
+}
+
+/** A cursor over a token stream to extract scope information. */
+export class ScopeStream<ScopeKind extends string> {
+    readonly scopeMap: FileScopeMap<ScopeKind>;
+    readonly primed: ScopeQuery<ScopeKind>[];
+    private readonly open: ScopeQuery<ScopeKind>[];
+
+    private _cur: Token;
+
+    constructor(begin: Token) {
+        this._cur = begin.isHead() ? begin.next : begin;
+        this.scopeMap = new FileScopeMap();
+        this.primed = [];
+        this.open = [];
+    }
+    /** The token currently being pointed to. */
+    cur(): Token {
+        return this._cur;
+    }
+
+    /** Assigns the next token as the current one. */
+    adv() {
+        this._cur = this._cur.next;
+    }
+
+    /** Returns true if the current token is the tail. */
+    isExhausted(): boolean {
+        return this._cur.kind === '';
+    }
+
+    /**
+     * Consumes the next scope signature (marker + attributes + sentinel) up to,
+     * and including, the terminator (typically an open bracket).
+     *
+     * If the signature was matched, it is primed to be added to the underlying scope map.
+     * Scopes that are flattened share the opener-closer pair of the next scope.
+     * As a result, they are primed and closed at the same time. Flattened scopes can be
+     * stacked.
+     *
+     * @returns `true` if the scope signature was matched.
+     */
+    consumeSignature(
+        kind: ScopeKind,
+        possibleMarkerKinds: string[],
+        opener: ScopeKind,
+        closer: ScopeKind,
+        flatten: boolean = false,
+    ): boolean {
+        if (
+            this._cur.isHead() ||
+            !possibleMarkerKinds.includes(this._cur.kind!)
+        ) {
+            return false;
+        }
+        const begin = this._cur.span.begin;
+        do {
+            this.adv();
+        } while (this.cur().notKindNorTail(opener));
+        if (!this._cur.isTail()) {
+            this.adv();
+        }
+        this.primed.push(new ScopeQuery(kind, begin, opener, closer, flatten));
+        return true;
+    }
+
+    /**
+     * Opens the current scopes or closes the current scope (as well as any flattened scopes),
+     * depending on the current token.
+     */
+    consumeElse() {
+        const cur = this._cur;
+        if (cur.isHead()) {
+            return;
+        }
+        let matched = false;
+        const primed = this.primed;
+        const open = this.open;
+        for (let idx = primed.length - 1; idx >= 0; idx--) {
+            const query = primed[idx];
+            if (cur.kind === query.opener) {
+                primed.pop();
+                while (primed.at(-1)!.flatten) {
+                    open.push(primed.pop()!);
+                }
+                open.push(query);
+                matched = true;
+            }
+        }
+        if (matched) {
+            return;
+        }
+        const scopeEnd = cur.span.end;
+        for (let idx = this.open.length - 1; idx >= 0; idx--) {
+            const query = open[idx];
+            if (cur.kind === query.closer) {
+                open.pop();
+                while (open.at(-1)!.flatten) {
+                    this.scopeMap.push(open.pop()!.close(scopeEnd));
+                }
+                this.scopeMap.push(query.close(scopeEnd));
+            }
+        }
     }
 }

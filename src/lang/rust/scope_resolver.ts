@@ -1,6 +1,6 @@
-import { ScopeResolver } from '../../completion_registry_utils';
-import { tokenize, TokenWalker } from '../../language_utils';
-import { lang } from './language';
+import { tokenize } from '../../language_utils';
+import { ScopeResolver, ScopeStream } from '../../scope_resolver_utils';
+import { rust as lang } from './language';
 
 /**
  * ```
@@ -79,30 +79,23 @@ export type RustScopeKind =
     | 'struct-init' // $id {
     | '';
 
+//for overlapping scopes, check match for every token (possible marker)
 export const rust: ScopeResolver<RustScopeKind> = ctx => {
     const file = ctx.fileUpToCursor();
-    let scopes = new ScopeTree();
-    const head = tokenize(file, lang);
-    const walker = TokenWalker.fromHead(head);
-    while (!walker.isExhausted()) {
-        //for overlapping scopes, check match for every token (possible marker)
-        const n = walker.consumeScopeSignature(
+    const stream = new ScopeStream(tokenize(file, lang));
+    while (!stream.isExhausted()) {
+        let matched = stream.consumeSignature(
+            'struct',
             ['STRUCT', 'UNION'],
             'OPEN_CURLY',
         );
-
-        next = node.consumeEither('STRUCT', 'UNION');
-        if (next) {
-            node = next;
-            next = node.seek('OPEN_CURLY');
-            if (next) {
-                node = next;
-                scopes.push('struct');
-                continue;
-            }
+        if (matched) {
+            continue;
         }
-        next = node.consume;
-
+        matched = stream.consumeSignature('fn', ['FN']); //...
+        if (matched) {
+            continue;
+        }
         return [];
     }
 };

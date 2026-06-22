@@ -3,6 +3,7 @@
 //! For general utilities related to text manipulation, refer to `text_utils.ts`.
 import { MAX_TOKEN_SEEK } from './completion_registry_utils';
 import { map, sortBy, Span } from './misc';
+import { FileScopeMap, ScopedSpan } from './scope_resolver_utils';
 import Tape from './tape';
 import { Boundary } from './text_utils';
 
@@ -156,66 +157,6 @@ export class Token {
             node = node.next!;
         }
         return node.isTail() ? undefined : node;
-    }
-}
-
-/** A cursor over a token stream. */
-export class TokenWalker {
-    private _cur: Token;
-
-    private constructor(cur: Token) {
-        this._cur = cur;
-    }
-
-    static fromHead(head: Token) {
-        const kind = head.kind;
-        if (kind !== undefined) {
-            throw Error(`Expected head token (found '${kind}' instead)`);
-        }
-        return new TokenWalker(head);
-    }
-
-    /** The token currently being pointed to. */
-    cur(): Token {
-        return this._cur;
-    }
-
-    /** Assigns the next token as the current one. */
-    adv() {
-        this._cur = this._cur.next;
-    }
-
-    /** Returns true if the current token is the tail. */
-    isExhausted(): boolean {
-        return this._cur.kind === '';
-    }
-
-    /**
-     * Consumes the next scope signature (marker + attributes + sentinel) up to,
-     * and including, the terminator (typically an open bracket).
-     *
-     * @returns The number of tokens consumed.
-     */
-    consumeScopeSignature(
-        possibleMarkerKinds: string[],
-        terminatorKind: string,
-    ): number {
-        if (
-            this.cur().isHead() ||
-            !possibleMarkerKinds.includes(this.cur().kind!)
-        ) {
-            return 0;
-        }
-        let count = 0;
-        do {
-            this.adv();
-            count++;
-        } while (this.cur().notKindNorTail(terminatorKind));
-        if (this.cur().isTail()) {
-            return count;
-        }
-        this.adv();
-        return count + 1;
     }
 }
 
