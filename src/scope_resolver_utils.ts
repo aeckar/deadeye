@@ -1,6 +1,6 @@
 import { Position, TextEditor } from 'vscode';
 import { CompletionContext } from './completion_registry_utils';
-import { Token } from './language_utils';
+import { Token, TokenKind } from './language_utils';
 import { Span } from './misc';
 import { IdentifierRule } from './text_utils';
 
@@ -39,9 +39,9 @@ export class Scope<ScopeKind extends string> extends Span {
 
 /**
  * Contains all scopes present within a file.
- * 
+ *
  * # Implementation
- * 
+ *
  * For simple lookup, a flat list is most optimal when compared with a heap or search tree.
  */
 export class FileScopeMap<ScopeKind extends string> {
@@ -122,9 +122,7 @@ export class ScopedCompletionContext<
     }
 }
 
-export class IncompleteScope<ScopeKind extends string> {
-    private begin?: number;
-
+export class PrimedScope<ScopeKind extends string> {
     constructor(
         readonly kind: ScopeKind,
         readonly markerPos: number,
@@ -132,9 +130,9 @@ export class IncompleteScope<ScopeKind extends string> {
         readonly flatten: boolean,
     ) {}
 
-    open(begin: number): this {
+    open(begin: number): OpenScope<ScopeKind> {
         this.begin = begin;
-        return this;
+        return;
     }
 
     close(end: number): Scope<ScopeKind> {
@@ -142,20 +140,20 @@ export class IncompleteScope<ScopeKind extends string> {
     }
 }
 
-/**
- * The boundaries of a scope.
- *
- * - If `open` is the same token as the scope marker,
- * the scope is opened immediately instead of being primed first.
- * - If `open` is unassigned, this scope will be primed (recorded, but not active)
- * until it is closed.
- * - If both `open` and `close` are assigned, the scope is primed as soon as the marker is
- * matched, is opened when `open` is matched, and closed when `close` is matched.
- */
+export class OpenScope<ScopeKind extends string> {
+    constructor(
+        readonly kind: ScopeKind,
+        readonly markerPos: number,
+        readonly close: TokenKind,
+        readonly flatten: boolean,
+    ) {}
+}
+
+/** The boundaries of a scope. */
 export class BoundaryMarkers {
     constructor(
-        readonly open: string | null,
-        readonly close: string,
+        readonly open: TokenKind | null,
+        readonly close: TokenKind,
         readonly attribute: BoundaryAttribute,
     ) {}
 
@@ -167,7 +165,7 @@ export class BoundaryMarkers {
         for (const boundary of arg) {
             if (typeof boundary === 'string') {
                 boundaryMarkers.push(
-                    new BoundaryMarkers(scope.toUpperCase(), boundary, 'none'),
+                    new BoundaryMarkers(scope.toUpperCase() as TokenKind, boundary, 'none'),
                 );
                 continue;
             }
@@ -189,6 +187,13 @@ export class BoundaryMarkers {
     }
 }
 
+/**
+ * Determines how the boundaries of a scope should behave.
+ *
+ * - **always-open:** `<scope-marker> ...open... <primed>`
+ * - **always-primed:** `<scope-marker> ...primed... <close>`
+ * - **none:** `<scope-marker> ...primed... <open> ...open... <close>`
+ */
 export type BoundaryAttribute = 'always-open' | 'always-primed' | 'none';
 
 export class AlwaysOpen {
@@ -242,8 +247,8 @@ export class ScopeQuery<ScopeKind extends string> {
 /** A cursor over a token stream to extract scope information. */
 export class ScopeStream<ScopeKind extends string> {
     readonly scopeMap: FileScopeMap<ScopeKind>;
-    readonly primed: IncompleteScope<ScopeKind>[];
-    private readonly open: IncompleteScope<ScopeKind>[];
+    readonly primed: PrimedScope<ScopeKind>[];
+    private readonly open: PrimedScope<ScopeKind>[];
 
     private _cur: Token;
 
@@ -306,7 +311,7 @@ export class ScopeStream<ScopeKind extends string> {
         }
         this._cur = start.next;
         this.primed.push(
-            new IncompleteScope(scope, start.begin, boundaryMarkers, flatten),
+            new PrimedScope(scope, start.begin, boundaryMarkers, flatten),
         );
         return true;
     }
@@ -314,7 +319,7 @@ export class ScopeStream<ScopeKind extends string> {
     /**
      * Opens the current scopes or closes the current scope (as well as any flattened scopes),
      * depending on the current token.
-     * 
+     *
      * This function should be called at the end of every iteration
      * of the scanner execution loop.
      */
@@ -326,7 +331,8 @@ export class ScopeStream<ScopeKind extends string> {
         const { primed, open } = this;
         for (let idx = primed.length - 1; idx >= 0; idx--) {
             const scope = primed[idx];
-            if (start.kind === scope.boundaryMarkers.open) {    //todo always open?
+            if (start.kind === scope.boundaryMarkers.open) {
+                //todo always open?
                 primed.pop()!;
                 while (primed.at(-1)!.flatten) {
                     open.push(primed.pop()!.open(start.end));
@@ -337,7 +343,9 @@ export class ScopeStream<ScopeKind extends string> {
         const scopeEnd = start.end;
         for (let idx = this.open.length - 1; idx >= 0; idx--) {
             const scope = open[idx];
-            if (start.kind === scope.boundaryMarkers.close) {
+            if (
+                scope.boundaryMarkers.find(({ close }) => start.kind === close)
+            ) {
                 open.pop();
                 while (open.at(-1)!.flatten) {
                     this.scopeMap.push(open.pop()!.close(scopeEnd));

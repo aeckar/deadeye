@@ -6,7 +6,9 @@ import { map, sortBy, Span } from './misc';
 import Tape from './tape';
 import { IdentifierRule } from './text_utils';
 
-// ======================================= Token Stream API =======================================
+// ======================================= Token API =======================================
+
+export type TokenKind = string & { __brand: 'TokenName' };
 
 /**
  * A token, implemented as a node in a linked list (token stream).
@@ -22,7 +24,7 @@ export class Token extends Span {
     private constructor(
         begin: number,
         end: number,
-        readonly kind?: string,
+        readonly kind?: TokenKind,
         private _prev?: Token,
         private _next?: Token,
     ) {
@@ -47,7 +49,7 @@ export class Token extends Span {
      */
     static head(): Token {
         const root = new Token(0, 0);
-        root.append('');
+        root.append('' as TokenKind);
         return root;
     }
 
@@ -58,7 +60,7 @@ export class Token extends Span {
      * @returns The inserted token.
      */
     append(
-        kind: string,
+        kind: TokenKind,
         length: number = kind.length /* works well with EOF */,
     ): Token {
         const node = new Token(
@@ -81,7 +83,7 @@ export class Token extends Span {
      *
      * @returns The inserted token.
      */
-    prepend(kind: string, length: number = kind.length): Token {
+    prepend(kind: TokenKind, length: number = kind.length): Token {
         const node = new Token(
             this.begin - length,
             this.begin,
@@ -175,13 +177,13 @@ export class Language {
      * Tokens matching an exact keywordose token names.
      * This are tested such that they must be a whole word.
      */
-    keywords: Map<string, string>;
+    keywords: Map<TokenKind, string>;
 
     /** Tokens matching exact strings. */
-    strings: Map<string, string>;
+    strings: Map<TokenKind, string>;
 
     /** Tokens matching regular expressions. */
-    patterns: Map<string, RegExp>;
+    patterns: Map<TokenKind, RegExp>;
 
     /**
      * If a pattern is assigned to the property `$ignore` determines which characters are ignored
@@ -198,12 +200,14 @@ export class Language {
 
     private constructor(
         keywords: readonly string[],
-        strings: Map<string, string>,
-        patterns: Map<string, RegExp>,
+        strings: Map<TokenKind, string>,
+        patterns: Map<TokenKind, RegExp>,
         ignore?: RegExp,
         identifiers?: IdentifierRule,
     ) {
-        this.keywords = new Map(keywords.map(e => [e.toUpperCase(), e]));
+        this.keywords = new Map(
+            keywords.map(e => [e.toUpperCase() as TokenKind, e]),
+        );
         this.strings = strings;
         this.patterns = patterns;
         this.ignore = ignore;
@@ -233,24 +237,24 @@ export class Language {
      */
     static newInstance(cfg: LanguageCfg): Language {
         const keywords = [...(cfg.keywords ?? [])];
-        const strings: Record<string, string> = {};
-        const patterns: Record<string, RegExp> = {};
+        const strings: Record<TokenKind, string> = {};
+        const patterns: Record<TokenKind, RegExp> = {};
         for (const parent of cfg.inherit ?? []) {
-            for (const [name, query] of parent.strings.entries()) {
-                strings[name] = query;
+            for (const [kind, query] of parent.strings.entries()) {
+                strings[kind] = query;
             }
-            for (const [name, query] of parent.patterns.entries()) {
-                patterns[name] = query;
+            for (const [kind, query] of parent.patterns.entries()) {
+                patterns[kind] = query;
             }
             for (const [_, kword] of parent.keywords) {
                 keywords.push(kword);
             }
         }
-        for (const name in cfg.declare) {
-            if (typeof cfg.declare[name] === 'string') {
-                strings[name] = cfg.declare[name];
+        for (const kind in cfg.declare) {
+            if (typeof cfg.declare[kind] === 'string') {
+                strings[kind as TokenKind] = cfg.declare[kind];
             } else {
-                patterns[name] = cfg.declare[name];
+                patterns[kind as TokenKind] = cfg.declare[kind];
             }
         }
         return new Language(
@@ -433,7 +437,7 @@ export function tokenize(file: Tape, lang: Language): Token {
             }
             REST_OF_LINE.lastIndex = file.pos;
         }
-        node = node.append('UNKNOWN', start - file.pos);
+        node = node.append('UNKNOWN' as TokenKind, start - file.pos);
     }
 
     function skip(sticky: RegExp) {
@@ -448,7 +452,7 @@ export function tokenize(file: Tape, lang: Language): Token {
             query.lastIndex = file.pos;
             if (query.test(file.raw)) {
                 const length = query.lastIndex - file.pos;
-                node = node.append(name, length);
+                node = node.append(name as TokenKind, length);
                 file.pos += length;
                 break;
             }
