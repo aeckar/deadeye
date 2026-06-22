@@ -23,7 +23,7 @@ export function reverse(s: string): string {
 }
 
 /** Contains the possible chars for the first and subsequent characters in an identifier. */
-export class IdentifierBounds {
+export class Boundary {
     possibleStart: string;
     possiblePart: string;
 
@@ -41,8 +41,9 @@ export class IdentifierBounds {
     }
 }
 
-export namespace IdentifierBounds {
-    export const EXACT = new IdentifierBounds('', '');
+export namespace Boundary {
+    // https://stackoverflow.com/a/3609335/14178487
+    export const EXACT = new Boundary('', '');
 }
 
 /* ==================================== Scannerless Parsing ==================================== */
@@ -162,6 +163,11 @@ export function findWord(s: string, query: string): number {
 }
 
 /* ==================================== Letter Case ==================================== */
+
+export namespace CharacterClass {
+    export const ALPHA = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    export const DIGIT = '0123456789';
+}
 
 /** Concatenates the strings and applies PascalCase. */
 export function toPascalCase(chunks: string[]): string {

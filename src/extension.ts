@@ -143,6 +143,9 @@ where
 keep assignment purely as an expression/statement scope detected by the text parser
 */
 
+// scalability: language-specific global constants accessible by passing key to aggregator
+// scalability: keep names flat to reduce code duplication
+
 /*
 Yes. The symbol tree approach was me anchoring to the VS Code API you were already using rather than thinking from first principles about your actual constraints. Your requirements were always:
 
@@ -198,7 +201,7 @@ import {
     CompletionStrategy,
     ScopedCompletionContext,
 } from './completion_utils';
-import completionFamilies from './lang/all_completions';
+import completionRegistries from './lang/all_completions';
 import scopeResolvers from './lang/all_resolvers';
 import { expandTabStops } from './text_utils';
 
@@ -296,9 +299,10 @@ async function updateStrategy(keyIn: string, editor: TextEditor) {
         keyIn,
         cursor,
         editor,
+        languages[langId].boundary,
         scopeResolvers[langId],
     );
-    for (const family of completionFamilies[langId]) {
+    for (const family of completionRegistries[langId]) {
         const completion = family.resolver(ctx.clone()); // clone for fresh line buffer
         if (!completion) {
             continue;

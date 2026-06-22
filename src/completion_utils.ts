@@ -5,7 +5,7 @@ import { MarkdownString, Position, Range, TextEditor, window } from 'vscode';
 
 import { rangeBefore } from './misc';
 import Tape from './tape';
-import { Brackets, toMarkdown as md, reverse } from './text_utils';
+import { Boundary, Brackets, toMarkdown as md, reverse } from './text_utils';
 
 // ==================================== Utilities + Constants ====================================
 
@@ -331,12 +331,23 @@ export class CompletionContext {
     readonly cursor: Position;
     readonly editor: TextEditor;
     protected readonly keyIn: string;
+    protected readonly boundary: Boundary;
 
-    constructor(keyIn: string, cursor: Position, editor: TextEditor) {
-        this.line = Tape.over(editor.document.lineAt(cursor.line).text + keyIn);
+    constructor(
+        keyIn: string,
+        cursor: Position,
+        editor: TextEditor,
+        boundary: Boundary,
+    ) {
+        this.line = Tape.over(
+            editor.document.lineAt(cursor.line).text + keyIn,
+            undefined,
+            boundary,
+        );
         this.cursor = cursor;
         this.editor = editor;
         this.keyIn = keyIn;
+        this.boundary = boundary;
     }
 
     toScoped<ScopeKind extends string>(resolver: ScopeResolver<ScopeKind>) {
@@ -344,6 +355,7 @@ export class CompletionContext {
             this.keyIn,
             this.cursor,
             this.editor,
+            this.boundary,
             resolver,
         );
     }
@@ -547,9 +559,10 @@ export class ScopedCompletionContext<
         keyIn: string,
         cursor: Position,
         editor: TextEditor,
+        boundary: Boundary,
         scopes: Scope<ScopeKind>[],
     ) {
-        super(keyIn, cursor, editor);
+        super(keyIn, cursor, editor, boundary);
         this.scopes = scopes;
     }
 
@@ -557,13 +570,15 @@ export class ScopedCompletionContext<
         keyIn: string,
         cursor: Position,
         editor: TextEditor,
+        boundary: Boundary,
         resolver: ScopeResolver<ScopeKind>,
     ) {
         return new ScopedCompletionContext(
             keyIn,
             cursor,
             editor,
-            resolver(new CompletionContext(keyIn, cursor, editor)),
+            boundary,
+            resolver(new CompletionContext(keyIn, cursor, editor, boundary)),
         );
     }
 
@@ -572,6 +587,7 @@ export class ScopedCompletionContext<
             this.keyIn,
             this.cursor,
             this.editor,
+            this.boundary,
             this.scopes,
         );
     }

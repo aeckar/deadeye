@@ -1,6 +1,6 @@
 import { ScopeResolver } from '../../completion_utils';
 import { tokenize } from '../../language_utils';
-import { rust as lang } from './language';
+import { lang } from './language';
 
 /**
  * ```

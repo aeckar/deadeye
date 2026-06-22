@@ -4,7 +4,7 @@ import { Position, Range } from 'vscode';
 import { Flag, FlagMatch } from './completion_utils';
 import { propertiesIn } from './misc';
 import {
-    IdentifierBounds,
+    Boundary,
     isLetter,
     isLowerLetter,
     isUpperLetter,
@@ -33,6 +33,7 @@ import {
 export default class Tape {
     readonly raw: string;
     readonly isReversed: boolean;
+    private readonly boundary: Boundary;
     pos: number;
 
     /** The length of the remaining portion of the tape. */
@@ -40,10 +41,16 @@ export default class Tape {
         return Math.max(0, this.raw.length - this.pos);
     }
 
-    private constructor(raw: string, pos: number, isReversed: boolean) {
+    private constructor(
+        raw: string,
+        pos: number,
+        isReversed: boolean,
+        boundary: Boundary,
+    ) {
         this.raw = raw;
         this.pos = pos;
         this.isReversed = isReversed;
+        this.boundary = boundary;
     }
 
     [Symbol.iterator](): Iterator<string> {
@@ -60,8 +67,12 @@ export default class Tape {
     }
 
     /** Returns a new instance over the original string. */
-    static over(raw: string, pos = 0) {
-        return new Tape(raw, pos, false);
+    static over(
+        raw: string,
+        pos = 0,
+        boundary = Boundary.EXACT,
+    ) {
+        return new Tape(raw, pos, false, boundary);
     }
 
     /** Returns true if the given character is space or tab. */
@@ -88,12 +99,17 @@ export default class Tape {
 
     /** Returns a snapshot of this cursor. */
     clone(): Tape {
-        return new Tape(this.raw, this.pos, this.isReversed);
+        return new Tape(
+            this.raw,
+            this.pos,
+            this.isReversed,
+            this.boundary,
+        );
     }
 
     /** Returns a new instance over the remaining string, reversed. */
     reversed(): Tape {
-        return new Tape(reverse(this.rest()), 0, true);
+        return new Tape(reverse(this.rest()), 0, true, this.boundary);
     }
 
     /* ================================ Context-Free Retrieval ================================ */
@@ -128,7 +144,7 @@ export default class Tape {
     }
 
     /**
-     * Returns the current character, or `undefined` if `pos` is out of bounds.
+     * Returns the current character, or `undefined` if `pos` is out of this.identifierBounds.
      *
      * Not to be confused with `peek`, which returns the character *after* the current position.
      */
@@ -151,7 +167,7 @@ export default class Tape {
     }
 
     /**
-     * Returns the character at `pos + 1`, or `undefined` if that position is out of bounds.
+     * Returns the character at `pos + 1`, or `undefined` if that position is out of this.identifierBounds.
      *
      * Not to be confused with `cur`, which returns the character at the current position.
      */
@@ -159,7 +175,7 @@ export default class Tape {
         return this.raw[this.pos + 1];
     }
 
-    /** Returns the character at `pos - 1`, or `undefined` if that position is out of bounds. */
+    /** Returns the character at `pos - 1`, or `undefined` if that position is out of this.identifierBounds. */
     peekBack(): string | undefined {
         return this.raw[this.pos - 1];
     }
@@ -455,15 +471,20 @@ export default class Tape {
     /**
      * Advances `pos` to where `query` is found as a whole word.
      *
+     * Assumes this tape is not reversed, or returns `false`.
+     *
      * @return `true` if found and `pos` is left pointing at the match,
      * or `false` and `pos` is restored to its original value.
      */
-    seekAtIdentifier(query: string, validator: IdentifierBounds): boolean {
+    seekAtIdentifier(query: string): boolean {
+        if (this.isReversed) {
+            return false;
+        }
         const start = this.pos;
         if (!this.seekAt(query)) {
             return false;
         }
-        if (this._isAtIdentifier(query, validator, this.pos)) {
+        if (this._isAtIdentifier(query, this.pos)) {
             return true;
         }
         this.pos = start;
@@ -482,22 +503,18 @@ export default class Tape {
 
     /**
      * Returns true if this substring starting at the given position
-     * starts with `query`. For any letters at the beginning or end of the query,
-     * returns false if the adjacent character, if any, is not an identifier boundary.
+     * starts with `query`.
+     *
+     * Assumes this tape is not reversed, or returns `false`.
+     *
+     * @returns For any character at the beginning or end of the query:
+     * `false` if the adjacent character, if any, is not an identifier boundary.
      */
-    isAtIdentifier(query: string, validator: IdentifierBounds): boolean {
-        return this._isAtIdentifier(
-            query,
-            validator,
-            this.raw.indexOf(query, this.pos),
-        );
+    isAtIdentifier(query: string): boolean {
+        return this._isAtIdentifier(query, this.raw.indexOf(query, this.pos));
     }
 
-    private _isAtIdentifier(
-        query: string,
-        validator: IdentifierBounds,
-        idx: number,
-    ): boolean {
+    private _isAtIdentifier(query: string, idx: number): boolean {
         if (!query) {
             return true;
         }
@@ -507,7 +524,10 @@ export default class Tape {
         if (isLetter(this.raw[idx])) {
             // check boundary before match
             const prevIdx = idx - 1;
-            if (prevIdx >= 0 && validator.isStart(this.raw[prevIdx])) {
+            if (
+                prevIdx >= 0 &&
+                this.boundary.isStart(this.raw[prevIdx])
+            ) {
                 return false;
             }
         }
@@ -516,7 +536,7 @@ export default class Tape {
             const nextIdx = idx + query.length;
             if (
                 nextIdx < this.raw.length &&
-                validator.isPart(this.raw[nextIdx])
+                this.boundary.isPart(this.raw[nextIdx])
             ) {
                 return false;
             }

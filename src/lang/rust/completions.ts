@@ -12,7 +12,7 @@ import {
     isLetter,
     toMarkdown as md,
 } from '../../text_utils';
-import { consumeRustTarget } from './language';
+import lang, { consumeRustTarget } from './language';
 import { RustScopeKind } from './resolver';
 
 // optimizing docs should add proper punctation, capitalization
@@ -286,8 +286,7 @@ const rust = CompletionRegistry.newInstance<RustScopeKind>(
         trigger: '',
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
-            if (!tape.seekAtIdentifier('let');
-            
+            if (!tape.seekAtIdentifier('let'));
         },
     },
     {

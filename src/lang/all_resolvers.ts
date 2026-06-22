@@ -1,5 +1,5 @@
 import { ScopeResolver } from '../completion_utils';
-import rust from './rust/resolver';
+import scopeResolver from './rust/resolver';
 import typescript from './ts/resolver';
 
 /**
@@ -8,8 +8,8 @@ import typescript from './ts/resolver';
  * The key is the `langId`.
  */
 const scopeResolvers: Record<string, ScopeResolver<any>> = {
-    rust,
-    typescript,
+    rust: scopeResolver,
+    typescript: typescript,
 };
 
 export default scopeResolvers;

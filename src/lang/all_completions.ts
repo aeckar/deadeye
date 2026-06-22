@@ -1,4 +1,5 @@
-import { CompletionFamily } from '../completion_utils';
+import { CompletionRegistry } from '../completion_utils';
+import markdown from './md/completions';
 import rust from './rust/completions';
 import typescript from './ts/completions';
 
@@ -7,9 +8,10 @@ import typescript from './ts/completions';
  *
  * The key is the `langId`.
  */
-const completionFamilies: Record<string, CompletionFamily<any>[]> = {
+const completionRegistries: Record<string, CompletionRegistry<any>> = {
     rust,
     typescript,
+    markdown,
 };
 
-export default completionFamilies;
+export default completionRegistries;

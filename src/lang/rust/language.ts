@@ -1,6 +1,11 @@
 import { Language } from '../../language_utils';
 import Tape from '../../tape';
-import { getCloseBracket, getOpenBracket } from '../../text_utils';
+import {
+    Boundary,
+    CharacterClass,
+    getCloseBracket,
+    getOpenBracket,
+} from '../../text_utils';
 
 const STOP = '=,{};';
 const SIGIL = '&*!+-';
@@ -154,6 +159,10 @@ export function consumeRustTarget(tape: Tape): string {
 }
 
 export const rust = Language.newInstance({
+    boundary: new Boundary(
+        CharacterClass.ALPHA + '_',
+        CharacterClass.ALPHA + CharacterClass.DIGIT + '_#', // `#` for raw identifiers
+    ),
     keywords: [
         // === Strict Keywords ===
         'as',
@@ -221,17 +230,16 @@ export const rust = Language.newInstance({
         QMARK: '?',
         RANGE_INCL: '..=',
         RANGE: '..',
-        STRING: /"[\s\S]*?"/y,
-        BYTE_STRING: /b"[\s\S]*?"/y,
-        BYTE_CHAR: /b'\\?.'/y,
-        FLOAT: new RegExp(
-            `[0-9_]+(?:\.[0-9_]+(?:[eE][-+]?[0-9_]+)?)?(?:f(?:32|64|128))?`,
-            'y',
-        ),
-        INTEGER: new RegExp(
-            `(?:[0-9_]+|0b[01_]+|0o[0-7_]+|0x[0-9a-fA-F_]+)(?:[iu](?:8|16|32|64|128))?`,
-            'y',
-        ),
+        FLOAT: /[0-9_]+\.[0-9_]+(?:[eE][-+]?[0-9_]+)?(?:f(?:16|32|64|128))?|[0-9_]+[eE][-+]?[0-9_]+(?:f(?:16|32|64|128))?/y,
+
+        // Patterns safely bypass escaped interior quotes, \" and \'
+        STRING: /"(?:[^"\\]|\\.)*"/y,
+        BYTE_STRING: /b"(?:[^"\\]|\\.)*"/y,
+        BYTE_CHAR: /b'(?:[^'\\]|\\.)'/y,
+
+        // Hex/Binary/Octal checked BEFORE base-10 to prevent early '0' cutoff
+        INTEGER:
+            /(?:0x[0-9a-fA-F_]+|0b[01_]+|0o[0-7_]+|[0-9_]+)(?:[iu](?:8|16|32|64|128))?/y,
     },
     inherit: [
         Language.BRACKETS,
