@@ -6,6 +6,7 @@ import { MarkdownString, Position, Range, TextEditor, window } from 'vscode';
 import { rangeBefore } from './misc';
 import Tape from './tape';
 import { Boundary, Brackets, toMarkdown as md, reverse } from './text_utils';
+import { ScopedCompletionContext, ScopeTree, ScopeResolver } from './scope_resolver_utils';
 
 // ==================================== Utilities + Constants ====================================
 
@@ -70,31 +71,7 @@ export type FlagMatch = {
  * An empty string means there is no set trigger key,
  * and the completion will fire as soon as it is matched.
  */
-export type Trigger = '' | ' ' | ';' | 'enter';
-
-/**
- * A possible configuration of nested scopes.
- *
- * Scope kinds may be prefixed by `...` to indicate any sequence of scopes leading to that one.
- *
- * Nested scopes are not required to be adjacent; they must simply be present in the same order.
- * If not provided as an argument, the completion is matched in all scopes.
- * Passing an empty array is considered to be the top-level scope.
- */
-export type ScopeTree<ScopeKind extends string> = (
-    | ScopeKind
-    | `...${ScopeKind}`
-)[];
-
-/**
- * Returns `scoping`, or an empty array if not supplied
- * to signify that the competion can match in any scope.
- */
-export function orDefaultScoping<ScopeKind extends string>(
-    scoping?: ScopeTree<ScopeKind>[],
-): ScopeTree<ScopeKind>[] {
-    return scoping ?? [];
-}
+export type Trigger = '' | ' ' | ';' | '.' | 'enter';
 
 // ==================================== Registry API + Builder ====================================
 
@@ -133,12 +110,11 @@ export namespace CompletionRegistry {
 export function substitute<ScopeKind extends string>(
     target: string,
     replacement: string,
-    summary: string,
 ): CompletionFamilyCtorArgs<ScopeKind> {
     const length = target.length;
     return {
         docs: md`
-        ${summary}
+        Expands the text.
         
         \`${target}\` → \`${replacement}\`
         `,
@@ -509,82 +485,3 @@ export type CompletionStrategy = {
     /** The position of the cursor the instance this object was created. */
     readonly position: Position;
 };
-
-// ================================= Scope Resolver API + Builder =================================
-
-/**
- * Implemented by a top-level constant for each language,
- * which is then be passed as an entry to `scopeResolvers` (`lang/scope_resolvers.ts`).
- * This then provides scope resolution for a given `langId`.
- */
-export type ScopeResolver<ScopeKind extends string> = (
-    ctx: CompletionContext,
-) => Scope<ScopeKind>[];
-
-/** Represents a member in the scope tree at a particular position in a file. */
-export type Scope<ScopeKind extends string> = {
-    /** The type of scope, as defined in `lang/<langId>/scopes.ts`. */
-    readonly kind: ScopeKind;
-
-    /**
-     * The position of the first character of the scope marker
-     * (`if`, `fn`, `impl`, `mod`, etc.), which is primarily useful to hot completions
-     * that modify the scope signature.
-     */
-    readonly markerPos: Position;
-
-    /** The position of the opening bracket that denotes this scope. */
-    readonly openPos: Position;
-};
-
-/**
- * Contains the scope tree for the current cursor position.
- *
- * {@link Completion Completions} and completion prefixes are resolved
- * using instances of this class.
- *
- * @see CompletionContext
- */
-export class ScopedCompletionContext<
-    ScopeKind extends string,
-> extends CompletionContext {
-    readonly scopes: Scope<ScopeKind>[];
-
-    /** Users should create a {@link CompletionContext} first, then call {@link toScoped}. */
-    private constructor(
-        keyIn: string,
-        cursor: Position,
-        editor: TextEditor,
-        boundary: Boundary,
-        scopes: Scope<ScopeKind>[],
-    ) {
-        super(keyIn, cursor, editor, boundary);
-        this.scopes = scopes;
-    }
-
-    static withResolver<ScopeKind extends string>(
-        keyIn: string,
-        cursor: Position,
-        editor: TextEditor,
-        boundary: Boundary,
-        resolver: ScopeResolver<ScopeKind>,
-    ) {
-        return new ScopedCompletionContext(
-            keyIn,
-            cursor,
-            editor,
-            boundary,
-            resolver(new CompletionContext(keyIn, cursor, editor, boundary)),
-        );
-    }
-
-    clone(): ScopedCompletionContext<ScopeKind> {
-        return new ScopedCompletionContext(
-            this.keyIn,
-            this.cursor,
-            this.editor,
-            this.boundary,
-            this.scopes,
-        );
-    }
-}

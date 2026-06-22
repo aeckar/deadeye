@@ -1,5 +1,5 @@
-import { ScopeResolver } from '../completion_utils';
-import scopeResolver from './rust/resolver';
+import { ScopeResolver } from '../completion_registry_utils';
+import scopeResolver from './rust/scope_resolver';
 import typescript from './ts/resolver';
 
 /**

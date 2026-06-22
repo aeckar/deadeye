@@ -1,7 +1,7 @@
 //! Cursor data structure.
 import { Position, Range } from 'vscode';
 
-import { Flag, FlagMatch } from './completion_utils';
+import { Flag, FlagMatch } from './completion_registry_utils';
 import { propertiesIn } from './misc';
 import {
     Boundary,

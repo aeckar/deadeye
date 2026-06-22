@@ -1,5 +1,7 @@
-import { CompletionRegistry, substitute } from '../../completion_utils';
-import Tape from '../../tape';
+import {
+    CompletionRegistry,
+    substitute,
+} from '../../completion_registry_utils';
 import { isLowerLetter, toMarkdown as md } from '../../text_utils';
 
 // do not highlight hot shorthand - 1
@@ -34,8 +36,8 @@ Because every common Markdown construct is supported as a completion, it is advi
 // try double space/semi
 
 const markdown = CompletionRegistry.newInstance(
-    substitute('(c)', '©', 'Inserts a copyright symbol.'),
-    substitute('--', '——', 'Inserts an em dash.'),
+    substitute('(c)', '©'),
+    substitute('--', '——'),
     {
         // ` = U+1FEF
         docs: md`
@@ -63,19 +65,16 @@ const markdown = CompletionRegistry.newInstance(
         resolver(ctx) {
             const fwd = ctx.leftOfCursor();
             const rev = fwd.reversed();
-            const key = "biushcm";
-            
+            const key = 'biushcm';
+
             while (true) {
                 fwd.consume(ch => !isLowerLetter(ch));
                 fwd.consume(ch => key.includes(ch));
                 if (fwd.clone().dec().isRightClear()) {
-
                 }
             }
 
-            return {
-
-            };
+            return {};
         },
     },
 );

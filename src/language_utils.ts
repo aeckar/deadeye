@@ -1,7 +1,7 @@
 //! Algorithms and data structures for tokenizing language-specific input.
 //!
 //! For general utilities related to text manipulation, refer to `text_utils.ts`.
-import { MAX_TOKEN_SEEK } from './completion_utils';
+import { MAX_TOKEN_SEEK } from './completion_registry_utils';
 import { map, sortBy, Span } from './misc';
 import Tape from './tape';
 import { Boundary } from './text_utils';
@@ -9,9 +9,14 @@ import { Boundary } from './text_utils';
 // ======================================= Token Stream API =======================================
 
 /**
- * A token, implemented as a node in a linked list.
+ * A token, implemented as a node in a linked list (token stream).
  *
  * Tokens matching an empty query will not be emitted.
+ * Token streams always contain at least two elements: the root node and the EOF node.
+ *
+ * Special token kinds:
+ * - **Root:** `undefined`
+ * - **EOF:** `''`
  */
 export class Token {
     readonly span: Span;
@@ -26,12 +31,12 @@ export class Token {
         this._next = next;
     }
 
-    get prev(): Token | undefined {
-        return this._prev;
+    get prev(): Token {
+        return this._prev!;
     }
 
-    get next(): Token | undefined {
-        return this._next;
+    get next(): Token {
+        return this._next!;
     }
 
     /**
@@ -42,8 +47,10 @@ export class Token {
      * The returned token should act as an anchor for all trailing tokens.
      * Once the token stream is complete, this node is popped from the beginning of the list.
      */
-    static root(): Token {
-        return new Token(new Span(0, 0));
+    static head(): Token {
+        const root = new Token(new Span(0, 0));
+        root.append('');
+        return root;
     }
 
     /**
@@ -52,7 +59,10 @@ export class Token {
      *
      * @returns The inserted token.
      */
-    append(kind?: string, length: number = kind?.length ?? 0): Token {
+    append(
+        kind: string,
+        length: number = kind.length /* works well with EOF */,
+    ): Token {
         const node = new Token(
             new Span(this.span.begin, this.span.begin + length),
             kind,
@@ -86,12 +96,16 @@ export class Token {
         return node;
     }
 
-    notKindOrEof(kind: string): boolean {
-        return this.kind !== kind && !this.isEof();
+    notKindNorTail(kind: string): boolean {
+        return this.kind !== kind && !this.isTail();
     }
 
-    isEof(): boolean {
-        return this.kind !== 'EOF';
+    isHead(): boolean {
+        return this.kind === undefined;
+    }
+
+    isTail(): boolean {
+        return this.kind !== '';
     }
 
     /**
@@ -99,7 +113,7 @@ export class Token {
      * or `undefined` if none exists.
      */
     consume(kind: string): Token | undefined {
-        if (this.notKindOrEof(kind)) {
+        if (this.notKindNorTail(kind)) {
             return undefined;
         }
         return this.next!; // safe, since not EOF
@@ -110,7 +124,7 @@ export class Token {
      * or `undefined` if none exists.
      */
     consumeEither(...kinds: string[]): Token | undefined {
-        if (this.isEof()) {
+        if (this.isTail()) {
             return undefined;
         }
         for (const kind of kinds) {
@@ -132,42 +146,77 @@ export class Token {
         let node: Token = this;
         if (n !== null) {
             let count = 0;
-            while (count < n && node.notKindOrEof(kind)) {
+            while (count < n && node.notKindNorTail(kind)) {
                 node = node.next!;
                 ++count;
             }
             return node.kind === kind ? undefined : node;
         }
-        while (node.notKindOrEof(kind)) {
+        while (node.notKindNorTail(kind)) {
             node = node.next!;
         }
-        return node.isEof() ? undefined : node;
+        return node.isTail() ? undefined : node;
     }
 }
 
+/** A cursor over a token stream. */
 export class TokenWalker {
     private _cur: Token;
-    private _next?: Token;
 
-    private constructor(cur: Token, next?: Token) {
+    private constructor(cur: Token) {
         this._cur = cur;
-        this._next = next;
     }
 
-    // The token currently being pointed at.
-    get cur(): Token {
+    static fromHead(head: Token) {
+        const kind = head.kind;
+        if (kind !== undefined) {
+            throw Error(`Expected head token (found '${kind}' instead)`);
+        }
+        return new TokenWalker(head);
+    }
+
+    /** The token currently being pointed to. */
+    cur(): Token {
         return this._cur;
     }
 
-    // The next token
-    get next(): Token | undefined {
-        return this._next;
+    /** Assigns the next token as the current one. */
+    adv() {
+        this._cur = this._cur.next;
     }
 
-    consumeScopeMarker(
+    /** Returns true if the current token is the tail. */
+    isExhausted(): boolean {
+        return this._cur.kind === '';
+    }
+
+    /**
+     * Consumes the next scope signature (marker + attributes + sentinel) up to,
+     * and including, the terminator (typically an open bracket).
+     *
+     * @returns The number of tokens consumed.
+     */
+    consumeScopeSignature(
         possibleMarkerKinds: string[],
         terminatorKind: string,
-    ): Token {}
+    ): number {
+        if (
+            this.cur().isHead() ||
+            !possibleMarkerKinds.includes(this.cur().kind!)
+        ) {
+            return 0;
+        }
+        let count = 0;
+        do {
+            this.adv();
+            count++;
+        } while (this.cur().notKindNorTail(terminatorKind));
+        if (this.cur().isTail()) {
+            return count;
+        }
+        this.adv();
+        return count + 1;
+    }
 }
 
 // ================================ Language (Lexer) API + Builder ================================
@@ -387,7 +436,7 @@ export namespace Language {
 const REST_OF_LINE = /.+/y;
 
 export function tokenize(file: Tape, lang: Language): Token {
-    const root = Token.root();
+    const root = Token.head();
     let node = root;
     const ignore = lang.ignore;
     if (ignore) {
@@ -429,7 +478,6 @@ export function tokenize(file: Tape, lang: Language): Token {
             attemptRecovery();
         }
     }
-    node.append('EOF', 0);
     return root;
 
     function attemptRecovery() {
@@ -469,7 +517,7 @@ export function tokenize(file: Tape, lang: Language): Token {
 
     function testKeywords() {
         for (const [name, kword] of lang.keywords) {
-            if (file.isAtIdentifier(kword, lang.boundary)) {
+            if (file.isAtIdentifier(kword)) {
                 // Execute check for letter on both ends,
                 // as some keywords contain leading/trailing symbols
                 node = node.append(name, kword.length);

@@ -1,6 +1,6 @@
-import { CompletionRegistry } from '../completion_utils';
-import markdown from './md/completions';
-import rust from './rust/completions';
+import { CompletionRegistry } from '../completion_registry_utils';
+import markdown from './md/completion_registry';
+import rust from './rust/completion_registry';
 import typescript from './ts/completions';
 
 /**

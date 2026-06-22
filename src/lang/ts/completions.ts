@@ -1,4 +1,4 @@
-import { CompletionRegistry } from '../../completion_utils';
+import { CompletionRegistry } from '../../completion_registry_utils';
 import { rangeBefore } from '../../misc';
 import { toMarkdown as md } from '../../text_utils';
 import { TsScopeKind } from './resolver';

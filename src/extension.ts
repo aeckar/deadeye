@@ -201,9 +201,9 @@ import {
     Completion,
     CompletionStrategy,
     ScopedCompletionContext,
-} from './completion_utils';
-import completionRegistries from './lang/all_completions';
-import scopeResolvers from './lang/all_resolvers';
+} from './completion_registry_utils';
+import completionRegistries from './lang/completion_registries';
+import scopeResolvers from './lang/scope_resolvers';
 import { expandTabStops } from './text_utils';
 
 let strategy: CompletionStrategy | undefined;

@@ -1,5 +1,5 @@
-import { ScopeResolver } from '../../completion_utils';
-import { tokenize } from '../../language_utils';
+import { ScopeResolver } from '../../completion_registry_utils';
+import { tokenize, TokenWalker } from '../../language_utils';
 import { lang } from './language';
 
 /**
@@ -81,10 +81,16 @@ export type RustScopeKind =
 
 export const rust: ScopeResolver<RustScopeKind> = ctx => {
     const file = ctx.fileUpToCursor();
-    let scopes: RustScopeKind[] = [];
-    let node = tokenize(file, lang);
-    let next: Token | undefined;
-    while (!node.isEof()) {
+    let scopes = new ScopeTree();
+    const head = tokenize(file, lang);
+    const walker = TokenWalker.fromHead(head);
+    while (!walker.isExhausted()) {
+        //for overlapping scopes, check match for every token (possible marker)
+        const n = walker.consumeScopeSignature(
+            ['STRUCT', 'UNION'],
+            'OPEN_CURLY',
+        );
+
         next = node.consumeEither('STRUCT', 'UNION');
         if (next) {
             node = next;

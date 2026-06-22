@@ -3,7 +3,8 @@ import {
     Completion,
     CompletionRegistry,
     MAX_LINE_SEEK,
-} from '../../completion_utils';
+    substitute,
+} from '../../completion_registry_utils';
 import { after, rangeBefore } from '../../misc';
 import Tape from '../../tape';
 import {
@@ -13,7 +14,7 @@ import {
     toMarkdown as md,
 } from '../../text_utils';
 import { consumeRustTarget } from './language';
-import { RustScopeKind } from './resolver';
+import { RustScopeKind } from './scope_resolver';
 
 // optimizing docs should add proper punctation, capitalization
 // toggle mode for automatic tab-out by delimiter
@@ -279,18 +280,28 @@ grey squiggly when left of scope marker to show help
 //todo default to unsigned
 //todo `let next int as int be` --> `let next_int: u32 = `
 //todo autocorrect keywords according to context
+
+//todo vecof id one, id two, 
 const rust = CompletionRegistry.newInstance<RustScopeKind>(
     {
+        docs: md`equals asssignment`
+    }
+    {
+        //todo Realistically, you won't annotate a type on the next line. so limitation is okay
         docs: md`
 type annotation
         `,
         minLookbehind: 1,
-        trigger: ' ',
+        trigger: '',
         resolver(ctx) {
-            const tape = ctx.leftOfCursor().reversed();
-            if (!tape.isAt('si')) {
+            const fwd = ctx.leftOfCursor();
+            const rev = fwd.reversed();
+            if (!rev.consumeAt('si ')) {
                 return undefined;
             }
+            rev.consumeWs();
+            // l this var isstring 
+            rev.
         },
     },
     {
