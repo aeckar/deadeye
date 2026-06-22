@@ -18,13 +18,16 @@ import { IdentifierRule } from './text_utils';
  * - **Root:** `undefined`
  * - **EOF:** `''`
  */
-export class Token {
+export class Token extends Span {
     private constructor(
-        readonly span: Span,
+        begin: number,
+        end: number,
         readonly kind?: string,
         private _prev?: Token,
         private _next?: Token,
-    ) {}
+    ) {
+        super(begin, end);
+    }
 
     get prev(): Token {
         return this._prev!;
@@ -43,7 +46,7 @@ export class Token {
      * Once the token stream is complete, this node is popped from the beginning of the list.
      */
     static head(): Token {
-        const root = new Token(new Span(0, 0));
+        const root = new Token(0, 0);
         root.append('');
         return root;
     }
@@ -59,7 +62,8 @@ export class Token {
         length: number = kind.length /* works well with EOF */,
     ): Token {
         const node = new Token(
-            new Span(this.span.begin, this.span.begin + length),
+            this.begin,
+            this.begin + length,
             kind,
             this,
             this._next,
@@ -79,7 +83,8 @@ export class Token {
      */
     prepend(kind: string, length: number = kind.length): Token {
         const node = new Token(
-            new Span(this.span.begin - length, this.span.begin),
+            this.begin - length,
+            this.begin,
             kind,
             this._prev,
             this,

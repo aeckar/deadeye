@@ -123,16 +123,22 @@ export class ScopedCompletionContext<
 }
 
 export class IncompleteScope<ScopeKind extends string> {
+    private begin?: number;
+
     constructor(
         readonly kind: ScopeKind,
         readonly markerPos: number,
-        readonly begin: number,
-        readonly boundaryMarkers: BoundaryMarkers,
+        readonly boundaryMarkers: BoundaryMarkers[],
         readonly flatten: boolean,
     ) {}
 
-    finish(end: number): Scope<ScopeKind> {
-        return new Scope(this.kind, this.markerPos, this.begin, end);
+    open(begin: number): this {
+        this.begin = begin;
+        return this;
+    }
+
+    close(end: number): Scope<ScopeKind> {
+        return new Scope(this.kind, this.markerPos, this.begin!, end);
     }
 }
 
@@ -298,22 +304,9 @@ export class ScopeStream<ScopeKind extends string> {
         ) {
             return false;
         }
-        const begin = this._cur.span.begin;
-        while (true) {
-            this.adv();
-            for (const marker of boundaryMarkers) {
-                if (this._cur.prev.kind === marker.open) {
-                }
-            }
-        }
-        while (
-            boundaryMarkers.find(
-                e => e !== undefined && this.cur().isNotKindNorTail(e.open),
-            )
-        );
         this._cur = start.next;
         this.primed.push(
-            new IncompleteScope(scope, begin, boundaryMarkers, flatten),
+            new IncompleteScope(scope, start.begin, boundaryMarkers, flatten),
         );
         return true;
     }
@@ -321,37 +314,35 @@ export class ScopeStream<ScopeKind extends string> {
     /**
      * Opens the current scopes or closes the current scope (as well as any flattened scopes),
      * depending on the current token.
+     * 
+     * This function should be called at the end of every iteration
+     * of the scanner execution loop.
      */
     parseElse() {
-        const cur = this._cur;
-        if (cur.isHead()) {
+        const start = this._cur;
+        if (start.isHead()) {
             return;
         }
-        let matched = false;
         const { primed, open } = this;
         for (let idx = primed.length - 1; idx >= 0; idx--) {
-            const query = primed[idx];
-            if (cur.kind === query.boundaryMarkers.open) {
-                primed.pop();
+            const scope = primed[idx];
+            if (start.kind === scope.boundaryMarkers.open) {    //todo always open?
+                primed.pop()!;
                 while (primed.at(-1)!.flatten) {
-                    open.push(primed.pop()!);
+                    open.push(primed.pop()!.open(start.end));
                 }
-                open.push(query);
-                matched = true;
+                open.push(scope.open(start.end));
             }
         }
-        if (matched) {
-            return;
-        }
-        const scopeEnd = cur.span.end;
+        const scopeEnd = start.end;
         for (let idx = this.open.length - 1; idx >= 0; idx--) {
-            const query = open[idx];
-            if (cur.kind === query.boundaryMarkers.close) {
+            const scope = open[idx];
+            if (start.kind === scope.boundaryMarkers.close) {
                 open.pop();
                 while (open.at(-1)!.flatten) {
-                    this.scopeMap.push(open.pop()!.finish(scopeEnd));
+                    this.scopeMap.push(open.pop()!.close(scopeEnd));
                 }
-                this.scopeMap.push(query.finish(scopeEnd));
+                this.scopeMap.push(scope.close(scopeEnd));
             }
         }
     }
