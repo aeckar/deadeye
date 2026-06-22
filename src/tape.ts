@@ -67,11 +67,7 @@ export default class Tape {
     }
 
     /** Returns a new instance over the original string. */
-    static over(
-        raw: string,
-        pos = 0,
-        boundary = Boundary.EXACT,
-    ) {
+    static over(raw: string, pos = 0, boundary = Boundary.EXACT) {
         return new Tape(raw, pos, false, boundary);
     }
 
@@ -99,12 +95,7 @@ export default class Tape {
 
     /** Returns a snapshot of this cursor. */
     clone(): Tape {
-        return new Tape(
-            this.raw,
-            this.pos,
-            this.isReversed,
-            this.boundary,
-        );
+        return new Tape(this.raw, this.pos, this.isReversed, this.boundary);
     }
 
     /** Returns a new instance over the remaining string, reversed. */
@@ -144,7 +135,7 @@ export default class Tape {
     }
 
     /**
-     * Returns the current character, or `undefined` if `pos` is out of this.identifierBounds.
+     * Returns the current character, or `undefined` if `pos` is out of bounds.
      *
      * Not to be confused with `peek`, which returns the character *after* the current position.
      */
@@ -167,7 +158,7 @@ export default class Tape {
     }
 
     /**
-     * Returns the character at `pos + 1`, or `undefined` if that position is out of this.identifierBounds.
+     * Returns the character at `pos + 1`, or `undefined` if that position is out of bounds.
      *
      * Not to be confused with `cur`, which returns the character at the current position.
      */
@@ -175,7 +166,7 @@ export default class Tape {
         return this.raw[this.pos + 1];
     }
 
-    /** Returns the character at `pos - 1`, or `undefined` if that position is out of this.identifierBounds. */
+    /** Returns the character at `pos - 1`, or `undefined` if that position is out of bounds. */
     peekBack(): string | undefined {
         return this.raw[this.pos - 1];
     }
@@ -524,10 +515,7 @@ export default class Tape {
         if (isLetter(this.raw[idx])) {
             // check boundary before match
             const prevIdx = idx - 1;
-            if (
-                prevIdx >= 0 &&
-                this.boundary.isStart(this.raw[prevIdx])
-            ) {
+            if (prevIdx >= 0 && this.boundary.isStart(this.raw[prevIdx])) {
                 return false;
             }
         }

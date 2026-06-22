@@ -166,7 +166,7 @@ export type CompletionFamilyCtorArgs<ScopeKind extends string> = {
     docs: MarkdownString;
     minLookbehind: number;
     resolver: CompletionResolver<ScopeKind>;
-    trigger?: Trigger;
+    trigger: Trigger;
     scoping?: readonly ScopeTree<ScopeKind>[];
 };
 
@@ -216,12 +216,8 @@ export class CompletionFamily<ScopeKind extends string> {
         this.docs = args.docs;
         this.minLookbehind = args.minLookbehind;
         this.resolver = args.resolver;
-        this.trigger = CompletionFamily.orDefaultTrigger(args.trigger);
+        this.trigger = args.trigger;
         this.scoping = CompletionFamily.orDefaultScoping(args.scoping);
-    }
-
-    static orDefaultTrigger(trigger?: Trigger): Trigger {
-        return trigger ?? ' ';
     }
 
     static orDefaultScoping<ScopeKind extends string>(

@@ -27,7 +27,8 @@
 // string match is more perf than regex match of same string
 // place inner fn's at very end for readbility
 //todo lifetimes/labels, invalid/unclosed, shebang, raw str, raw id
-
+//todo make trigger always mandatory, keep triggers standard across extension installations
+//  for standardness
 // use 'begin' for boolean, 'start' for specific idx
 
 /*

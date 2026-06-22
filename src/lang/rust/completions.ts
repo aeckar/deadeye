@@ -12,7 +12,7 @@ import {
     isLetter,
     toMarkdown as md,
 } from '../../text_utils';
-import lang, { consumeRustTarget } from './language';
+import { consumeRustTarget } from './language';
 import { RustScopeKind } from './resolver';
 
 // optimizing docs should add proper punctation, capitalization
@@ -275,18 +275,37 @@ grey squiggly when left of scope marker to show help
 // todo convert all completionSingle's to families
 
 //todo api for conflict resolution (byte --> u8 | Byte ?)
-
+//todo `is` as : is okay because is_ should assume only ever exist at start of identifier
 //todo default to unsigned
 //todo `let next int as int be` --> `let next_int: u32 = `
 //todo autocorrect keywords according to context
 const rust = CompletionRegistry.newInstance<RustScopeKind>(
     {
-        docs: md``,
+        docs: md`
+type annotation
+        `,
+        minLookbehind: 1,
+        trigger: ' ',
+        resolver(ctx) {
+            const tape = ctx.leftOfCursor().reversed();
+            if (!tape.isAt('si')) {
+                return undefined;
+            }
+        },
+    },
+    {
+        docs: md`
+assignment
+        `,
         minLookbehind: 1,
         trigger: '',
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
-            if (!tape.seekAtIdentifier('let'));
+            if (!tape.seekAtIdentifier('let')) {
+                return undefined;
+            }
+            //let x is int be
+            tape.pos += 'let'.length;
         },
     },
     {
@@ -469,6 +488,7 @@ Insert \`if\` block, then move to conditional.
         `,
         minLookbehind: 'l'.length,
         scoping: [['fn']],
+        trigger: ' ',
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
@@ -515,6 +535,7 @@ Insert \`if\` block, then move to conditional.
             - \`if\` keyword not farther than \`${MAX_LINE_SEEK}\` lines away
         `,
         minLookbehind: 4,
+        trigger: ' ',
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
             const includeIf = tape.isAt('file');
@@ -564,6 +585,7 @@ Insert \`if\` block, then move to conditional.
         `,
         minLookbehind: 1,
         scoping: [[]],
+        trigger: ' ',
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
             const type = tape.consumeMatch({
@@ -617,6 +639,7 @@ Insert \`if\` block, then move to conditional.
         `,
         scoping: [['...fn']],
         minLookbehind: '.s'.length,
+        trigger: ' ',
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
             if (!tape.consumeAt('s')) {
@@ -669,6 +692,7 @@ Wrap as slice type.
         `,
         minLookbehind: 'x'.length,
         scoping: [[]],
+        trigger: ' ',
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             console.log(tape.raw);
@@ -696,6 +720,7 @@ Insert \`extern "\${1:C}" \`.
             - Surrounded by whitespace
         `,
         minLookbehind: 'at'.length,
+        trigger: ' ',
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
             if (
@@ -735,6 +760,7 @@ Insert \`#[$0]\`.
         `,
         minLookbehind: 'mustuse'.length,
         scoping: [[], ['...impl']],
+        trigger: ' ',
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
@@ -775,6 +801,7 @@ Insert \`#[must_use]\`.
         `,
         minLookbehind: 'il'.length,
         scoping: [[], ['...impl']],
+        trigger: ' ',
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
@@ -803,6 +830,7 @@ Insert \`#[inline]\`
         `,
         minLookbehind: 'p'.length,
         scoping: [['...fn']],
+        trigger: ' ',
         resolver(ctx) {
             const tape = ctx.leftOfCursor();
             tape.consumeWs();
@@ -839,6 +867,7 @@ Inserts \`println!("$0")\`.
             - Inside function parameter bounds \`(\` \`)\`
         `,
         minLookbehind: 'p'.length,
+        trigger: ' ',
         resolver(ctx) {
             const tape = ctx.leftOfCursor().reversed();
             if (!tape.consumeAt('p')) {
