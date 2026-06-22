@@ -4,9 +4,18 @@
 import { MarkdownString, Position, Range, TextEditor, window } from 'vscode';
 
 import { rangeBefore } from './misc';
+import {
+    ScopedCompletionContext,
+    ScopeResolver,
+    ScopeTree,
+} from './scope_resolver_utils';
 import Tape from './tape';
-import { Boundary, Brackets, toMarkdown as md, reverse } from './text_utils';
-import { ScopedCompletionContext, ScopeTree, ScopeResolver } from './scope_resolver_utils';
+import {
+    Brackets,
+    IdentifierRule,
+    toMarkdown as md,
+    reverse,
+} from './text_utils';
 
 // ==================================== Utilities + Constants ====================================
 
@@ -92,11 +101,11 @@ export namespace CompletionRegistry {
      * then stores each in a map, grouped by trigger.
      */
     export function newInstance<ScopeKind extends string>(
-        ...families: CompletionFamilyCtorArgs<ScopeKind>[]
+        ...families: CompletionFamilyCfg<ScopeKind>[]
     ): CompletionRegistry<ScopeKind> {
         const byTrigger = new Map() as CompletionRegistry<ScopeKind>;
-        for (const args of families) {
-            const family = new CompletionFamily(args);
+        for (const cfg of families) {
+            const family = CompletionFamily.newInstance(cfg);
             if (!byTrigger.has(family.trigger)) {
                 byTrigger.set(family.trigger, [family]);
             } else {
@@ -110,7 +119,7 @@ export namespace CompletionRegistry {
 export function substitute<ScopeKind extends string>(
     target: string,
     replacement: string,
-): CompletionFamilyCtorArgs<ScopeKind> {
+): CompletionFamilyCfg<ScopeKind> {
     const length = target.length;
     return {
         docs: md`
@@ -125,7 +134,7 @@ export function substitute<ScopeKind extends string>(
             if (!tape.isAt(reverse(target))) {
                 return undefined;
             }
-            return new Completion({
+            return Completion.newInstance({
                 preview: md`Insert \`${replacement}\`.`,
                 target: rangeBefore(ctx.cursor, length),
                 snippet: replacement.replaceAll('$', '\\$'),
@@ -138,7 +147,7 @@ export type CompletionResolver<ScopeKind extends string> = (
     ctx: ScopedCompletionContext<ScopeKind>,
 ) => Completion | undefined;
 
-export type CompletionFamilyCtorArgs<ScopeKind extends string> = {
+export type CompletionFamilyCfg<ScopeKind extends string> = {
     docs: MarkdownString;
     minLookbehind: number;
     resolver: CompletionResolver<ScopeKind>;
@@ -157,115 +166,119 @@ export type CompletionFamilyCtorArgs<ScopeKind extends string> = {
  * of language-level shorthands, which makes collisions almost guaranteed.
  */
 export class CompletionFamily<ScopeKind extends string> {
-    /**
-     * A short description in Markdown, generated dynamically
-     * to explain to user exactly what the shorthand does when triggered. This documentation appears
-     * next to the cursor shortly after the shorthand is detected but before it is triggered.
-     */
-    readonly docs: MarkdownString;
+    private constructor(
+        /**
+         * A short description in Markdown, generated dynamically
+         * to explain to user exactly what the shorthand does when triggered. This documentation appears
+         * next to the cursor shortly after the shorthand is detected but before it is triggered.
+         */
+        readonly docs: MarkdownString,
 
-    /**
-     * The minimum number of previous, consecutive character insertions
-     * for a match to this shorthand to be valid. This is an optimization, often the minimum number
-     * of characters for the base case. Can be assigned `NaN` so this shorthand is always checked.
-     */
-    readonly minLookbehind: number;
+        /**
+         * The minimum number of previous, consecutive character insertions
+         * for a match to this shorthand to be valid. This is an optimization, often the minimum number
+         * of characters for the base case. Can be assigned `NaN` so this shorthand is always checked.
+         */
+        readonly minLookbehind: number,
 
-    /**
-     * The key that triggers the completion.
-     *
-     * If empty, this completion fires instantly.
-     */
-    readonly trigger: Trigger;
+        /**
+         * The key that triggers the completion.
+         *
+         * If empty, this completion fires instantly.
+         */
+        readonly trigger: Trigger,
 
-    /**
-     * The possible scope trees required for this shorthand to match.
-     *
-     * If assigned an empty array, this shorthand matches in every scope.
-     */
-    readonly scoping: readonly ScopeTree<ScopeKind>[];
+        /**
+         * The possible scope trees required for this shorthand to match.
+         *
+         * If assigned an empty array, this shorthand matches in every scope.
+         */
+        readonly scoping: readonly ScopeTree<ScopeKind>[],
 
-    /** The logic used to match this shorthand to a dynamic, context-aware completion. */
-    readonly resolver: CompletionResolver<ScopeKind>;
+        /** The logic used to match this shorthand to a dynamic, context-aware completion. */
+        readonly resolver: CompletionResolver<ScopeKind>,
+    ) {}
 
-    constructor(args: CompletionFamilyCtorArgs<ScopeKind>) {
-        this.docs = args.docs;
-        this.minLookbehind = args.minLookbehind;
-        this.resolver = args.resolver;
-        this.trigger = args.trigger;
-        this.scoping = CompletionFamily.orDefaultScoping(args.scoping);
-    }
-
-    static orDefaultScoping<ScopeKind extends string>(
-        scoping?: readonly ScopeTree<ScopeKind>[],
-    ): readonly ScopeTree<ScopeKind>[] {
-        return scoping ?? ([] as const);
+    static newInstance<ScopeKind extends string>(
+        cfg: CompletionFamilyCfg<ScopeKind>,
+    ) {
+        return new CompletionFamily(
+            cfg.docs,
+            cfg.minLookbehind,
+            cfg.trigger,
+            cfg.scoping ?? ([] as const),
+            cfg.resolver,
+        );
     }
 }
 
-export type CompletionCtorArgs = {
+export type CompletionCfg = {
     preview: MarkdownString;
     target: Range;
     snippet: string;
     errors?: Range[];
+    warnings?: Range[];
     insertAt?: Position;
     endCursorPos?: Position;
 };
 
 /** The result of {@link CompletionFamily.resolver}. */
 export class Completion {
-    /**
-     * A short description of what the completion of the shorthand does.
-     *
-     * This is created after each match to describe **exactly** how the code is modified.
-     * This contrasts with {@link CompletionFamily.docs}, which is a general description of
-     * the shorthand or family of shorthands.
-     *
-     * This is through `expandTabStops` before rendering.
-     *
-     * This must be given for every completion, even if {@link CompletionFamily.trigger} is `null`,
-     * in case future APIs use expose this functionality to the user.
-     */
-    readonly preview: MarkdownString;
+    private constructor(
+        /**
+         * A short description of what the completion of the shorthand does.
+         *
+         * This is created after each match to describe **exactly** how the code is modified.
+         * This contrasts with {@link CompletionFamily.docs}, which is a general description of
+         * the shorthand or family of shorthands.
+         *
+         * This is through `expandTabStops` before rendering.
+         *
+         * This must be given for every completion, even if {@link CompletionFamily.trigger} is `null`,
+         * in case future APIs use expose this functionality to the user.
+         */
+        readonly preview: MarkdownString,
 
-    /** The location of the actual shorthand, which is replaced. */
-    readonly target: Range;
+        /** The location of the actual shorthand, which is replaced. */
+        readonly target: Range,
 
-    /** The snippet that replaces the {@link target}. */
-    readonly snippet: string;
+        /** The snippet that replaces the {@link target}. */
+        readonly snippet: string,
 
-    /**
-     * The ranges in the source file within `target` that represent tokens
-     * in the shorthand that would be replaced with illegal language constructs if triggered.
-     *
-     * If the trigger is pressed, the completion will fire according to the
-     * all parts of the shorthand that are not highlighted as errors, as
-     * enforced by the completion resolver.
-     */
-    readonly errors?: Range[];
+        /**
+         * The ranges in the source file within `target` that represent tokens
+         * in the shorthand that would be replaced with illegal language constructs if triggered.
+         *
+         * If the trigger is pressed, the completion will fire according to the
+         * all parts of the shorthand that are not highlighted as errors, as
+         * enforced by the completion resolver.
+         */
+        readonly errors?: Range[],
 
-    /**
-     * The ranges in the source file within `target`
-     * that represent unoptimal tokens in the shorthand.
-     *
-     * If the trigger is pressed, the completion will fire according to the
-     * all parts of the shorthand that are not highlighted as errors, as
-     * enforced by the completion resolver.
-     */
-    readonly warnings?: Range[];
+        /**
+         * The ranges in the source file within `target`
+         * that represent unoptimal tokens in the shorthand.
+         *
+         * If the trigger is pressed, the completion will fire according to the
+         * all parts of the shorthand that are not highlighted as errors, as
+         * enforced by the completion resolver.
+         */
+        readonly warnings?: Range[],
 
-    /**
-     * If defined, is the position of the snippet to be inserted. Otherwise,
-     * the snippet is inserted at the position of the cursor after the target is deleted.
-     */
-    readonly insertAt?: Position;
+        /**
+         * If defined, is the position of the snippet to be inserted. Otherwise,
+         * the snippet is inserted at the position of the cursor after the target is deleted.
+         */
+        readonly insertAt?: Position,
 
-    /** The final position of the cursor after the snippet has been inserted. */
-    readonly endCursorPos?: Position;
+        /** The final position of the cursor after the snippet has been inserted. */
+        readonly endCursorPos?: Position,
+    ) {}
 
-    constructor(args: CompletionCtorArgs) {
-        if (args.errors) {
-            const invalid = args.errors.filter(e => !args.target.contains(e));
+    static newInstance(cfg: CompletionCfg) {
+        let errors: Range[] | undefined;
+        if (cfg.errors) {
+            const invalid = cfg.errors.filter(e => !cfg.target.contains(e));
             if (invalid.length > 0) {
                 const strings = invalid
                     .map(e => {
@@ -278,16 +291,20 @@ export class Completion {
                 window.showWarningMessage(
                     `Deadeye: Error range(s) outside of target: ${strings}`,
                 );
-                this.errors = args.errors.filter(e => args.target.contains(e));
+                errors = cfg.errors.filter(e => cfg.target.contains(e));
             } else {
-                this.errors = args.errors;
+                errors = cfg.errors;
             }
         }
-        this.preview = args.preview;
-        this.target = args.target;
-        this.snippet = args.snippet;
-        this.insertAt = args.insertAt;
-        this.endCursorPos = args.endCursorPos;
+        return new Completion(
+            cfg.preview,
+            cfg.target,
+            cfg.snippet,
+            errors,
+            undefined, //todo warnings
+            cfg.insertAt,
+            cfg.endCursorPos,
+        );
     }
 }
 
@@ -300,26 +317,18 @@ export class Completion {
  */
 export class CompletionContext {
     readonly line: Tape;
-    readonly cursor: Position;
-    readonly editor: TextEditor;
-    protected readonly keyIn: string;
-    protected readonly boundary: Boundary;
 
     constructor(
-        keyIn: string,
-        cursor: Position,
-        editor: TextEditor,
-        boundary: Boundary,
+        protected readonly keyIn: string,
+        readonly cursor: Position,
+        readonly editor: TextEditor,
+        protected readonly identifiers: IdentifierRule,
     ) {
         this.line = Tape.over(
             editor.document.lineAt(cursor.line).text + keyIn,
             undefined,
-            boundary,
+            identifiers,
         );
-        this.cursor = cursor;
-        this.editor = editor;
-        this.keyIn = keyIn;
-        this.boundary = boundary;
     }
 
     toScoped<ScopeKind extends string>(resolver: ScopeResolver<ScopeKind>) {
@@ -327,7 +336,7 @@ export class CompletionContext {
             this.keyIn,
             this.cursor,
             this.editor,
-            this.boundary,
+            this.identifiers,
             resolver,
         );
     }
@@ -342,12 +351,12 @@ export class CompletionContext {
         return this.line.after(this.cursor);
     }
 
-    seekOpener(brackets: Brackets): Position | undefined {
-        return this.seekOpenerRecursive(brackets, this.cursor, true);
+    seekOpenBracket(brackets: Brackets): Position | undefined {
+        return this._seekOpenBracket(brackets, this.cursor, true);
     }
 
-    seekCloser(brackets: Brackets): Position | undefined {
-        return this.seekCloserRecursive(brackets, this.cursor, true);
+    seekCloseBracket(brackets: Brackets): Position | undefined {
+        return this._seekCloseBracket(brackets, this.cursor, true);
     }
 
     fileUpToCursor(): Tape {
@@ -369,7 +378,7 @@ export class CompletionContext {
         '<': '({[',
     };
 
-    private seekOpenerRecursive(
+    private _seekOpenBracket(
         brackets: Brackets,
         start: Position,
         recur: boolean,
@@ -391,7 +400,7 @@ export class CompletionContext {
                         return undefined;
                     }
                     if (CompletionContext.OTHER_BRACKETS[closed].includes(ch)) {
-                        const openPos = this.seekOpenerRecursive(
+                        const openPos = this._seekOpenBracket(
                             (ch === ')'
                                 ? '('
                                 : String.fromCharCode(
@@ -420,7 +429,7 @@ export class CompletionContext {
         return undefined;
     }
 
-    private seekCloserRecursive(
+    private _seekCloseBracket(
         brackets: Brackets,
         start: Position,
         recur: boolean,
@@ -447,7 +456,7 @@ export class CompletionContext {
                         return undefined;
                     }
                     if (CompletionContext.OTHER_BRACKETS[open].includes(ch)) {
-                        const closedPos = this.seekCloserRecursive(
+                        const closedPos = this._seekCloseBracket(
                             (ch === ')'
                                 ? '('
                                 : String.fromCharCode(

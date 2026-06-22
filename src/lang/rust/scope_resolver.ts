@@ -1,4 +1,5 @@
 import { tokenize } from '../../language_utils';
+import { BoundaryMarkers } from '../../misc';
 import { ScopeResolver, ScopeStream } from '../../scope_resolver_utils';
 import { rust as lang } from './language';
 
@@ -79,24 +80,34 @@ export type RustScopeKind =
     | 'struct-init' // $id {
     | '';
 
-//for overlapping scopes, check match for every token (possible marker)
+const CURLY = new BoundaryMarkers('OPEN_CURLY', 'CLOSE_CURLY');
+const ROUND = new BoundaryMarkers('OPEN_PAREN', 'CLOSE_PAREN');
+const SQUARE = new BoundaryMarkers('OPEN_BRAC', 'CLOSE_BRAC');
+
 export const rust: ScopeResolver<RustScopeKind> = ctx => {
     const file = ctx.fileUpToCursor();
-    const stream = new ScopeStream(tokenize(file, lang));
+    const stream = new ScopeStream<RustScopeKind>(tokenize(file, lang));
     while (!stream.isExhausted()) {
-        let matched = stream.consumeSignature(
-            'struct',
-            ['STRUCT', 'UNION'],
-            'OPEN_CURLY',
-        );
+        let matched = false;
+        matched = stream.parseScope({ scope: 'const', boundaryMarkers: CURLY });
+        matched = stream.parseScope({
+            scope: 'fn-params',
+            boundaryMarkers: ROUND,
+            outerScopeMarker: 'fn',
+        });
+        matched = stream.parseScope({
+            scope: 'struct',
+            boundaryMarkers: CURLY,
+            scopeMarkers: ['STRUCT', 'UNION'],
+        });
         if (matched) {
             continue;
         }
-        matched = stream.consumeSignature('fn', ['FN']); //...
+        matched = stream.parseScope({ scope: 'fn', boundaryMarkers: CURLY }); //...
         if (matched) {
             continue;
         }
-        return [];
+        stream.parseElse();
     }
 };
 

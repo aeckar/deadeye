@@ -3,9 +3,8 @@
 //! For general utilities related to text manipulation, refer to `text_utils.ts`.
 import { MAX_TOKEN_SEEK } from './completion_registry_utils';
 import { map, sortBy, Span } from './misc';
-import { FileScopeMap, ScopedSpan } from './scope_resolver_utils';
 import Tape from './tape';
-import { Boundary } from './text_utils';
+import { IdentifierRule } from './text_utils';
 
 // ======================================= Token Stream API =======================================
 
@@ -20,17 +19,12 @@ import { Boundary } from './text_utils';
  * - **EOF:** `''`
  */
 export class Token {
-    readonly span: Span;
-    readonly kind?: string;
-    private _prev?: Token;
-    private _next?: Token;
-
-    private constructor(span: Span, kind?: string, prev?: Token, next?: Token) {
-        this.kind = kind;
-        this.span = span;
-        this._prev = prev;
-        this._next = next;
-    }
+    private constructor(
+        readonly span: Span,
+        readonly kind?: string,
+        private _prev?: Token,
+        private _next?: Token,
+    ) {}
 
     get prev(): Token {
         return this._prev!;
@@ -97,7 +91,7 @@ export class Token {
         return node;
     }
 
-    notKindNorTail(kind: string): boolean {
+    isNotKindNorTail(kind: string): boolean {
         return this.kind !== kind && !this.isTail();
     }
 
@@ -114,7 +108,7 @@ export class Token {
      * or `undefined` if none exists.
      */
     consume(kind: string): Token | undefined {
-        if (this.notKindNorTail(kind)) {
+        if (this.isNotKindNorTail(kind)) {
             return undefined;
         }
         return this.next!; // safe, since not EOF
@@ -147,13 +141,13 @@ export class Token {
         let node: Token = this;
         if (n !== null) {
             let count = 0;
-            while (count < n && node.notKindNorTail(kind)) {
+            while (count < n && node.isNotKindNorTail(kind)) {
                 node = node.next!;
                 ++count;
             }
             return node.kind === kind ? undefined : node;
         }
-        while (node.notKindNorTail(kind)) {
+        while (node.isNotKindNorTail(kind)) {
             node = node.next!;
         }
         return node.isTail() ? undefined : node;
@@ -162,12 +156,12 @@ export class Token {
 
 // ================================ Language (Lexer) API + Builder ================================
 
-export type LanguageFactoryArgs = {
+export type LanguageCfg = {
     declare: { [K in string]: string | RegExp };
     keywords?: readonly string[];
     inherit?: Language[];
     ignore?: RegExp;
-    boundary?: Boundary;
+    identifiers?: IdentifierRule;
 };
 
 /** Specifies a vocabulary of tokens that can be used to tokenize a source file. */
@@ -195,20 +189,20 @@ export class Language {
      *
      * Defaults to `IdentifierBounds.EXACT`.
      */
-    boundary: Boundary;
+    identifiers: IdentifierRule;
 
     private constructor(
         keywords: readonly string[],
         strings: Map<string, string>,
         patterns: Map<string, RegExp>,
         ignore?: RegExp,
-        boundary?: Boundary,
+        identifiers?: IdentifierRule,
     ) {
         this.keywords = new Map(keywords.map(e => [e.toUpperCase(), e]));
         this.strings = strings;
         this.patterns = patterns;
         this.ignore = ignore;
-        this.boundary = boundary ?? Boundary.EXACT;
+        this.identifiers = identifiers ?? IdentifierRule.STRICT;
     }
 
     /**
@@ -232,11 +226,11 @@ export class Language {
      *
      * `declare` combines both string and pattern tokens to discourage clashing token names.
      */
-    static newInstance(args: LanguageFactoryArgs): Language {
-        const keywords = [...(args.keywords ?? [])];
+    static newInstance(cfg: LanguageCfg): Language {
+        const keywords = [...(cfg.keywords ?? [])];
         const strings: Record<string, string> = {};
         const patterns: Record<string, RegExp> = {};
-        for (const parent of args.inherit ?? []) {
+        for (const parent of cfg.inherit ?? []) {
             for (const [name, query] of parent.strings.entries()) {
                 strings[name] = query;
             }
@@ -247,11 +241,11 @@ export class Language {
                 keywords.push(kword);
             }
         }
-        for (const name in args.declare) {
-            if (typeof args.declare[name] === 'string') {
-                strings[name] = args.declare[name];
+        for (const name in cfg.declare) {
+            if (typeof cfg.declare[name] === 'string') {
+                strings[name] = cfg.declare[name];
             } else {
-                patterns[name] = args.declare[name];
+                patterns[name] = cfg.declare[name];
             }
         }
         return new Language(
@@ -261,8 +255,8 @@ export class Language {
                 sortBy(prop => prop.value.length),
             ),
             map(patterns),
-            args.ignore,
-            args.boundary,
+            cfg.ignore,
+            cfg.identifiers,
         );
     }
 }
@@ -275,8 +269,8 @@ export class Language {
 export namespace Language {
     export const BRACKETS = Language.newInstance({
         declare: {
-            OPEN_PAR: '(',
-            CLOSE_PAR: ')',
+            OPEN_PAREN: '(',
+            CLOSE_PAREN: ')',
             OPEN_BRAC: '[',
             CLOSE_BRAC: ']',
             OPEN_CURLY: '{',

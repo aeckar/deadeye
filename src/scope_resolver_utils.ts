@@ -1,8 +1,8 @@
 import { Position, TextEditor } from 'vscode';
 import { CompletionContext } from './completion_registry_utils';
 import { Token } from './language_utils';
+import { IdentifierRule } from './text_utils';
 import { Span } from './misc';
-import { Boundary } from './text_utils';
 
 /**
  * A possible configuration of nested scopes.
@@ -88,7 +88,7 @@ export class ScopedCompletionContext<
         keyIn: string,
         cursor: Position,
         editor: TextEditor,
-        boundary: Boundary,
+        boundary: IdentifierRule,
         scopes: Scope<ScopeKind>[],
     ) {
         super(keyIn, cursor, editor, boundary);
@@ -99,15 +99,15 @@ export class ScopedCompletionContext<
         keyIn: string,
         cursor: Position,
         editor: TextEditor,
-        boundary: Boundary,
+        identifiers: IdentifierRule,
         resolver: ScopeResolver<ScopeKind>,
     ) {
         return new ScopedCompletionContext(
             keyIn,
             cursor,
             editor,
-            boundary,
-            resolver(new CompletionContext(keyIn, cursor, editor, boundary)),
+            identifiers,
+            resolver(new CompletionContext(keyIn, cursor, editor, identifiers)),
         );
     }
 
@@ -116,44 +116,127 @@ export class ScopedCompletionContext<
             this.keyIn,
             this.cursor,
             this.editor,
-            this.boundary,
+            this.identifiers,
             this.scopes,
         );
     }
 }
 
-/** Denotes where a scope begins. */
-export class ScopeQuery<ScopeKind extends string> {
-    readonly kind: ScopeKind;
-    readonly begin: number;
-    readonly opener: ScopeKind;
-    readonly closer: ScopeKind;
-    readonly flatten: boolean;
-
+export class ScopeInstance<ScopeKind extends string> {
     constructor(
-        kind: ScopeKind,
-        begin: number,
-        opener: ScopeKind,
-        closer: ScopeKind,
-        flatten: boolean,
-    ) {
-        this.kind = kind;
-        this.begin = begin;
-        this.opener = opener;
-        this.closer = closer;
-        this.flatten = flatten;
-    }
+        readonly kind: ScopeKind,
+        readonly begin: number,
+        readonly boundaryMarkers: BoundaryMarkers,
+        readonly flatten: boolean,
+    ) {}
 
     close(end: number): ScopedSpan<ScopeKind> {
         return new ScopedSpan(this.kind, this.begin, end);
     }
 }
 
+/**
+ * The boundaries of a scope.
+ *
+ * - If `open` is the same token as the scope marker,
+ * the scope is opened immediately instead of being primed first.
+ * - If `open` is unassigned, this scope will be primed (recorded, but not active)
+ * until it is closed.
+ * - If both `open` and `close` are assigned, the scope is primed as soon as the marker is
+ * matched, is opened when `open` is matched, and closed when `close` is matched.
+ */
+export class BoundaryMarkers {
+    constructor(
+        readonly open: string | null,
+        readonly close: string,
+        readonly attribute: BoundaryAttribute,
+    ) {}
+
+    static of<ScopeKind extends string>(
+        scope: ScopeKind,
+        arg: Boundaries<ScopeKind>,
+    ): BoundaryMarkers[] {
+        const boundaryMarkers: BoundaryMarkers[] = [];
+        for (const boundary of arg) {
+            if (typeof boundary === 'string') {
+                boundaryMarkers.push(
+                    new BoundaryMarkers(scope.toUpperCase(), boundary, 'none'),
+                );
+                continue;
+            }
+            if (boundary instanceof AlwaysOpen) {
+                boundaryMarkers.push(
+                    new BoundaryMarkers(null, boundary.close, 'always-open'),
+                );
+                continue;
+            }
+            boundaryMarkers.push(
+                new BoundaryMarkers(
+                    null,
+                    (boundary as AlwaysPrimed).close,
+                    'always-primed',
+                ),
+            );
+        }
+        return boundaryMarkers;
+    }
+}
+
+export type BoundaryAttribute = 'always-open' | 'always-primed' | 'none';
+
+export class AlwaysOpen {
+    constructor(readonly close: string) {}
+}
+
+export class AlwaysPrimed {
+    constructor(readonly close: string) {}
+}
+
+/** Configuration form of {@link BoundaryMarkers}. */
+export type Boundaries<ScopeKind extends string> = (
+    | [ScopeKind, ScopeKind]
+    | AlwaysOpen
+    | AlwaysPrimed
+)[];
+
+export type ScopeQueryCfg<ScopeKind extends string> = {
+    scope: ScopeKind;
+    scopeMarkers?: string[];
+    boundaries: Boundaries<ScopeKind>;
+    flatten?: boolean;
+    outerScope?: ScopeKind;
+    outerScopeMarker?: ScopeKind;
+};
+
+export class ScopeQuery<ScopeKind extends string> {
+    private constructor(
+        readonly scope: ScopeKind,
+        readonly scopeMarkers: string[],
+        readonly boundaryMarkers: BoundaryMarkers[],
+        readonly flatten: boolean,
+        readonly outerScope?: ScopeKind,
+        readonly outerScopeMarker?: ScopeKind,
+    ) {}
+
+    static newInstance<ScopeKind extends string>(
+        cfg: ScopeQueryCfg<ScopeKind>,
+    ): ScopeQuery<ScopeKind> {
+        return new ScopeQuery(
+            cfg.scope,
+            cfg.scopeMarkers ?? [cfg.scope.toUpperCase()],
+            BoundaryMarkers.of(cfg.scope, cfg.boundaries),
+            cfg.flatten ?? false,
+            cfg.outerScope,
+            cfg.outerScopeMarker,
+        );
+    }
+}
+
 /** A cursor over a token stream to extract scope information. */
 export class ScopeStream<ScopeKind extends string> {
     readonly scopeMap: FileScopeMap<ScopeKind>;
-    readonly primed: ScopeQuery<ScopeKind>[];
-    private readonly open: ScopeQuery<ScopeKind>[];
+    readonly primed: ScopeInstance<ScopeKind>[];
+    private readonly open: ScopeInstance<ScopeKind>[];
 
     private _cur: Token;
 
@@ -179,37 +262,59 @@ export class ScopeStream<ScopeKind extends string> {
     }
 
     /**
-     * Consumes the next scope signature (marker + attributes + sentinel) up to,
+     * Parses the next scope signature (marker + attributes + sentinel) up to,
      * and including, the terminator (typically an open bracket).
      *
      * If the signature was matched, it is primed to be added to the underlying scope map.
      * Scopes that are flattened share the opener-closer pair of the next scope.
-     * As a result, they are primed and closed at the same time. Flattened scopes can be
-     * stacked.
+     * As a result, they are primed and closed at the same time.
+     * Multiple scopes can be flattened to the same opener-closer pair.
+     *
+     * If the match was successful, consumes the current token.
+     *
+     * For each entry in the `boundaries` array:
+     * - If opener is `n
      *
      * @returns `true` if the scope signature was matched.
      */
-    consumeSignature(
-        kind: ScopeKind,
-        possibleMarkerKinds: string[],
-        opener: ScopeKind,
-        closer: ScopeKind,
-        flatten: boolean = false,
-    ): boolean {
+    parseScope(query: ScopeQuery<ScopeKind>): boolean {
+        const {
+            scope,
+            scopeMarkers,
+            boundaryMarkers,
+            flatten,
+            outerScope,
+            outerScopeMarker,
+        } = query;
+        const start = this._cur;
+        const { primed, open } = this;
         if (
-            this._cur.isHead() ||
-            !possibleMarkerKinds.includes(this._cur.kind!)
+            start.isHead() ||
+            !scopeMarkers.includes(start.kind!) ||
+            (outerScopeMarker !== undefined &&
+                primed.at(-1)?.kind !== outerScopeMarker) ||
+            (outerScope !== undefined && open.at(-1)?.kind !== outerScope)
         ) {
             return false;
         }
         const begin = this._cur.span.begin;
-        do {
+        const stop = boun;
+        while (true) {
             this.adv();
-        } while (this.cur().notKindNorTail(opener));
-        if (!this._cur.isTail()) {
-            this.adv();
+            for (const marker of boundaryMarkers) {
+                if (this._cur.prev.kind === marker.open) {
+                }
+            }
         }
-        this.primed.push(new ScopeQuery(kind, begin, opener, closer, flatten));
+        while (
+            boundaryMarkers.find(
+                e => e !== undefined && this.cur().isNotKindNorTail(e.open),
+            )
+        );
+        this._cur = start.next;
+        this.primed.push(
+            new ScopeInstance(scope, begin, boundaryMarkers, flatten),
+        );
         return true;
     }
 
@@ -217,17 +322,16 @@ export class ScopeStream<ScopeKind extends string> {
      * Opens the current scopes or closes the current scope (as well as any flattened scopes),
      * depending on the current token.
      */
-    consumeElse() {
+    parseElse() {
         const cur = this._cur;
         if (cur.isHead()) {
             return;
         }
         let matched = false;
-        const primed = this.primed;
-        const open = this.open;
+        const { primed, open } = this;
         for (let idx = primed.length - 1; idx >= 0; idx--) {
             const query = primed[idx];
-            if (cur.kind === query.opener) {
+            if (cur.kind === query.boundaryMarkers.open) {
                 primed.pop();
                 while (primed.at(-1)!.flatten) {
                     open.push(primed.pop()!);
@@ -242,7 +346,7 @@ export class ScopeStream<ScopeKind extends string> {
         const scopeEnd = cur.span.end;
         for (let idx = this.open.length - 1; idx >= 0; idx--) {
             const query = open[idx];
-            if (cur.kind === query.closer) {
+            if (cur.kind === query.boundaryMarkers.close) {
                 open.pop();
                 while (open.at(-1)!.flatten) {
                     this.scopeMap.push(open.pop()!.close(scopeEnd));

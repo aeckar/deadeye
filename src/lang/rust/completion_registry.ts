@@ -553,12 +553,12 @@ Insert \`if\` block, then move to conditional.
             if (!includeIf && !tape.isAt('esle')) {
                 return undefined;
             }
-            const openPos = ctx.seekOpener('{}');
+            const openPos = ctx.seekOpenBracket('{}');
             const doc = ctx.editor.document;
             if (!openPos || findWord(doc.lineAt(openPos).text, 'if') === -1) {
                 return undefined;
             }
-            const closePos = ctx.seekCloser('{}');
+            const closePos = ctx.seekCloseBracket('{}');
             if (!closePos) {
                 return undefined;
             }

@@ -14,7 +14,7 @@
 //! or you are implementing a closure type
 // Use U+FF0F to escape `*/` in doc comment
 // all classes should have prop constructor (also make this a completion)
-
+//todo auto ' ' and ' ' (close) when wrapping text in {}
 //todo cascade token changes
 //todo universal indentation on (|) + [ENTER]
 //todo enforce no two tokens with same capture
@@ -44,7 +44,7 @@ Normally, a type with custom initialization logic should be declared as a class.
 // prefer classes to types if not making simple type alias/only used as simple parameter,not persistant
 //  make static functions for translation to arg->property types (`orDefaultX`)
 //  prefer `CtorArgs`/`FactoryArgs` to `Cfg`/`Config`, since -args classes lack persistance, more concise
-
+//      update 6/22: use cfg to specifically mean this
 //ts quirk: namespace after class/type, then continue docs with `# Namespace` header
 //ts quirk: restrict inheritance by restricting vis of ctors
 // ~~  --> ===...
@@ -85,6 +85,7 @@ Normally, a type with custom initialization logic should be declared as a class.
 // enter on empty item should not just undo prep, but also sep from sequence with newline
 //  (e.g. delete line then x2 newline)
 
+//ts: use null when optional param must be at start and explicitly assigned??
 //ALL LANGUAGES, COMMON CONSTRAINTS: (only thing is its hard to commonize this, since each completion
 // parses in different directions, uses different strategies)
 //  -only word in line
@@ -173,6 +174,10 @@ A raw scanner satisfies all four. The symbol tree satisfies none of them fully. 
 //FIX TREND map.not has[TAB] --> !map.has()  -- cancel completion on '('
 //FIX TREND inline extract to function
 
+//todo shouldnt invalid overlapping scopes (eg async + const) be checked?
+//  NO, rust-analyzer alr throws errors, so...
+//for overlapping scopes, check match for every token (possible marker)
+
 //todo space after function in js -- insert smart parentheses
 
 // todo create shared utils, shorthands for c-like languages/ts & js/js frameworks
@@ -198,13 +203,11 @@ import {
     window,
 } from 'vscode';
 
-import {
-    Completion,
-    CompletionStrategy,
-    ScopedCompletionContext,
-} from './completion_registry_utils';
+import { Completion, CompletionStrategy } from './completion_registry_utils';
 import completionRegistries from './lang/completion_registries';
+import languagesById from './lang/languages';
 import scopeResolvers from './lang/scope_resolvers';
+import { ScopedCompletionContext } from './scope_resolver_utils';
 import { expandTabStops } from './text_utils';
 
 let strategy: CompletionStrategy | undefined;
@@ -301,10 +304,10 @@ async function updateStrategy(keyIn: string, editor: TextEditor) {
         keyIn,
         cursor,
         editor,
-        languages[langId].boundary,
+        languagesById[langId].identifiers,
         scopeResolvers[langId],
     );
-    for (const family of completionRegistries[langId]) {
+    for (const [trigger, families] of completionRegistries[langId]) {
         const completion = family.resolver(ctx.clone()); // clone for fresh line buffer
         if (!completion) {
             continue;

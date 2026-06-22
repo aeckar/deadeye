@@ -23,14 +23,11 @@ export function reverse(s: string): string {
 }
 
 /** Contains the possible chars for the first and subsequent characters in an identifier. */
-export class Boundary {
-    possibleStart: string;
-    possiblePart: string;
-
-    constructor(possibleStart: string, possiblePart: string) {
-        this.possibleStart = possibleStart;
-        this.possiblePart = possiblePart;
-    }
+export class IdentifierRule {
+    constructor(
+        readonly possibleStart: string,
+        readonly possiblePart: string,
+    ) {}
 
     isStart(ch: string): boolean {
         return this.possibleStart.includes(ch);
@@ -41,9 +38,15 @@ export class Boundary {
     }
 }
 
-export namespace Boundary {
+export namespace IdentifierRule {
     // https://stackoverflow.com/a/3609335/14178487
-    export const EXACT = new Boundary('', '');
+    /** Ensures identifiers never occur next to any starting or partial characters. */
+    export const STRICT = new IdentifierRule('', '');
+
+    export const C_LIKE = new IdentifierRule(
+        CharacterClass.ALPHA + '_',
+        CharacterClass.ALPHA + CharacterClass.DIGIT + '_',
+    );
 }
 
 /* ==================================== Scannerless Parsing ==================================== */

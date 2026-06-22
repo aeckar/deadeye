@@ -1,10 +1,9 @@
 import { Language } from '../../language_utils';
 import Tape from '../../tape';
 import {
-    Boundary,
-    CharacterClass,
     getCloseBracket,
     getOpenBracket,
+    IdentifierRule,
 } from '../../text_utils';
 
 const STOP = '=,{};';
@@ -159,9 +158,9 @@ export function consumeRustTarget(tape: Tape): string {
 }
 
 export const rust = Language.newInstance({
-    boundary: new Boundary(
-        CharacterClass.ALPHA + '_',
-        CharacterClass.ALPHA + CharacterClass.DIGIT + '_#', // `#` for raw identifiers
+    identifiers: new IdentifierRule(
+        IdentifierRule.C_LIKE.possibleStart,
+        IdentifierRule.C_LIKE.possiblePart + '#', // `#` for raw identifiers
     ),
     keywords: [
         // === Strict Keywords ===

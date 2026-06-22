@@ -4,7 +4,7 @@ import { Position, Range } from 'vscode';
 import { Flag, FlagMatch } from './completion_registry_utils';
 import { propertiesIn } from './misc';
 import {
-    Boundary,
+    IdentifierRule,
     isLetter,
     isLowerLetter,
     isUpperLetter,
@@ -33,7 +33,7 @@ import {
 export default class Tape {
     readonly raw: string;
     readonly isReversed: boolean;
-    private readonly boundary: Boundary;
+    private readonly boundary: IdentifierRule;
     pos: number;
 
     /** The length of the remaining portion of the tape. */
@@ -45,7 +45,7 @@ export default class Tape {
         raw: string,
         pos: number,
         isReversed: boolean,
-        boundary: Boundary,
+        boundary: IdentifierRule,
     ) {
         this.raw = raw;
         this.pos = pos;
@@ -67,7 +67,7 @@ export default class Tape {
     }
 
     /** Returns a new instance over the original string. */
-    static over(raw: string, pos = 0, boundary = Boundary.EXACT) {
+    static over(raw: string, pos = 0, boundary = IdentifierRule.STRICT) {
         return new Tape(raw, pos, false, boundary);
     }
 
