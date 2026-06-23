@@ -47,18 +47,16 @@ export class Scope<ScopeKind extends string> extends Span {
 export class FileScopeMap<ScopeKind extends string> {
     private tree: Scope<ScopeKind>[] = [];
 
-    // push(kind: ScopeKind, length: number) {
-    //     if (this.tree.length === 0) {
-    //         this.tree.push(new ScopeSpan(kind, 0, length));
-    //         return;
-    //     }
-    //     const begin = this.tree.at(-1)!.end;
-    //     this.tree.push(new ScopeSpan(kind, begin, begin + length));
-    // }
-
+    /**
+     * Registers a scope.
+     *
+     * This method does not need to be called in any particular order.
+     */
     push(scope: Scope<ScopeKind>) {
         this.tree.push(scope);
     }
+
+    //todo sort then expose tree
 }
 
 /**
@@ -88,10 +86,10 @@ export class ScopedCompletionContext<
         keyIn: string,
         cursor: Position,
         editor: TextEditor,
-        boundary: IdentifierRule,
+        identifiers: IdentifierRule,
         scopes: Scope<ScopeKind>[],
     ) {
-        super(keyIn, cursor, editor, boundary);
+        super(keyIn, cursor, editor, identifiers);
         this.scopes = scopes;
     }
 
@@ -126,13 +124,13 @@ export class IncompleteScope<
     ScopeKind extends string,
 > implements IncompleteScope<ScopeKind> {
     private _begin?: number;
-    private _closeKinds?: TokenKind[];
+    private _expectedClose?: TokenKind[];
     private _isOpen: boolean = false;
 
     constructor(
         readonly kind: ScopeKind,
         readonly markerPos: number,
-        readonly boundaries: Boundaries[],
+        readonly possibleBoundaries: Boundaries[],
         readonly flatten: boolean,
     ) {}
 
@@ -140,17 +138,17 @@ export class IncompleteScope<
         return this._begin;
     }
 
-    get closeKind(): TokenKind[] | undefined {
-        return this._closeKinds;
+    get expectedClose(): TokenKind[] | undefined {
+        return this._expectedClose;
     }
 
     get isOpen(): boolean {
         return this._isOpen;
     }
 
-    open(begin: number, closeKinds: TokenKind[]) {
+    open(begin: number, expectedClose: TokenKind[]) {
         this._begin = begin;
-        this._closeKinds = closeKinds;
+        this._expectedClose = expectedClose;
         this._isOpen = true;
     }
 
@@ -189,7 +187,7 @@ export class Boundaries {
 export type ScopeQueryCfg<ScopeKind extends string> = {
     scopeKind: ScopeKind;
     markers?: string[];
-    boundaries: BoundariesCfg;
+    possibleBoundaries: BoundariesCfg;
     flatten?: boolean;
     startOpen?: boolean;
     outerOpenScope?: ScopeKind;
@@ -200,7 +198,7 @@ export class ScopeQuery<ScopeKind extends string> {
     private constructor(
         readonly scopeKind: ScopeKind,
         readonly markers: string[],
-        readonly boundaries: Boundaries[],
+        readonly possibleBoundaries: Boundaries[],
         readonly flatten: boolean,
         readonly startOpen: boolean,
         readonly outerOpenScope?: ScopeKind,
@@ -213,7 +211,7 @@ export class ScopeQuery<ScopeKind extends string> {
     static newInstance<ScopeKind extends string>(
         cfg: ScopeQueryCfg<ScopeKind>,
     ): ScopeQuery<ScopeKind> {
-        const boundaries = Boundaries.newInstance(cfg.boundaries);
+        const boundaries = Boundaries.newInstance(cfg.possibleBoundaries);
         return new ScopeQuery(
             cfg.scopeKind,
             cfg.markers ?? [cfg.scopeKind.toUpperCase()],
@@ -274,7 +272,7 @@ export class ScopeStream<ScopeKind extends string> {
         const {
             scopeKind,
             markers,
-            boundaries,
+            possibleBoundaries,
             flatten,
             outerOpenScope,
             outerPrimedScope,
@@ -299,7 +297,7 @@ export class ScopeStream<ScopeKind extends string> {
         const scope = new IncompleteScope(
             scopeKind,
             start.begin,
-            boundaries,
+            possibleBoundaries,
             flatten,
         );
         if (query.startOpen) {
@@ -310,7 +308,7 @@ export class ScopeStream<ScopeKind extends string> {
     }
 
     /**
-     * Opens the current scopes or closes the current scope (as well as any flattened scopes),
+     * Opens the current scope or closes the current scope (as well as any flattened scopes),
      * depending on the current token.
      *
      * This function should be called at the end of every iteration
@@ -318,38 +316,39 @@ export class ScopeStream<ScopeKind extends string> {
      */
     parseElse() {
         const start = this._cur;
-        if (start.isHead()) {
+        const { incomplete, complete } = this;
+        if (start.isHead() || incomplete.length === 0) {
+            // if `start.isHead()`, then `start.kind === undefined`
             return;
         }
-        const { incomplete } = this;
-        for (let idx = incomplete.length - 1; idx >= 0; idx--) {
-            const scope = incomplete[idx];
-            for (const boundaryMarkers of scope.boundaries) {
-                if (boundaryMarkers.attribute === 'always-open') {
-                    if (start.kind === boundaryMarkers.close) {
-                    }
+        const scope = incomplete.at(-1)!;
+        if (scope.isOpen) {
+            if (scope.expectedClose?.includes(start.kind!)) {
+                complete.push(incomplete.pop()!.close(start.begin));
+                while (incomplete.at(-1)?.flatten) {
+                    complete.push(incomplete.pop()!.close(start.begin));
                 }
             }
-            if (start.kind === scope.boundaries.open) {
-                //todo always open?
-                incomplete.pop()!;
-                while (incomplete.at(-1)!.flatten) {
-                    open.push(incomplete.pop()!.open(start.end));
-                }
-                open.push(scope.open(start.end));
-            }
+            return;
         }
-        const scopeEnd = start.end;
-        for (let idx = this.open.length - 1; idx >= 0; idx--) {
-            const scope = open[idx];
-            if (
-                scope.boundaryMarkers.find(({ close }) => start.kind === close)
-            ) {
-                open.pop();
-                while (open.at(-1)!.flatten) {
-                    this.complete.push(open.pop()!.close(scopeEnd));
+        for (const boundaries of scope.possibleBoundaries) {
+            if (start.kind === boundaries.open && !scope.isOpen) {
+                scope.open(start.end, [boundaries.open!]);
+                let idx = incomplete.length - 2;
+                while (idx >= 0 && incomplete[idx]?.flatten) {
+                    incomplete[idx].open(start.end, [boundaries.open!]);
                 }
-                this.complete.push(scope.close(scopeEnd));
+                return;
+            }
+            if (
+                start.kind === boundaries.close &&
+                (scope.isOpen || boundaries.open === undefined)
+            ) {
+                complete.push(incomplete.pop()!.close(start.begin));
+                while (incomplete.at(-1)?.flatten) {
+                    complete.push(incomplete.pop()!.close(start.begin));
+                }
+                return;
             }
         }
     }

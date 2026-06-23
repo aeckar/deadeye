@@ -91,16 +91,16 @@ export const rust: ScopeResolver<RustScopeKind> = ctx => {
         let matched = false;
         matched = stream.parseScope({
             scopeKind: 'const',
-            boundaries: CURLY,
+            possibleBoundaries: CURLY,
         });
         matched = stream.parseScope({
             scopeKind: 'fn-params',
-            boundaries: ROUND,
+            possibleBoundaries: ROUND,
             outerPrimedScope: 'fn',
         });
         matched = stream.parseScope({
             scopeKind: 'struct',
-            boundaries: CURLY,
+            possibleBoundaries: CURLY,
             markers: ['STRUCT', 'UNION'],
         });
         if (matched) {
@@ -108,7 +108,7 @@ export const rust: ScopeResolver<RustScopeKind> = ctx => {
         }
         matched = stream.parseScope({
             scopeKind: 'fn',
-            boundaries: CURLY,
+            possibleBoundaries: CURLY,
         }); //...
         if (matched) {
             continue;
