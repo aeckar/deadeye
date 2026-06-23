@@ -1,6 +1,6 @@
 //! Utilities generalizable to most other projects.
 import { Position, Range } from 'vscode';
-import { Scope } from './scope_resolver_utils';
+import { Scope } from './scope_registry_utils';
 
 /**
  * Compares two values.

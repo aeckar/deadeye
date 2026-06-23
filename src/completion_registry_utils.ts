@@ -8,7 +8,7 @@ import {
     ScopedCompletionContext,
     ScopeResolver,
     ScopeTree,
-} from './scope_resolver_utils';
+} from './scope_registry_utils';
 import Tape from './tape';
 import {
     Brackets,

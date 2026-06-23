@@ -202,7 +202,6 @@ export const rust = Language.newInstance({
         'use',
         'where',
         'while',
-        'macro_rules!',
 
         // === Reserved Keywords ===
         'abstract',
@@ -223,6 +222,7 @@ export const rust = Language.newInstance({
         'union', // must be followed by open brace
     ],
     declare: {
+        MACRO_RULES: 'macro_rules!',
         FAT_ARROW: '=>',
         THIN_ARROW: '->',
         PATH_SEP: '::',

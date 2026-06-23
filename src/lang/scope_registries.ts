@@ -1,6 +1,6 @@
 import { ScopeResolver } from '../completion_registry_utils';
-import scopeResolver from './rust/scope_resolver';
-import typescript from './ts/resolver';
+import scopeResolver from './rust/scope_registry';
+import typescript from './ts/scope_registry';
 
 /**
  * Contains scope resolver of every supported language.

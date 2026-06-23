@@ -160,7 +160,7 @@ export class IncompleteScope<
     }
 }
 
-export type BoundariesCfg = [TokenKind | undefined, TokenKind][];
+export type BoundariesCfg = [null, string][] | ([string, string] | string)[];
 
 /**
  * The boundaries of a scope.
@@ -170,6 +170,7 @@ export type BoundariesCfg = [TokenKind | undefined, TokenKind][];
  * - **`open !== undefined`:** `<scope-marker> ...primed... <open> ...open... <close>`
  */
 export class Boundaries {
+    // explicit passing of `undefined` allowable here, since it is also a declaration
     constructor(
         readonly open: TokenKind | undefined,
         readonly close: TokenKind,
@@ -177,30 +178,45 @@ export class Boundaries {
 
     static newInstance(cfg: BoundariesCfg): Boundaries[] {
         const boundaryMarkers: Boundaries[] = [];
-        for (const [open, close] of cfg) {
-            boundaryMarkers.push(new Boundaries(open, close));
+        for (const boundaries of cfg) {
+            if (typeof boundaries === 'string') {
+                boundaryMarkers.push(
+                    Boundaries.unchecked(
+                        'OPEN_' + boundaries,
+                        'CLOSE_' + boundaries,
+                    ),
+                );
+                continue;
+            }
+            const [open, close] = boundaries;
+            boundaryMarkers.push(Boundaries.unchecked(open, close));
         }
         return boundaryMarkers;
     }
+
+    static unchecked(open: string | null, close: string): Boundaries {
+        return new Boundaries(
+            (open ? open : undefined) as TokenKind,
+            close as TokenKind,
+        );
+    }
 }
 
-export type ScopeQueryCfg<ScopeKind extends string> = {
+export type ScopeSpecCfg<ScopeKind extends string> = {
     scopeKind: ScopeKind;
-    markers?: string[];
+    possibleMarkers?: string[];
     possibleBoundaries: BoundariesCfg;
     flatten?: boolean;
-    startOpen?: boolean;
     outerOpenScope?: ScopeKind;
     outerPrimedScope?: ScopeKind;
 };
 
-export class ScopeQuery<ScopeKind extends string> {
+export class ScopeSpec<ScopeKind extends string> {
     private constructor(
         readonly scopeKind: ScopeKind,
-        readonly markers: string[],
+        readonly possibleMarkers: string[],
         readonly possibleBoundaries: Boundaries[],
         readonly flatten: boolean,
-        readonly startOpen: boolean,
         readonly outerOpenScope?: ScopeKind,
         readonly outerPrimedScope?: ScopeKind,
 
@@ -209,18 +225,18 @@ export class ScopeQuery<ScopeKind extends string> {
     ) {}
 
     static newInstance<ScopeKind extends string>(
-        cfg: ScopeQueryCfg<ScopeKind>,
-    ): ScopeQuery<ScopeKind> {
+        cfg: ScopeSpecCfg<ScopeKind>,
+    ): ScopeSpec<ScopeKind> {
         const boundaries = Boundaries.newInstance(cfg.possibleBoundaries);
-        return new ScopeQuery(
+        const startOpen = boundaries.find(e => e.open === undefined);
+        return new ScopeSpec(
             cfg.scopeKind,
-            cfg.markers ?? [cfg.scopeKind.toUpperCase()],
+            cfg.possibleMarkers ?? [cfg.scopeKind.toUpperCase()],
             boundaries,
             cfg.flatten ?? false,
-            cfg.startOpen ?? false,
             cfg.outerOpenScope,
             cfg.outerPrimedScope,
-            cfg.startOpen ? boundaries.map(e => e.close) : undefined,
+            startOpen ? boundaries.map(e => e.close) : undefined,
         );
     }
 }
@@ -268,10 +284,10 @@ export class ScopeStream<ScopeKind extends string> {
      *
      * @returns `true` if the scope signature was matched.
      */
-    parseScope(query: ScopeQuery<ScopeKind>): boolean {
+    parse(query: ScopeSpec<ScopeKind>): boolean {
         const {
             scopeKind,
-            markers,
+            possibleMarkers,
             possibleBoundaries,
             flatten,
             outerOpenScope,
@@ -281,7 +297,7 @@ export class ScopeStream<ScopeKind extends string> {
         const { incomplete } = this;
         if (
             start.isHead() ||
-            !markers.includes(start.kind!) ||
+            !possibleMarkers.includes(start.kind!) ||
             (outerPrimedScope !== undefined &&
                 !incomplete.find(
                     scope => !scope.isOpen && scope?.kind !== outerPrimedScope,
@@ -300,7 +316,7 @@ export class ScopeStream<ScopeKind extends string> {
             possibleBoundaries,
             flatten,
         );
-        if (query.startOpen) {
+        if (query.closeKinds !== undefined) {
             scope.open(start.end, query.closeKinds!);
         }
         this.incomplete.push(scope);
@@ -314,7 +330,7 @@ export class ScopeStream<ScopeKind extends string> {
      * This function should be called at the end of every iteration
      * of the scanner execution loop.
      */
-    parseElse() {
+    collect() {
         const start = this._cur;
         const { incomplete, complete } = this;
         if (start.isHead() || incomplete.length === 0) {
@@ -351,5 +367,15 @@ export class ScopeStream<ScopeKind extends string> {
                 return;
             }
         }
+    }
+}
+
+export class ScopeRegistry<ScopeKind extends string> {
+    private constructor(readonly specs: ScopeSpec<ScopeKind>[]) {}
+
+    static newInstance<ScopeKind extends string>(
+        ...cfgs: ScopeSpecCfg<ScopeKind>[]
+    ) {
+        return new ScopeRegistry(cfgs.map(cfg => ScopeSpec.newInstance(cfg)));
     }
 }

@@ -1,7 +1,4 @@
-import { tokenize } from '../../language_utils';
-import { BoundaryMarkers } from '../../misc';
-import { ScopeResolver, ScopeStream } from '../../scope_resolver_utils';
-import { rust as lang } from './language';
+import { ScopeRegistry } from '../../scope_registry_utils';
 
 /**
  * ```
@@ -80,25 +77,58 @@ export type RustScopeKind =
     | 'struct-init' // $id {
     | '';
 
-const CURLY = new BoundaryMarkers('OPEN_CURLY', 'CLOSE_CURLY');
-const ROUND = new BoundaryMarkers('OPEN_PAREN', 'CLOSE_PAREN');
-const SQUARE = new BoundaryMarkers('OPEN_BRAC', 'CLOSE_BRAC');
+/*
+    scopeKind: ScopeKind;
+    markers?: string[];
+    possibleBoundaries: BoundariesCfg;
+    flatten?: boolean;
+    startOpen?: boolean;
+    outerOpenScope?: ScopeKind;
+    outerPrimedScope?: ScopeKind;
+*/
 
-export const rust: ScopeResolver<RustScopeKind> = ctx => {
+export const rust = ScopeRegistry.newInstance<RustScopeKind>(
+    {
+        scopeKind: 'const',
+        possibleBoundaries: ['CURLY'],
+        flatten: true,
+    },
+    {
+        scopeKind: 'fn-params',
+        possibleMarkers: ['OPEN_PAREN'],
+        possibleBoundaries: [[null, 'CLOSE_PAREN']],
+        outerPrimedScope: 'fn',
+    },
+    {
+        scopeKind: 'struct',
+        possibleBoundaries: ['CURLY'],
+        possibleMarkers: ['STRUCT', 'UNION'],
+    },
+    {
+        scopeKind: 'fn',
+        possibleBoundaries: ['CURLY'],
+    },
+    {
+        scopeKind: 'macro',
+        possibleBoundaries: ['CURLY'],
+        possibleMarkers: ['MACRO_RULES'],
+    },
+    {
+        scopeKind: 'struct-init',
+        possibleMarkers: ['OPEN_CURLY'],
+        possibleBoundaries: [[null, 'CLOSE_CURLY']],  
+    },
+    {
+        scopeKind: 
+    }
+);
+
+/*
     const file = ctx.fileUpToCursor();
     const stream = new ScopeStream<RustScopeKind>(tokenize(file, lang));
     while (!stream.isExhausted()) {
         let matched = false;
-        matched = stream.parseScope({
-            scopeKind: 'const',
-            possibleBoundaries: CURLY,
-        });
-        matched = stream.parseScope({
-            scopeKind: 'fn-params',
-            possibleBoundaries: ROUND,
-            outerPrimedScope: 'fn',
-        });
-        matched = stream.parseScope({
+        matched = stream.parse({
             scopeKind: 'struct',
             possibleBoundaries: CURLY,
             markers: ['STRUCT', 'UNION'],
@@ -106,15 +136,15 @@ export const rust: ScopeResolver<RustScopeKind> = ctx => {
         if (matched) {
             continue;
         }
-        matched = stream.parseScope({
+        matched = stream.parse({
             scopeKind: 'fn',
             possibleBoundaries: CURLY,
         }); //...
         if (matched) {
             continue;
         }
-        stream.parseElse();
+        stream.collect();
     }
-};
+*/
 
 export default rust;

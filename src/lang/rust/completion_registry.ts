@@ -14,7 +14,7 @@ import {
     toMarkdown as md,
 } from '../../text_utils';
 import { consumeRustTarget } from './language';
-import { RustScopeKind } from './scope_resolver';
+import { RustScopeKind } from './scope_registry';
 
 // optimizing docs should add proper punctation, capitalization
 // toggle mode for automatic tab-out by delimiter

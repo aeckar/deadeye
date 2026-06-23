@@ -61,7 +61,7 @@ Normally, a type with custom initialization logic should be declared as a class.
 // [ENTER] completions must be full word
 // ; for inline completions
 // embrace word wrap, do NOT implement auto-wrapper (md is meant to be edited constantly)
-
+// use `null` instead of `undefined` for cfg api
 // todo maybe add html, idk
 
 // ;l ;r ;lr ;x ;ge ;le --common unicode characters
@@ -204,8 +204,8 @@ import {
 import { Completion, CompletionStrategy } from './completion_registry_utils';
 import completionRegistries from './lang/completion_registries';
 import languagesById from './lang/languages';
-import scopeResolvers from './lang/scope_resolvers';
-import { ScopedCompletionContext } from './scope_resolver_utils';
+import scopeResolvers from './lang/scope_registries';
+import { ScopedCompletionContext } from './scope_registry_utils';
 import { expandTabStops } from './text_utils';
 
 let strategy: CompletionStrategy | undefined;
