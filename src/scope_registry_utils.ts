@@ -1,7 +1,8 @@
 import { Position, TextEditor } from 'vscode';
 import { CompletionContext } from './completion_registry_utils';
+import { IntervalTreeService } from './interval_tree';
 import { Token, TokenKind } from './language_utils';
-import { Span } from './misc';
+import { properties, Span } from './misc';
 import { IdentifierRule } from './text_utils';
 
 /**
@@ -44,8 +45,8 @@ export class Scope<ScopeKind extends string> extends Span {
  *
  * For simple lookup, a flat list is most optimal when compared with a heap or search tree.
  */
-export class FileScopeMap<ScopeKind extends string> {
-    private tree: Scope<ScopeKind>[] = [];
+export class FileScopes<ScopeKind extends string> {
+    private scopes: Scope<ScopeKind>[] = [];
 
     /**
      * Registers a scope.
@@ -53,10 +54,15 @@ export class FileScopeMap<ScopeKind extends string> {
      * This method does not need to be called in any particular order.
      */
     push(scope: Scope<ScopeKind>) {
-        this.tree.push(scope);
+        this.scopes.push(scope);
     }
 
-    //todo sort then expose tree
+    finish() {
+        const intervals = IntervalTreeService.newInstance<Scope<ScopeKind>>();
+        for (const scope of this.scopes) {
+            intervals.insert([scope.begin, scope.end], scope);
+        }
+    }
 }
 
 /**
@@ -202,16 +208,15 @@ export class Boundaries {
     }
 }
 
-export type ScopeSpecCfg<ScopeKind extends string> = {
-    scopeKind: ScopeKind;
-    possibleMarkers?: string[];
+export type ScopeInfoCfg<ScopeKind extends string> = {
     possibleBoundaries: BoundariesCfg;
+    possibleMarkers?: string[];
     flatten?: boolean;
     outerOpenScope?: ScopeKind;
     outerPrimedScope?: ScopeKind;
 };
 
-export class ScopeSpec<ScopeKind extends string> {
+export class ScopeInfo<ScopeKind extends string> {
     private constructor(
         readonly scopeKind: ScopeKind,
         readonly possibleMarkers: string[],
@@ -225,13 +230,14 @@ export class ScopeSpec<ScopeKind extends string> {
     ) {}
 
     static newInstance<ScopeKind extends string>(
-        cfg: ScopeSpecCfg<ScopeKind>,
-    ): ScopeSpec<ScopeKind> {
+        scopeKind: ScopeKind,
+        cfg: ScopeInfoCfg<ScopeKind>,
+    ): ScopeInfo<ScopeKind> {
         const boundaries = Boundaries.newInstance(cfg.possibleBoundaries);
         const startOpen = boundaries.find(e => e.open === undefined);
-        return new ScopeSpec(
-            cfg.scopeKind,
-            cfg.possibleMarkers ?? [cfg.scopeKind.toUpperCase()],
+        return new ScopeInfo(
+            scopeKind,
+            cfg.possibleMarkers ?? [scopeKind.toUpperCase()],
             boundaries,
             cfg.flatten ?? false,
             cfg.outerOpenScope,
@@ -243,14 +249,14 @@ export class ScopeSpec<ScopeKind extends string> {
 
 /** A cursor over a token stream to extract scope information. */
 export class ScopeStream<ScopeKind extends string> {
-    readonly complete: FileScopeMap<ScopeKind>;
+    readonly complete: FileScopes<ScopeKind>;
     private readonly incomplete: IncompleteScope<ScopeKind>[];
 
     private _cur: Token;
 
     constructor(begin: Token) {
         this._cur = begin.isHead() ? begin.next : begin;
-        this.complete = new FileScopeMap();
+        this.complete = new FileScopes();
         this.incomplete = [];
     }
     /** The token currently being pointed to. */
@@ -284,7 +290,7 @@ export class ScopeStream<ScopeKind extends string> {
      *
      * @returns `true` if the scope signature was matched.
      */
-    parse(query: ScopeSpec<ScopeKind>): boolean {
+    parse(query: ScopeInfo<ScopeKind>): boolean {
         const {
             scopeKind,
             possibleMarkers,
@@ -324,11 +330,14 @@ export class ScopeStream<ScopeKind extends string> {
     }
 
     /**
-     * Opens the current scope or closes the current scope (as well as any flattened scopes),
+     * Opens or closes the current scope (as well as any flattened scopes)
      * depending on the current token.
      *
      * This function should be called at the end of every iteration
-     * of the scanner execution loop.
+     * of the scope extraction loop.
+     *
+     * Unexpected openers or closers belonginging to any incomplete scope that is
+     * not the top scope should close/open that scope and discard all that are above.
      */
     collect() {
         const start = this._cur;
@@ -337,45 +346,71 @@ export class ScopeStream<ScopeKind extends string> {
             // if `start.isHead()`, then `start.kind === undefined`
             return;
         }
-        const scope = incomplete.at(-1)!;
-        if (scope.isOpen) {
-            if (scope.expectedClose?.includes(start.kind!)) {
+        const token = start.kind;
+        const top = incomplete.at(-1)!;
+
+        // Attempt to close top scope by matching to any expected closer
+        // Top scope was opened by previous call
+        if (top.isOpen) {
+            if (top.expectedClose?.includes(token!)) {
                 complete.push(incomplete.pop()!.close(start.begin));
                 while (incomplete.at(-1)?.flatten) {
+                    // cascade changes to adjacent flat scopes
                     complete.push(incomplete.pop()!.close(start.begin));
                 }
             }
             return;
         }
-        for (const boundaries of scope.possibleBoundaries) {
-            if (start.kind === boundaries.open && !scope.isOpen) {
-                scope.open(start.end, [boundaries.open!]);
-                let idx = incomplete.length - 2;
-                while (idx >= 0 && incomplete[idx]?.flatten) {
-                    incomplete[idx].open(start.end, [boundaries.open!]);
+
+        // Find topmost scope that can be resolved, then discard all that are above
+        for (let idx = incomplete.length - 1; idx >= 0; --idx) {
+            const scope = incomplete[idx];
+            for (const boundaries of scope.possibleBoundaries) {
+                // Attempt to open scope by matching to opener
+                if (token === boundaries.open && !scope.isOpen) {
+                    scope.open(start.end, [boundaries.open!]);
+                    for (idx--; idx >= 0 && incomplete[idx]?.flatten; idx--) {
+                        incomplete[idx].open(start.end, [boundaries.open!]);
+                    }
+                    incomplete.splice(-(incomplete.length - 1 - idx));
+                    return;
                 }
-                return;
-            }
-            if (
-                start.kind === boundaries.close &&
-                (scope.isOpen || boundaries.open === undefined)
-            ) {
-                complete.push(incomplete.pop()!.close(start.begin));
-                while (incomplete.at(-1)?.flatten) {
+
+                // Attempt to close scope by matching to any closer
+                // Scope is always-open or always-primed
+                if (
+                    token === boundaries.close &&
+                    (scope.isOpen || boundaries.open === undefined)
+                ) {
                     complete.push(incomplete.pop()!.close(start.begin));
+                    for (--idx; idx >= 0 && incomplete.at(-1)?.flatten; idx--) {
+                        complete.push(incomplete.pop()!.close(start.begin));
+                    }
+                    incomplete.splice(-(incomplete.length - 1 - idx));
+                    return;
                 }
-                return;
             }
         }
     }
 }
 
-export class ScopeRegistry<ScopeKind extends string> {
-    private constructor(readonly specs: ScopeSpec<ScopeKind>[]) {}
+export type ScopeRegistryCfg<ScopeKind extends string> = {
+    [K in ScopeKind]: ScopeInfoCfg<ScopeKind>;
+};
 
-    static newInstance<ScopeKind extends string>(
-        ...cfgs: ScopeSpecCfg<ScopeKind>[]
-    ) {
-        return new ScopeRegistry(cfgs.map(cfg => ScopeSpec.newInstance(cfg)));
+export type ScopeRegistry<ScopeKind extends string> = Map<
+    ScopeKind,
+    ScopeInfo<ScopeKind>
+> & { __brand: 'CompletionRegistry' };
+
+export namespace ScopeRegistry {
+    export function newInstance<ScopeKind extends string>(
+        cfg: ScopeRegistryCfg<ScopeKind>,
+    ): ScopeRegistry<ScopeKind> {
+        const registry = new Map<ScopeKind, ScopeInfo<ScopeKind>>();
+        for (const { key, value } of properties(cfg)) {
+            registry.set(key, ScopeInfo.newInstance(key, value));
+        }
+        return registry as ScopeRegistry<ScopeKind>;
     }
 }

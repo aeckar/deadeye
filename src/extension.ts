@@ -54,7 +54,7 @@ Normally, a type with custom initialization logic should be declared as a class.
 // type branding (eg __brand)
 
 //for md/txt:
-
+// language idea: soften keywords so they can be used as keys to shape types
 // on press enter or trigger transform completion, format sentence/paragraph/item
 // create keybinding for command that takes to end of line and ensures space before cursor
 // turn off suggestions for words

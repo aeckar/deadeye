@@ -86,7 +86,7 @@ export type Trigger = '' | ' ' | ';' | '.' | 'enter';
 
 /** Contains all completion families for a given language, grouped by trigger. */
 export type CompletionRegistry<ScopeKind extends string> = Map<
-    string,
+    Trigger,
     CompletionFamily<ScopeKind>[]
 > & { __brand: 'CompletionRegistry' };
 

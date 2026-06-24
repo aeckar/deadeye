@@ -47,34 +47,36 @@ export type RustScopeKind =
     | 'macro'
 
     //todo
-    | 'macro-arm-params'
-    | 'macro-arm'
+    | 'macroArm'
+    | 'macroArmParams'
 
     // (
-    | 'fn-params'
+    | 'fnParams'
 
     // impl .. {
     | 'impl'
 
     /* Expression/Statement -- applies to macro syntax also */
     | 'assignment' //
-    | 'type-anno' // ${}
-    | 'condition' //
+    | 'typeAnno' // ${}
+    // | 'condition' // IMPOSSIBLE IN RUST bc no (); completions must infer scope
     | 'conditional' //
+    | 'else'
 
     // loop .. {
     // for .. {
     // while .. {
     | 'loop'
 
+    | 'match'
     // case .. =>
     // _ =>
-    | 'match-arm'
+    | 'matchArm'
 
     //
-    | 'type-params' // $id < .. >
-    | 'type-args' // ${$ty $id | fn} < .. >
-    | 'struct-init' // $id {
+    // | 'typeParams' // $id < .. > //leave generocs out of lexer, defer to local ctx resolution
+    // | 'typeArgs' // ${$ty $id | fn} < .. >
+    | 'structInit' // $id {
     | '';
 
 /*
@@ -87,41 +89,107 @@ export type RustScopeKind =
     outerPrimedScope?: ScopeKind;
 */
 
-export const rust = ScopeRegistry.newInstance<RustScopeKind>(
-    {
-        scopeKind: 'const',
+//I was tempted to make whitespace into tokens so that I could understand the 
+// context of whether there was a whitespace between an identifier and a less-than
+//  sign to determine whether it is a boolean operation or a generics operation. 
+// I think I'm just going to leave that to the completions, and I will leave
+//  whitespace out of the token stream to improve performance. 
+
+export const rust = ScopeRegistry.newInstance<RustScopeKind>({
+    struct: {
+        possibleMarkers: ['STRUCT', 'UNION'],
+        possibleBoundaries: ['CURLY'],
+    },
+    fn: {
+        possibleBoundaries: ['CURLY'],
+    },
+    enum: {
+        possibleBoundaries: ['CURLY'],
+    },
+    trait: {
+        possibleBoundaries: ['CURLY'],
+    },
+    mod: {
+        possibleBoundaries: ['CURLY'],
+    },
+    extern: {
         possibleBoundaries: ['CURLY'],
         flatten: true,
     },
-    {
-        scopeKind: 'fn-params',
+    async: {
+        possibleBoundaries: ['CURLY'],
+        flatten: true,
+    },
+    const: {
+        possibleBoundaries: ['CURLY'],
+        flatten: true,
+    },
+    macro: {
+        possibleMarkers: ['MACRO_RULES'],
+        possibleBoundaries: ['CURLY'],
+    },
+    macroArm: {
+
+    },
+    macroArmParams: {
+
+    },
+    fnParams: {
         possibleMarkers: ['OPEN_PAREN'],
         possibleBoundaries: [[null, 'CLOSE_PAREN']],
         outerPrimedScope: 'fn',
     },
-    {
-        scopeKind: 'struct',
-        possibleBoundaries: ['CURLY'],
-        possibleMarkers: ['STRUCT', 'UNION'],
-    },
-    {
-        scopeKind: 'fn',
+    impl: {
         possibleBoundaries: ['CURLY'],
     },
-    {
-        scopeKind: 'macro',
-        possibleBoundaries: ['CURLY'],
-        possibleMarkers: ['MACRO_RULES'],
+    assignment: {
+        possibleMarkers: ['EQUALS'],
+        possibleBoundaries: [[null, 'SEMICOLON']]
     },
-    {
-        scopeKind: 'struct-init',
+    typeAnno: {
+        possibleMarkers: ['COLON'],
+        possibleBoundaries: [[null, 'CLOSE_PAREN'], [null, 'CLOSE_CURLY'], [null, 'COMMA']]
+    },
+    // condition: {
+    //     possibleMarkers: ['OPEN_PAREN'],
+    //     possibleBoundaries: [[null, 'OPEN_PAREN']],
+    //     outerPrimedScope: 'conditional'
+    // },
+    conditional: {
+        possibleMarkers: ['IF'],
+        possibleBoundaries: ['CURLY'],
+    },
+    else: {
+        possibleBoundaries: ['CURLY'],
+        flatten: true,
+    },
+    loop: {
+        possibleMarkers: ['LOOP', 'FOR', 'WHILE'],
+        possibleBoundaries: ['CURLY'],
+    },
+    match: {
+        possibleBoundaries: ['CURLY']
+    },
+    matchArm: {
+        possibleMarkers: ['FAT_ARROW'],
+        possibleBoundaries: [[null, 'CLOSE_CURLY'], [null, 'COMMA']],
+        outerOpenScope: 'match',
+    },
+    typeParams: {
+        possibleMarkers: ['LESS'],
+        possibleBoundaries: [[null, 'GREATER']]
+    },
+    typeArgs: {
+
+    }
+    structInit: {
         possibleMarkers: ['OPEN_CURLY'],
         possibleBoundaries: [[null, 'CLOSE_CURLY']],  
     },
     {
-        scopeKind: 
-    }
-);
+
+    },
+});
 
 /*
     const file = ctx.fileUpToCursor();
