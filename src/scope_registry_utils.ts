@@ -99,9 +99,7 @@ export class ScopedCompletionContext<
     }
 }
 
-export class IncompleteScope<
-    ScopeKind extends string,
-> implements IncompleteScope<ScopeKind> {
+export class IncompleteScope<ScopeKind extends string> {
     private _begin?: number;
     private _expectedClose?: TokenKind[];
     private _isOpen: boolean = false;
@@ -258,9 +256,6 @@ export class ScopeStream<ScopeKind extends string> {
      *
      * If the match was successful, consumes the current token.
      *
-     * For each entry in the `boundaries` array:
-     * - If opener is `n
-     *
      * @returns `true` if the scope signature was matched.
      */
     parse(query: ScopeInfo<ScopeKind>): boolean {
@@ -336,7 +331,9 @@ export class ScopeStream<ScopeKind extends string> {
         }
 
         // Find topmost scope that can be resolved, then discard all that are above
-        for (let idx = incomplete.length - 1; idx >= 0; --idx) {
+        let discardCount = 0;
+        let idx = incomplete.length - 1;
+        while (idx >= 0) {
             const scope = incomplete[idx];
             for (const boundaries of scope.possibleBoundaries) {
                 // Attempt to open scope by matching to opener
@@ -345,8 +342,8 @@ export class ScopeStream<ScopeKind extends string> {
                     for (idx--; idx >= 0 && incomplete[idx]?.flatten; idx--) {
                         incomplete[idx].open(start.end, [boundaries.open!]);
                     }
-                    incomplete.splice(-(incomplete.length - 1 - idx));
-                    return;
+                    discardCount = incomplete.length - 1 - idx;
+                    break;
                 }
 
                 // Attempt to close scope by matching to any closer
@@ -359,10 +356,14 @@ export class ScopeStream<ScopeKind extends string> {
                     for (--idx; idx >= 0 && incomplete.at(-1)?.flatten; idx--) {
                         complete.insert(incomplete.pop()!.close(start.begin));
                     }
-                    incomplete.splice(-(incomplete.length - 1 - idx));
-                    return;
+                    discardCount = incomplete.length - 1 - idx;
+                    break;
                 }
             }
+            idx--;
+        }
+        if (discardCount > 0) {
+            incomplete.splice(idx + 1, discardCount);
         }
     }
 }

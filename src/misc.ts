@@ -31,10 +31,6 @@ export class Span {
     get length() {
         return this.end - this.begin;
     }
-
-    withScope<ScopeKind extends string>(kind: ScopeKind): Scope<ScopeKind> {
-        return new Scope(kind, this.begin, this.end);
-    }
 }
 
 /**
