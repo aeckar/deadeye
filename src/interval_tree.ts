@@ -1,3 +1,4 @@
+//! For more information, see https://github.com/alexbol99/flatten-interval-tree.
 import type IntervalTreeClass from '@flatten-js/interval-tree' with {
     'resolution-mode': 'import',
 };

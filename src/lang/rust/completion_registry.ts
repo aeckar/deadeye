@@ -295,14 +295,11 @@ type annotation
         minLookbehind: 1,
         trigger: '',
         resolver(ctx) {
-            const fwd = ctx.leftOfCursor();
-            const rev = fwd.reversed();
-            if (!rev.consumeAt('si ')) {
-                return undefined;
+            const idx = ctx.editor.document.offsetAt(ctx.cursor);
+            const scopes = ctx.scopes.search([idx, idx]);
+            if (scopes.find(scope => scope.kind === 'typeAnno')) {
+                
             }
-            rev.consumeWs();
-            // l this var isstring 
-            rev.
         },
     },
     {

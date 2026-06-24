@@ -489,8 +489,9 @@ export class CompletionContext {
 /** Created and stored after a shorthand is matched, and recalled once the trigger is pressed. */
 export type CompletionStrategy = {
     readonly family: CompletionFamily<any>;
+    readonly trigger: Trigger;
     readonly completion: Completion;
 
     /** The position of the cursor the instance this object was created. */
-    readonly position: Position;
+    readonly pos: Position;
 };

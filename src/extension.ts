@@ -219,7 +219,7 @@ const decoration = window.createTextEditorDecorationType({
 });
 
 function cancelCompletion(editor: TextEditor) {
-    if (strategy && editor.selection.active.isEqual(strategy.position)) {
+    if (strategy && editor.selection.active.isEqual(strategy.pos)) {
         // waiting for insertion of pressed key
         return;
     }
@@ -306,12 +306,14 @@ async function updateStrategy(keyIn: string, editor: TextEditor) {
         scopeResolvers[langId],
     );
     for (const [trigger, families] of completionRegistries[langId]) {
-        const completion = family.resolver(ctx.clone()); // clone for fresh line buffer
-        if (!completion) {
-            continue;
+        for (const family of families) {
+            const completion = family.resolver(ctx.clone()); // clone for fresh line buffer
+            if (!completion) {
+                continue;
+            }
+            strategy = { family, trigger, completion, pos: cursor };
+            return;
         }
-        strategy = { family, completion, position: cursor };
-        return;
     }
 }
 
