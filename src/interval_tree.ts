@@ -45,6 +45,8 @@ export type IntervalTree<V> = {
 export class IntervalTreeService {
     private static ctor?: typeof IntervalTreeClass;
 
+    private constructor() { }
+    
     /**
      * To use interval trees, call this once during application boot or module initialization.
      * This imports the library module at runtime.
@@ -60,13 +62,13 @@ export class IntervalTreeService {
         }
     }
 
-    public static newInstance<T>(): IntervalTree<T> {
+    public static newInstance<V>(): IntervalTree<V> {
         if (!IntervalTreeService.ctor) {
             throw new Error(
                 'IntervalTree class has not been loaded yet. ' +
                     'Please await IntervalTree.init() first.',
             );
         }
-        return new IntervalTreeService.ctor<T>() as IntervalTree<T>;
+        return new IntervalTreeService.ctor<V>() as IntervalTree<V>;
     }
 }

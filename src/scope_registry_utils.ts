@@ -1,6 +1,6 @@
 import { Position, TextEditor } from 'vscode';
 import { CompletionContext } from './completion_registry_utils';
-import { IntervalTreeService } from './interval_tree';
+import { IntervalTree, IntervalTreeService } from './interval_tree';
 import { Token, TokenKind } from './language_utils';
 import { properties, Span } from './misc';
 import { IdentifierRule } from './text_utils';
@@ -35,33 +35,6 @@ export class Scope<ScopeKind extends string> extends Span {
         end: number,
     ) {
         super(begin, end);
-    }
-}
-
-/**
- * Contains all scopes present within a file.
- *
- * # Implementation
- *
- * For simple lookup, a flat list is most optimal when compared with a heap or search tree.
- */
-export class FileScopes<ScopeKind extends string> {
-    private scopes: Scope<ScopeKind>[] = [];
-
-    /**
-     * Registers a scope.
-     *
-     * This method does not need to be called in any particular order.
-     */
-    push(scope: Scope<ScopeKind>) {
-        this.scopes.push(scope);
-    }
-
-    finish() {
-        const intervals = IntervalTreeService.newInstance<Scope<ScopeKind>>();
-        for (const scope of this.scopes) {
-            intervals.insert([scope.begin, scope.end], scope);
-        }
     }
 }
 
@@ -249,14 +222,14 @@ export class ScopeInfo<ScopeKind extends string> {
 
 /** A cursor over a token stream to extract scope information. */
 export class ScopeStream<ScopeKind extends string> {
-    readonly complete: FileScopes<ScopeKind>;
+    readonly complete: IntervalTree<Scope<ScopeKind>>;
     private readonly incomplete: IncompleteScope<ScopeKind>[];
 
     private _cur: Token;
 
     constructor(begin: Token) {
         this._cur = begin.isHead() ? begin.next : begin;
-        this.complete = new FileScopes();
+        this.complete = IntervalTreeService.newInstance<Scope<ScopeKind>>();
         this.incomplete = [];
     }
     /** The token currently being pointed to. */
@@ -353,10 +326,10 @@ export class ScopeStream<ScopeKind extends string> {
         // Top scope was opened by previous call
         if (top.isOpen) {
             if (top.expectedClose?.includes(token!)) {
-                complete.push(incomplete.pop()!.close(start.begin));
+                complete.insert(incomplete.pop()!.close(start.begin));
                 while (incomplete.at(-1)?.flatten) {
                     // cascade changes to adjacent flat scopes
-                    complete.push(incomplete.pop()!.close(start.begin));
+                    complete.insert(incomplete.pop()!.close(start.begin));
                 }
             }
             return;
@@ -382,9 +355,9 @@ export class ScopeStream<ScopeKind extends string> {
                     token === boundaries.close &&
                     (scope.isOpen || boundaries.open === undefined)
                 ) {
-                    complete.push(incomplete.pop()!.close(start.begin));
+                    complete.insert(incomplete.pop()!.close(start.begin));
                     for (--idx; idx >= 0 && incomplete.at(-1)?.flatten; idx--) {
-                        complete.push(incomplete.pop()!.close(start.begin));
+                        complete.insert(incomplete.pop()!.close(start.begin));
                     }
                     incomplete.splice(-(incomplete.length - 1 - idx));
                     return;
