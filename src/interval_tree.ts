@@ -1,6 +1,11 @@
 import type IntervalTreeClass from '@flatten-js/interval-tree' with {
     'resolution-mode': 'import',
 };
+
+/**
+ * Structural type of `Node` from
+ * [@flatten-js/interval-tree](https://github.com/alexbol99/flatten-interval-tree/blob/master/src/classes/Node.ts).
+ */
 export type IntervalNode<V> = {
     key: {
         low: number;
@@ -15,17 +20,19 @@ export type IntervalNode<V> = {
     max: { low: number; high: number };
 };
 
+/**
+ * Structural type of `IntervalTree` from
+ * [@flatten-js/interval-tree](https://github.com/alexbol99/flatten-interval-tree/blob/master/src/classes/IntervalTree.ts).
+ */
 export type IntervalTree<V> = {
     root: IntervalNode<V> | null;
     nil_node: IntervalNode<V>;
 
-    // Getters
     readonly size: number;
     readonly keys: any[];
     readonly values: V[];
     readonly items: Array<{ key: any; value: V }>;
 
-    // Methods
     isEmpty(): boolean;
     clear(): void;
     insert(key: [number, number] | any, value?: V): IntervalNode<V> | undefined;
@@ -45,8 +52,8 @@ export type IntervalTree<V> = {
 export class IntervalTreeService {
     private static ctor?: typeof IntervalTreeClass;
 
-    private constructor() { }
-    
+    private constructor() {}
+
     /**
      * To use interval trees, call this once during application boot or module initialization.
      * This imports the library module at runtime.

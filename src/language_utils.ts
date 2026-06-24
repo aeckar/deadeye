@@ -331,6 +331,7 @@ export namespace Language {
             SHL_ASSIGN: '<<=',
             SHR_ASSIGN: '>>=',
         },
+        inherit: [BIT_OPS],
     });
 
     export const BOOL_LOGIC = Language.newInstance({

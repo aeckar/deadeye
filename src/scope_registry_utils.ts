@@ -45,7 +45,7 @@ export class Scope<ScopeKind extends string> extends Span {
  */
 export type ScopeResolver<ScopeKind extends string> = (
     ctx: CompletionContext,
-) => Scope<ScopeKind>[];
+) => IntervalTree<Scope<ScopeKind>>;
 
 /**
  * Contains the scope tree for the current cursor position.
@@ -58,7 +58,7 @@ export type ScopeResolver<ScopeKind extends string> = (
 export class ScopedCompletionContext<
     ScopeKind extends string,
 > extends CompletionContext {
-    readonly scopes: Scope<ScopeKind>[];
+    readonly scopes: IntervalTree<Scope<ScopeKind>>;
 
     /** Users should create a {@link CompletionContext} first, then call {@link toScoped}. */
     private constructor(
@@ -66,7 +66,7 @@ export class ScopedCompletionContext<
         cursor: Position,
         editor: TextEditor,
         identifiers: IdentifierRule,
-        scopes: Scope<ScopeKind>[],
+        scopes: IntervalTree<Scope<ScopeKind>>,
     ) {
         super(keyIn, cursor, editor, identifiers);
         this.scopes = scopes;
@@ -99,10 +99,11 @@ export class ScopedCompletionContext<
     }
 }
 
-export class IncompleteScope<ScopeKind extends string> {
+export class UnclosedScope<ScopeKind extends string> {
     private _begin?: number;
     private _expectedClose?: TokenKind[];
     private _isOpen: boolean = false;
+    private _isReopened: boolean = false;
 
     constructor(
         readonly kind: ScopeKind,
@@ -123,7 +124,15 @@ export class IncompleteScope<ScopeKind extends string> {
         return this._isOpen;
     }
 
+    get isReopened(): boolean {
+        return this._isReopened;
+    }
+
+    /** Can be called a second time to declare a scope to be open at a later token. */
     open(begin: number, expectedClose: TokenKind[]) {
+        if (this._isOpen) {
+            this._isReopened = true;
+        }
         this._begin = begin;
         this._expectedClose = expectedClose;
         this._isOpen = true;
@@ -137,14 +146,17 @@ export class IncompleteScope<ScopeKind extends string> {
     }
 }
 
-export type BoundariesCfg = [null, string][] | ([string, string] | string)[];
+export type BoundariesCfg = ([string | null, string] | string)[];
 
 /**
  * The boundaries of a scope.
  *
- * - **`startOpen` + `open === undefined`:** `<scope-marker> ...open... <primed>`
+ * Possibilties:
+ * - **`openByDefault` + `open === undefined`:** `<scope-marker> ...open... <primed>`
  * - **`open === undefined`:** `<scope-marker> ...primed... <close>`
  * - **`open !== undefined`:** `<scope-marker> ...primed... <open> ...open... <close>`
+ * 
+ * A scope starts open if any of its possible boundaries have an undefined open token.
  */
 export class Boundaries {
     // explicit passing of `undefined` allowable here, since it is also a declaration
@@ -196,9 +208,13 @@ export class ScopeInfo<ScopeKind extends string> {
         readonly outerOpenScope?: ScopeKind,
         readonly outerPrimedScope?: ScopeKind,
 
-        /** A cached array of closing token kinds, assigned if `startOpen === true`. */
+        /** A cached array of closing token kinds. */
         readonly closeKinds?: TokenKind[],
-    ) {}
+    ) { }
+    
+    get isOpenByDefault(): boolean {
+        return this.closeKinds !== undefined;
+    }
 
     static newInstance<ScopeKind extends string>(
         scopeKind: ScopeKind,
@@ -220,15 +236,15 @@ export class ScopeInfo<ScopeKind extends string> {
 
 /** A cursor over a token stream to extract scope information. */
 export class ScopeStream<ScopeKind extends string> {
-    readonly complete: IntervalTree<Scope<ScopeKind>>;
-    private readonly incomplete: IncompleteScope<ScopeKind>[];
+    readonly closed: IntervalTree<Scope<ScopeKind>>;
+    private readonly unclosed: UnclosedScope<ScopeKind>[];
 
     private _cur: Token;
 
     constructor(begin: Token) {
         this._cur = begin.isHead() ? begin.next : begin;
-        this.complete = IntervalTreeService.newInstance<Scope<ScopeKind>>();
-        this.incomplete = [];
+        this.closed = IntervalTreeService.newInstance<Scope<ScopeKind>>();
+        this.unclosed = [];
     }
     /** The token currently being pointed to. */
     cur(): Token {
@@ -268,32 +284,32 @@ export class ScopeStream<ScopeKind extends string> {
             outerPrimedScope,
         } = query;
         const start = this._cur;
-        const { incomplete } = this;
+        const { unclosed } = this;
         if (
             start.isHead() ||
             !possibleMarkers.includes(start.kind!) ||
             (outerPrimedScope !== undefined &&
-                !incomplete.find(
+                !unclosed.find(
                     scope => !scope.isOpen && scope?.kind !== outerPrimedScope,
                 )) ||
             (outerOpenScope !== undefined &&
-                !incomplete.find(
+                !unclosed.find(
                     scope => scope.isOpen && scope?.kind !== outerOpenScope,
                 ))
         ) {
             return false;
         }
         this._cur = start.next;
-        const scope = new IncompleteScope(
+        const scope = new UnclosedScope(
             scopeKind,
             start.begin,
             possibleBoundaries,
             flatten,
         );
-        if (query.closeKinds !== undefined) {
+        if (query.isOpenByDefault) {
             scope.open(start.end, query.closeKinds!);
         }
-        this.incomplete.push(scope);
+        this.unclosed.push(scope);
         return true;
     }
 
@@ -309,22 +325,22 @@ export class ScopeStream<ScopeKind extends string> {
      */
     collect() {
         const start = this._cur;
-        const { incomplete, complete } = this;
-        if (start.isHead() || incomplete.length === 0) {
+        const { unclosed, closed } = this;
+        if (start.isHead() || unclosed.length === 0) {
             // if `start.isHead()`, then `start.kind === undefined`
             return;
         }
         const token = start.kind;
-        const top = incomplete.at(-1)!;
+        const top = unclosed.at(-1)!;
 
         // Attempt to close top scope by matching to any expected closer
         // Top scope was opened by previous call
         if (top.isOpen) {
             if (top.expectedClose?.includes(token!)) {
-                complete.insert(incomplete.pop()!.close(start.begin));
-                while (incomplete.at(-1)?.flatten) {
+                closed.insert(unclosed.pop()!.close(start.begin));
+                while (unclosed.at(-1)?.flatten) {
                     // cascade changes to adjacent flat scopes
-                    complete.insert(incomplete.pop()!.close(start.begin));
+                    closed.insert(unclosed.pop()!.close(start.begin));
                 }
             }
             return;
@@ -332,17 +348,17 @@ export class ScopeStream<ScopeKind extends string> {
 
         // Find topmost scope that can be resolved, then discard all that are above
         let discardCount = 0;
-        let idx = incomplete.length - 1;
+        let idx = unclosed.length - 1;
         while (idx >= 0) {
-            const scope = incomplete[idx];
+            const scope = unclosed[idx];
             for (const boundaries of scope.possibleBoundaries) {
                 // Attempt to open scope by matching to opener
-                if (token === boundaries.open && !scope.isOpen) {
+                if (token === boundaries.open && (!scope.isOpen || !scope.isReopened)) {
                     scope.open(start.end, [boundaries.open!]);
-                    for (idx--; idx >= 0 && incomplete[idx]?.flatten; idx--) {
-                        incomplete[idx].open(start.end, [boundaries.open!]);
+                    for (idx--; idx >= 0 && unclosed[idx]?.flatten; idx--) {
+                        unclosed[idx].open(start.end, [boundaries.open!]);
                     }
-                    discardCount = incomplete.length - 1 - idx;
+                    discardCount = unclosed.length - 1 - idx;
                     break;
                 }
 
@@ -352,18 +368,18 @@ export class ScopeStream<ScopeKind extends string> {
                     token === boundaries.close &&
                     (scope.isOpen || boundaries.open === undefined)
                 ) {
-                    complete.insert(incomplete.pop()!.close(start.begin));
-                    for (--idx; idx >= 0 && incomplete.at(-1)?.flatten; idx--) {
-                        complete.insert(incomplete.pop()!.close(start.begin));
+                    closed.insert(unclosed.pop()!.close(start.begin));
+                    for (--idx; idx >= 0 && unclosed.at(-1)?.flatten; idx--) {
+                        closed.insert(unclosed.pop()!.close(start.begin));
                     }
-                    discardCount = incomplete.length - 1 - idx;
+                    discardCount = unclosed.length - 1 - idx;
                     break;
                 }
             }
             idx--;
         }
         if (discardCount > 0) {
-            incomplete.splice(idx + 1, discardCount);
+            unclosed.splice(idx + 1, discardCount);
         }
     }
 }

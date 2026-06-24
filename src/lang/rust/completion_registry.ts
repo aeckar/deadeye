@@ -281,6 +281,7 @@ grey squiggly when left of scope marker to show help
 //todo `let next int as int be` --> `let next_int: u32 = `
 //todo autocorrect keywords according to context
 
+//todo cursor in word + tab = indent line (should alr exist but alright)
 //todo vecof id one, id two, 
 const rust = CompletionRegistry.newInstance<RustScopeKind>(
     {

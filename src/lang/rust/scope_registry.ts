@@ -1,83 +1,30 @@
 import { ScopeRegistry } from '../../scope_registry_utils';
 
-/**
- * ```
- * $flatten(other) = $other .. '{' | '{'
- * $ty = 'struct' | 'u2nion' | 'enum'
- * ```
- */
 export type RustScopeKind =
-    // 'struct' .. '{'
-    // 'union' .. '{'
-    // Scope marker pos: |${'struct' | 'union'}
     | 'struct'
-
-    // fn .. {
-    // | .. | {
-    // Does not apply to short-form closures
-    // Scope marker pos: |fn
-    | 'fn'
-
-    // enum {
-    // Scope marker pos: |enum
+    | 'fn' // does not apply to short-form closures
     | 'enum'
-
-    // trait .. {
-    // Scope marker pos: |trait
     | 'trait'
-
-    // mod .. {
-    // Scope marker pos: |mod
     | 'mod'
-
-    // 'extern' .. $flatten(fn)
-    // Scope marker pos: |'extern'
     | 'extern'
-
-    // async .. $flatten(fn)
-    // Scope marker pos: |async
     | 'async'
-
-    // const .. $flatten(fn)
-    // Scope marker pos: |const
     | 'const'
-
-    // macro_rules! .. {
-    // Scope marker pos: |macro_rules!
     | 'macro'
-
-    //todo
     | 'macroArm'
     | 'macroArmParams'
-
-    // (
     | 'fnParams'
-
-    // impl .. {
     | 'impl'
-
-    /* Expression/Statement -- applies to macro syntax also */
-    | 'assignment' //
-    | 'typeAnno' // ${}
-    // | 'condition' // IMPOSSIBLE IN RUST bc no (); completions must infer scope
-    | 'conditional' //
+    | 'assignment'
+    | 'typeAnno'
+    | 'conditional'
     | 'else'
-
-    // loop .. {
-    // for .. {
-    // while .. {
     | 'loop'
-
     | 'match'
-    // case .. =>
-    // _ =>
-    | 'matchArm'
-
-    //
-    // | 'typeParams' // $id < .. > //leave generocs out of lexer, defer to local ctx resolution
-    // | 'typeArgs' // ${$ty $id | fn} < .. >
-    | 'structInit' // $id {
-    | '';
+    | 'matchArm';
+    
+// | 'condition' // IMPOSSIBLE IN RUST bc no (); completions must infer scope
+// | 'typeParams' // $id < .. > //leave generocs out of lexer, defer to local ctx resolution
+// | 'typeArgs' // ${$ty $id | fn} < .. >
 
 /*
     scopeKind: ScopeKind;
@@ -89,12 +36,19 @@ export type RustScopeKind =
     outerPrimedScope?: ScopeKind;
 */
 
-//I was tempted to make whitespace into tokens so that I could understand the 
+//I was tempted to make whitespace into tokens so that I could understand the
 // context of whether there was a whitespace between an identifier and a less-than
-//  sign to determine whether it is a boolean operation or a generics operation. 
+//  sign to determine whether it is a boolean operation or a generics operation.
 // I think I'm just going to leave that to the completions, and I will leave
-//  whitespace out of the token stream to improve performance. 
+//  whitespace out of the token stream to improve performance.
+    // condition: {
+    //     possibleMarkers: ['OPEN_PAREN'],
+    //     possibleBoundaries: [[null, 'OPEN_PAREN']],
+    //     outerPrimedScope: 'conditional'
+// },
 
+// struct init is also too complex to parse at scope time, defer to completions
+    
 export const rust = ScopeRegistry.newInstance<RustScopeKind>({
     struct: {
         possibleMarkers: ['STRUCT', 'UNION'],
@@ -129,10 +83,14 @@ export const rust = ScopeRegistry.newInstance<RustScopeKind>({
         possibleBoundaries: ['CURLY'],
     },
     macroArm: {
-
+        possibleMarkers: ['FAT_ARROW'],
+        possibleBoundaries: ['CURLY', [null, 'COMMA']],
+        outerOpenScope: 'macro', 
     },
     macroArmParams: {
-
+        possibleMarkers: ['OPEN_PAREN'],
+        possibleBoundaries: [[null, 'CLOSE_PAREN']],
+        outerOpenScope: 'macro',
     },
     fnParams: {
         possibleMarkers: ['OPEN_PAREN'],
@@ -150,11 +108,6 @@ export const rust = ScopeRegistry.newInstance<RustScopeKind>({
         possibleMarkers: ['COLON'],
         possibleBoundaries: [[null, 'CLOSE_PAREN'], [null, 'CLOSE_CURLY'], [null, 'COMMA']]
     },
-    // condition: {
-    //     possibleMarkers: ['OPEN_PAREN'],
-    //     possibleBoundaries: [[null, 'OPEN_PAREN']],
-    //     outerPrimedScope: 'conditional'
-    // },
     conditional: {
         possibleMarkers: ['IF'],
         possibleBoundaries: ['CURLY'],
@@ -172,22 +125,8 @@ export const rust = ScopeRegistry.newInstance<RustScopeKind>({
     },
     matchArm: {
         possibleMarkers: ['FAT_ARROW'],
-        possibleBoundaries: [[null, 'CLOSE_CURLY'], [null, 'COMMA']],
+        possibleBoundaries: ['CURLY', [null, 'COMMA']],
         outerOpenScope: 'match',
-    },
-    typeParams: {
-        possibleMarkers: ['LESS'],
-        possibleBoundaries: [[null, 'GREATER']]
-    },
-    typeArgs: {
-
-    }
-    structInit: {
-        possibleMarkers: ['OPEN_CURLY'],
-        possibleBoundaries: [[null, 'CLOSE_CURLY']],  
-    },
-    {
-
     },
 });
 
