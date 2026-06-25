@@ -1,0 +1,589 @@
+/**
+ * Unit tests for Rust tokenization and scope resolution.
+ *
+ * Both subsystems are pure (no VS Code API dependency), so these tests run
+ * without an editor instance.
+ *
+ * Covered edge cases (only those explicitly handled in the source):
+ *
+ * Tokenizer:
+ *   - Whitespace is ignored (Language `ignore` regex)
+ *   - Multi-character string tokens take priority over shorter ones (e.g. `::` before `:`)
+ *   - Keywords are whole-word matched (e.g. `inlined` does not emit `IN` + `ID`)
+ *   - Integer literals: decimal, hex, octal, binary, with optional type suffix
+ *   - Float literals: basic, with exponent, with type suffix
+ *   - String / byte-string / byte-char / char literals
+ *   - Line and block comments
+ *   - `MACRO_RULES` (`macro_rules!`) is a single string token, not keyword + punctuation
+ *   - Unrecognised input produces `UNKNOWN` tokens and recovery skips to next line
+ *
+ * Scope stream / interval tree:
+ *   - A completed scope appears in the interval tree with the correct `[begin, end)` span
+ *   - Multiple overlapping scopes at the same offset are all returned by `search`
+ *   - `fnParams` scope is only opened when inside a primed `fn` scope
+ *   - Flattened scopes (`extern`, `async`, `const`) close together with the next `fn`
+ *   - An unclosed scope (no matching close token) produces no entry in the tree
+ *   - `macroArm` scope only opens when inside an open `macro` scope
+ */
+
+import * as assert from 'assert';
+import { IntervalTreeService } from '../interval_tree';
+import rust from '../lang/rust/language';
+import { rust as rustScopes } from '../lang/rust/scope_registry';
+import { Token, tokenize } from '../language_utils';
+import { Scope, ScopeInfo, ScopeStream } from '../scope_registry_utils';
+import Tape from '../tape';
+
+// ===========================================================================
+// Helpers
+// ===========================================================================
+
+/** Collect all tokens from the stream into a plain array of kind strings. */
+function collectKinds(head: Token): string[] {
+    const kinds: string[] = [];
+    let t = head.next; // skip the root (kind === undefined)
+    while (!t.isTail()) {
+        kinds.push(t.kind as string);
+        t = t.next;
+    }
+    return kinds;
+}
+
+/** Collect all tokens including their begin/end positions. */
+function collectTokens(head: Token): Array<{ kind: string; begin: number; end: number }> {
+    const tokens: Array<{ kind: string; begin: number; end: number }> = [];
+    let t = head.next;
+    while (!t.isTail()) {
+        tokens.push({ kind: t.kind as string, begin: t.begin, end: t.end });
+        t = t.next;
+    }
+    return tokens;
+}
+
+/** Tokenize a source string using the Rust language definition. */
+function tokenizeRust(src: string): Token {
+    return tokenize(Tape.over(src), rust);
+}
+
+/**
+ * Drive the scope stream over the full token stream produced from `src`.
+ * Returns the closed-scope interval tree.
+ */
+async function extractScopes(src: string) {
+    await IntervalTreeService.start();
+    const head = tokenizeRust(src);
+    const stream = new ScopeStream<string>(head);
+    const registry = rustScopes;
+
+    while (!stream.isExhausted()) {
+        let matched = false;
+        for (const [kind, info] of registry.entries()) {
+            if (stream.parse(info as ScopeInfo<string>)) {
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) {
+            stream.collect();
+            stream.adv();
+        }
+    }
+    return stream.closed;
+}
+
+/** Search for all scopes at a byte offset. */
+function scopesAt(tree: Awaited<ReturnType<typeof extractScopes>>, offset: number) {
+    return tree.search([offset, offset]) as Scope<string>[];
+}
+
+// ===========================================================================
+// Tokenizer tests
+// ===========================================================================
+
+suite('Rust Tokenizer', () => {
+
+    // === Whitespace handling ===
+
+    test('whitespace between tokens is ignored', () => {
+        const kinds = collectKinds(tokenizeRust('fn   main'));
+        assert.deepStrictEqual(kinds, ['FN', 'ID']);
+    });
+
+    test('newlines and tabs are ignored', () => {
+        const kinds = collectKinds(tokenizeRust('let\n\tx'));
+        assert.deepStrictEqual(kinds, ['LET', 'ID']);
+    });
+
+    // === Multi-character string tokens take priority ===
+
+    test(':: is a single PATH_SEP token, not two COLONs', () => {
+        const kinds = collectKinds(tokenizeRust('foo::bar'));
+        assert.deepStrictEqual(kinds, ['ID', 'PATH_SEP', 'ID']);
+    });
+
+    test('=> is FAT_ARROW, not EQUALS + GREATER', () => {
+        const kinds = collectKinds(tokenizeRust('=>'));
+        assert.deepStrictEqual(kinds, ['FAT_ARROW']);
+    });
+
+    test('-> is THIN_ARROW, not MINUS + GREATER', () => {
+        const kinds = collectKinds(tokenizeRust('->'));
+        assert.deepStrictEqual(kinds, ['THIN_ARROW']);
+    });
+
+    test('..= is RANGE_INCL, not RANGE + EQUALS', () => {
+        const kinds = collectKinds(tokenizeRust('..='));
+        assert.deepStrictEqual(kinds, ['RANGE_INCL']);
+    });
+
+    test('.. is RANGE, not two DOTs', () => {
+        const kinds = collectKinds(tokenizeRust('..'));
+        assert.deepStrictEqual(kinds, ['RANGE']);
+    });
+
+    test('+= is PLUS_ASSIGN, not PLUS + EQUALS', () => {
+        const kinds = collectKinds(tokenizeRust('+='));
+        assert.deepStrictEqual(kinds, ['PLUS_ASSIGN']);
+    });
+
+    test('<<= is SHL_ASSIGN, not SHL + EQUALS', () => {
+        const kinds = collectKinds(tokenizeRust('<<='));
+        assert.deepStrictEqual(kinds, ['SHL_ASSIGN']);
+    });
+
+    // === Keyword whole-word matching ===
+
+    test('`fn` as a whole word produces FN token', () => {
+        const kinds = collectKinds(tokenizeRust('fn'));
+        assert.deepStrictEqual(kinds, ['FN']);
+    });
+
+    test('`fn` inside an identifier does not produce FN', () => {
+        // "affirm" contains "fn" but must not produce FN + ID
+        const kinds = collectKinds(tokenizeRust('affirm'));
+        assert.deepStrictEqual(kinds, ['ID']);
+        assert.ok(!kinds.includes('FN'));
+    });
+
+    test('`in` inside an identifier does not produce IN', () => {
+        const kinds = collectKinds(tokenizeRust('inline'));
+        assert.deepStrictEqual(kinds, ['ID']);
+    });
+
+    test('`if` followed immediately by `{` is still just IF', () => {
+        const kinds = collectKinds(tokenizeRust('if{'));
+        assert.deepStrictEqual(kinds, ['IF', 'OPEN_CURLY']);
+    });
+
+    test('`Self` (capital) is a keyword; `self` (lower) is also a keyword', () => {
+        const selfKinds = collectKinds(tokenizeRust('self'));
+        assert.deepStrictEqual(selfKinds, ['SELF']);
+        const SelfKinds = collectKinds(tokenizeRust('Self'));
+        assert.deepStrictEqual(SelfKinds, ['SELF']);
+    });
+
+    // === Literals ===
+
+    test('decimal integer literal', () => {
+        const tokens = collectTokens(tokenizeRust('42'));
+        assert.strictEqual(tokens.length, 1);
+        assert.strictEqual(tokens[0].kind, 'INTEGER');
+    });
+
+    test('integer with type suffix (u32)', () => {
+        const kinds = collectKinds(tokenizeRust('0u32'));
+        assert.deepStrictEqual(kinds, ['INTEGER']);
+    });
+
+    test('hex integer literal', () => {
+        const kinds = collectKinds(tokenizeRust('0xFF'));
+        assert.deepStrictEqual(kinds, ['INTEGER']);
+    });
+
+    test('binary integer literal', () => {
+        const kinds = collectKinds(tokenizeRust('0b1010'));
+        assert.deepStrictEqual(kinds, ['INTEGER']);
+    });
+
+    test('octal integer literal', () => {
+        const kinds = collectKinds(tokenizeRust('0o77'));
+        assert.deepStrictEqual(kinds, ['INTEGER']);
+    });
+
+    test('basic float literal', () => {
+        const kinds = collectKinds(tokenizeRust('3.14'));
+        assert.deepStrictEqual(kinds, ['FLOAT']);
+    });
+
+    test('float with exponent', () => {
+        const kinds = collectKinds(tokenizeRust('1e10'));
+        assert.deepStrictEqual(kinds, ['FLOAT']);
+    });
+
+    test('float with type suffix (f32)', () => {
+        const kinds = collectKinds(tokenizeRust('1.0f32'));
+        assert.deepStrictEqual(kinds, ['FLOAT']);
+    });
+
+    test('string literal', () => {
+        const kinds = collectKinds(tokenizeRust('"hello, world"'));
+        assert.deepStrictEqual(kinds, ['STRING']);
+    });
+
+    test('string literal with escaped quote', () => {
+        const kinds = collectKinds(tokenizeRust('"say \\"hi\\""'));
+        assert.deepStrictEqual(kinds, ['STRING']);
+    });
+
+    test('byte string literal', () => {
+        const kinds = collectKinds(tokenizeRust('b"bytes"'));
+        assert.deepStrictEqual(kinds, ['BYTE_STRING']);
+    });
+
+    test('byte char literal', () => {
+        const kinds = collectKinds(tokenizeRust("b'x'"));
+        assert.deepStrictEqual(kinds, ['BYTE_CHAR']);
+    });
+
+    test('char literal', () => {
+        const kinds = collectKinds(tokenizeRust("'a'"));
+        assert.deepStrictEqual(kinds, ['CHAR']);
+    });
+
+    test('char literal with escape sequence', () => {
+        const kinds = collectKinds(tokenizeRust("'\\n'"));
+        assert.deepStrictEqual(kinds, ['CHAR']);
+    });
+
+    // === Comments ===
+
+    test('line comment is a single LINE_COMMENT token', () => {
+        const kinds = collectKinds(tokenizeRust('// this is a comment'));
+        assert.deepStrictEqual(kinds, ['LINE_COMMENT']);
+    });
+
+    test('code after line comment on same line is not tokenized', () => {
+        // Everything after `//` until newline belongs to the comment
+        const kinds = collectKinds(tokenizeRust('let x; // comment\nlet y;'));
+        assert.ok(kinds.includes('LINE_COMMENT'));
+        // After the newline, let y; is tokenized normally
+        const yIdx = kinds.lastIndexOf('LET');
+        assert.ok(yIdx > kinds.indexOf('LINE_COMMENT'));
+    });
+
+    test('block comment is a single BLOCK_COMMENT token', () => {
+        const kinds = collectKinds(tokenizeRust('/* block */'));
+        assert.deepStrictEqual(kinds, ['BLOCK_COMMENT']);
+    });
+
+    test('multi-line block comment is still a single token', () => {
+        const kinds = collectKinds(tokenizeRust('/* line1\nline2 */'));
+        assert.deepStrictEqual(kinds, ['BLOCK_COMMENT']);
+    });
+
+    // === macro_rules! ===
+
+    test('macro_rules! is a single MACRO_RULES token', () => {
+        const kinds = collectKinds(tokenizeRust('macro_rules!'));
+        assert.deepStrictEqual(kinds, ['MACRO_RULES']);
+    });
+
+    test('macro_rules! is not split into MACRO keyword + QMARK', () => {
+        const kinds = collectKinds(tokenizeRust('macro_rules!'));
+        assert.ok(!kinds.includes('MACRO'));
+        assert.ok(!kinds.includes('QMARK'));
+    });
+
+    // === Token positions ===
+
+    test('token begin/end positions are correct after whitespace skip', () => {
+        // "  fn " → FN should start at index 2
+        const tokens = collectTokens(tokenizeRust('  fn '));
+        assert.strictEqual(tokens[0].kind, 'FN');
+        assert.strictEqual(tokens[0].begin, 2);
+        assert.strictEqual(tokens[0].end, 4);
+    });
+
+    test('token positions are contiguous for adjacent tokens', () => {
+        // "fn{" — no whitespace, positions must be contiguous
+        const tokens = collectTokens(tokenizeRust('fn{'));
+        assert.strictEqual(tokens[0].begin, 0);
+        assert.strictEqual(tokens[0].end, 2);
+        assert.strictEqual(tokens[1].begin, 2);
+        assert.strictEqual(tokens[1].end, 3);
+    });
+
+    // === UNKNOWN / recovery ===
+
+    test('unrecognised input emits UNKNOWN and continues on next line', () => {
+        // `@` is not a valid Rust token; recovery should skip to next line
+        // After recovery, `fn` on the next line should still be tokenized
+        const kinds = collectKinds(tokenizeRust('@\nfn'));
+        assert.ok(kinds.includes('UNKNOWN'), 'expected UNKNOWN for @');
+        assert.ok(kinds.includes('FN'), 'expected FN after recovery');
+    });
+
+    // === Complex expression ===
+
+    test('complex function signature tokenizes correctly', () => {
+        const src = 'pub fn foo(x: u32) -> bool';
+        const kinds = collectKinds(tokenizeRust(src));
+        assert.deepStrictEqual(kinds, [
+            'PUB', 'FN', 'ID',         // pub fn foo
+            'OPEN_PAREN', 'ID', 'COLON', 'ID', 'CLOSE_PAREN',  // (x: u32)
+            'THIN_ARROW', 'ID',        // -> bool
+        ]);
+    });
+});
+
+// ===========================================================================
+// Scope Stream / Interval Tree tests
+// ===========================================================================
+
+suite('Rust Scope Stream', () => {
+
+    // Ensure the interval tree library is loaded before any scope test runs.
+    suiteSetup(async () => {
+        await IntervalTreeService.start();
+    });
+
+    // ========================================================================-
+    // Helper: drive the scope stream more carefully, matching all scope kinds
+    // ========================================================================-
+
+    /**
+     * Parse a Rust source string and return the closed-scope interval tree.
+     * Every iteration: try all registered scope parsers, then collect.
+     */
+    async function parse(src: string) {
+        const head = tokenizeRust(src);
+        const stream = new ScopeStream<string>(head);
+
+        while (!stream.isExhausted()) {
+            let matched = false;
+            for (const [, info] of rustScopes.entries()) {
+                if (stream.parse(info as ScopeInfo<string>)) {
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                stream.collect();
+                stream.adv();
+            }
+        }
+        return stream.closed;
+    }
+
+    // ========================================================================-
+    // Basic scope creation
+    // ========================================================================-
+
+    test('fn scope spans from open to close curly', async () => {
+        // fn foo() { let x = 1; }
+        // offsets:  0123456789...
+        const src = 'fn foo() { let x = 1; }';
+        const tree = await parse(src);
+        const openCurly  = src.indexOf('{');
+        const closeCurly = src.indexOf('}');
+
+        // Search inside the body
+        const inside = scopesAt(tree, openCurly + 1);
+        const fn_scope = inside.find(s => s.kind === 'fn');
+        assert.ok(fn_scope, 'fn scope should exist');
+        // begin is right after `{`, end is right before `}`
+        assert.ok(fn_scope.begin <= openCurly + 1);
+        assert.ok(fn_scope.end   >= closeCurly);
+    });
+
+    test('struct scope spans from open to close curly', async () => {
+        const src = 'struct Foo { x: u32, }';
+        const tree = await parse(src);
+        const inside = scopesAt(tree, src.indexOf('{') + 1);
+        assert.ok(inside.find(s => s.kind === 'struct'), 'struct scope must be present');
+    });
+
+    test('impl scope is created', async () => {
+        const src = 'impl Foo { fn bar() {} }';
+        const tree = await parse(src);
+        const inside = scopesAt(tree, src.indexOf('{') + 1);
+        assert.ok(inside.find(s => s.kind === 'impl'), 'impl scope must be present');
+    });
+
+    test('mod scope is created', async () => {
+        const src = 'mod tests { fn helper() {} }';
+        const tree = await parse(src);
+        const inside = scopesAt(tree, src.indexOf('{') + 1);
+        assert.ok(inside.find(s => s.kind === 'mod'), 'mod scope must be present');
+    });
+
+    test('enum scope is created', async () => {
+        const src = 'enum Color { Red, Green, Blue }';
+        const tree = await parse(src);
+        const inside = scopesAt(tree, src.indexOf('{') + 1);
+        assert.ok(inside.find(s => s.kind === 'enum'), 'enum scope must be present');
+    });
+
+    test('trait scope is created', async () => {
+        const src = 'trait Drawable { fn draw(&self); }';
+        const tree = await parse(src);
+        const inside = scopesAt(tree, src.indexOf('{') + 1);
+        assert.ok(inside.find(s => s.kind === 'trait'), 'trait scope must be present');
+    });
+
+    // ========================================================================-
+    // Overlapping scopes (fn nested inside impl)
+    // ========================================================================-
+
+    test('fn inside impl: both scopes overlap at the fn body', async () => {
+        const src = 'impl Foo { fn bar() { let x = 1; } }';
+        const tree = await parse(src);
+
+        // Position inside `fn bar`'s body — after the second `{`
+        const innerOpen = src.lastIndexOf('{');
+        const inside = scopesAt(tree, innerOpen + 1);
+
+        const hasImpl = inside.find(s => s.kind === 'impl');
+        const hasFn   = inside.find(s => s.kind === 'fn');
+        assert.ok(hasImpl, 'impl scope should contain the fn body');
+        assert.ok(hasFn,   'fn scope should be present inside impl');
+    });
+
+    test('position outside fn body is not inside fn scope', async () => {
+        const src = 'impl Foo { fn bar() { } }';
+        const tree = await parse(src);
+
+        // Position right after impl's `{` but before `fn`
+        const implOpen = src.indexOf('{');
+        const inside = scopesAt(tree, implOpen + 1);
+        assert.ok(!inside.find(s => s.kind === 'fn'), 'fn scope should not cover impl opener');
+    });
+
+    // ========================================================================-
+    // Flattened scopes (extern, async, const)
+    // ========================================================================-
+
+    test('async fn: async scope flattens onto fn scope (same interval)', async () => {
+        const src = 'async fn foo() { }';
+        const tree = await parse(src);
+        const inside = scopesAt(tree, src.indexOf('{') + 1);
+
+        const asyncScope = inside.find(s => s.kind === 'async');
+        const fnScope    = inside.find(s => s.kind === 'fn');
+        assert.ok(asyncScope, 'async scope should exist');
+        assert.ok(fnScope,    'fn scope should exist');
+        // Both should share the same begin (right after the single `{`)
+        assert.strictEqual(asyncScope.begin, fnScope!.begin, 'async and fn scopes share begin');
+        assert.strictEqual(asyncScope.end,   fnScope!.end,   'async and fn scopes share end');
+    });
+
+    test('const fn: const scope flattens onto fn scope', async () => {
+        const src = 'const fn add(a: u32, b: u32) -> u32 { a + b }';
+        const tree = await parse(src);
+        const inside = scopesAt(tree, src.indexOf('{') + 1);
+
+        const constScope = inside.find(s => s.kind === 'const');
+        const fnScope    = inside.find(s => s.kind === 'fn');
+        assert.ok(constScope, 'const scope should exist');
+        assert.ok(fnScope,    'fn scope should exist');
+        assert.strictEqual(constScope!.begin, fnScope!.begin);
+        assert.strictEqual(constScope!.end,   fnScope!.end);
+    });
+
+    // ========================================================================-
+    // fnParams scope (only inside primed fn)
+    // ========================================================================-
+
+    test('fnParams scope is opened between fn name and opening curly', async () => {
+        const src = 'fn foo(a: u32, b: bool) { }';
+        const tree = await parse(src);
+
+        // A position inside the param list — after `(`
+        const paramOpen = src.indexOf('(');
+        const inside = scopesAt(tree, paramOpen + 1);
+        assert.ok(inside.find(s => s.kind === 'fnParams'), 'fnParams scope must be present in param list');
+    });
+
+    test('fnParams scope ends before the opening curly of the fn body', async () => {
+        const src = 'fn foo(a: u32) { }';
+        const tree = await parse(src);
+
+        // A position inside fn body, after `{`
+        const bodyOpen = src.indexOf('{');
+        const insideBody = scopesAt(tree, bodyOpen + 1);
+        assert.ok(!insideBody.find(s => s.kind === 'fnParams'), 'fnParams must not extend into fn body');
+    });
+
+    // ========================================================================-
+    // Macro and macroArm scopes
+    // ========================================================================-
+
+    test('macro scope is created for macro_rules!', async () => {
+        const src = 'macro_rules! my_mac { () => {} }';
+        const tree = await parse(src);
+        const inside = scopesAt(tree, src.indexOf('{') + 1);
+        assert.ok(inside.find(s => s.kind === 'macro'), 'macro scope must exist');
+    });
+
+    test('macroArm scope is only opened inside an open macro scope', async () => {
+        // macroArm requires outerOpenScope === 'macro'
+        // At the top level (no macro), `=>` should not create a macroArm scope
+        const src = 'let x = 1 => 2;'; // not inside a macro
+        const tree = await parse(src);
+        const allScopes = tree.values as Scope<string>[];
+        assert.ok(!allScopes.find(s => s.kind === 'macroArm'), 'macroArm must not appear outside macro');
+    });
+
+    // ========================================================================-
+    // Unclosed scope produces no entry in the tree
+    // ========================================================================-
+
+    test('unclosed fn scope (missing close curly) produces no fn scope entry', async () => {
+        const src = 'fn foo() {';   // no closing `}`
+        const tree = await parse(src);
+        const allScopes = tree.values as Scope<string>[];
+        assert.ok(!allScopes.find(s => s.kind === 'fn'), 'incomplete fn scope should not appear in tree');
+    });
+
+    test('unclosed struct scope produces no struct entry', async () => {
+        const src = 'struct Foo {';
+        const tree = await parse(src);
+        const allScopes = tree.values as Scope<string>[];
+        assert.ok(!allScopes.find(s => s.kind === 'struct'), 'incomplete struct scope should not be in tree');
+    });
+
+    // ========================================================================-
+    // markerPos is the position of the scope keyword
+    // ========================================================================-
+
+    test('fn scope markerPos points to the fn keyword', async () => {
+        const src = 'fn foo() { }';
+        const tree = await parse(src);
+        const allScopes = tree.values as Scope<string>[];
+        const fnScope = allScopes.find(s => s.kind === 'fn');
+        assert.ok(fnScope);
+        assert.strictEqual(fnScope!.markerPos, src.indexOf('fn'));
+    });
+
+    // ========================================================================-
+    // Multiple top-level scopes — interval tree holds all of them
+    // ========================================================================-
+
+    test('two consecutive fn scopes both appear in the tree', async () => {
+        const src = 'fn a() { } fn b() { }';
+        const tree = await parse(src);
+        const allScopes = tree.values as Scope<string>[];
+        const fnScopes = allScopes.filter(s => s.kind === 'fn');
+        assert.strictEqual(fnScopes.length, 2, 'two fn scopes expected');
+    });
+
+    test('scopes at a position between two fn bodies are not overlapping', async () => {
+        const src = 'fn a() { } fn b() { }';
+        // Between the two functions — right after the first `}`
+        const between = src.indexOf('}') + 1;
+        const tree = await parse(src);
+        const inside = scopesAt(tree, between);
+        const fn_scopes = inside.filter(s => s.kind === 'fn');
+        assert.strictEqual(fn_scopes.length, 0, 'no fn scope should cover the gap between functions');
+    });
+});

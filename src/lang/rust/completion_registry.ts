@@ -295,9 +295,7 @@ type annotation
         minLookbehind: 1,
         trigger: '',
         resolver(ctx) {
-            const idx = ctx.editor.document.offsetAt(ctx.cursor);
-            const scopes = ctx.scopes.search([idx, idx]);
-            if (scopes.find(scope => scope.kind === 'typeAnno')) {
+            if (ctx.isScopeAtCursor('typeAnno')) {
                 
             }
         },

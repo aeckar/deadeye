@@ -76,7 +76,9 @@ export default class Tape {
         return ch === ' ' || ch === '\t';
     }
 
-    /* ================================ Duplication and Slicing ================================ */
+    // =========================================================================================
+    // Duplication and Slicing
+    // =========================================================================================
 
     /** Returns a new instance over a slice over the original string. */
     slice(start: number, end = this.raw.length): Tape {
@@ -88,7 +90,10 @@ export default class Tape {
         return this.slice(0, cursor.character + 1);
     }
 
-    /** Returns a new instance over the original string starting from the position of the cursor. */
+    /**
+     * Returns a new instance over the original string
+     * starting from the position of the cursor.
+     */
     after(cursor: Position): Tape {
         return this.slice(cursor.character);
     }
@@ -103,7 +108,9 @@ export default class Tape {
         return new Tape(reverse(this.rest()), 0, true, this.boundary);
     }
 
-    /* ================================ Context-Free Retrieval ================================ */
+    // =========================================================================================
+    // Context-Free Retrieval
+    // =========================================================================================
 
     /** Returns the character at the given index. */
     get(idx: number): string {
@@ -115,7 +122,9 @@ export default class Tape {
         return this.raw.slice(this.pos);
     }
 
-    /* ======================================= Iteration ======================================= */
+    // =========================================================================================
+    // Iteration
+    // =========================================================================================
 
     /** Advances the current position by 1 character. */
     adv(): this {
@@ -171,7 +180,9 @@ export default class Tape {
         return this.raw[this.pos - 1];
     }
 
-    /* ==================================== Pattern Lookup ==================================== */
+    // =========================================================================================
+    // Pattern Lookup
+    // =========================================================================================
 
     /** Returns the position of the first character returning true, or `undefined`. */
     poll(pred: (ch: string, pos: number) => boolean): number | undefined {
@@ -193,7 +204,9 @@ export default class Tape {
         return undefined;
     }
 
-    /* ================================== Pattern Consumption ================================== */
+    // =========================================================================================
+    // Pattern Consumption
+    // =========================================================================================
 
     /**
      * Advance `pos` until `pred` returns false for the character at the
@@ -377,7 +390,9 @@ export default class Tape {
         return first + rest;
     }
 
-    /* ================================== Pattern Restoration ================================== */
+    // =========================================================================================
+    // Pattern Restoration
+    // =========================================================================================
 
     /**
      * Decrements `pos` until `pred` returns false for the character at the
@@ -412,7 +427,9 @@ export default class Tape {
         return this.putBack((ch, _) => Tape.isWs(ch));
     }
 
-    /* ===================================== Pattern Seek ===================================== */
+    // =========================================================================================
+    // Pattern Seek
+    // =========================================================================================
 
     /**
      * Advances `pos` to the first index where `pred` is true.
@@ -482,7 +499,9 @@ export default class Tape {
         return false;
     }
 
-    /* ==================================== Pattern Testing ==================================== */
+    // =========================================================================================
+    // Pattern Testing
+    // =========================================================================================
 
     /**
      * Returns true if the substring starting at the current position

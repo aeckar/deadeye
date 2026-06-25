@@ -49,7 +49,9 @@ export namespace IdentifierRule {
     );
 }
 
-/* ==================================== Scannerless Parsing ==================================== */
+// =============================================================================================
+// Scannerless Parsing
+// =============================================================================================
 
 export type Brackets = (typeof BRACKETS)[number];
 export type OpenBracket = (typeof OPEN_BRACKETS)[number];
@@ -99,7 +101,9 @@ export function expandTabStops(s: MarkdownString): MarkdownString {
     );
 }
 
-/* ==================================== Diagnostics ==================================== */
+// =============================================================================================
+// Diagnostics
+// =============================================================================================
 
 /**
  * Returns the same string formatted in HTML as a distinct paragraph containing red text.
@@ -165,7 +169,9 @@ export function findWord(s: string, query: string): number {
     return -1;
 }
 
-/* ==================================== Letter Case ==================================== */
+// =============================================================================================
+// Letter Case
+// =============================================================================================
 
 export namespace CharacterClass {
     export const ALPHA = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';

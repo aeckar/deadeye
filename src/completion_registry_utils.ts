@@ -17,7 +17,9 @@ import {
     reverse,
 } from './text_utils';
 
-// ==================================== Utilities + Constants ====================================
+// =============================================================================================
+// Utilities + Constants
+// =============================================================================================
 
 export const MAX_TOKEN_SEEK = 50;
 export const MAX_LINE_SEEK = 50;
@@ -82,7 +84,9 @@ export type FlagMatch = {
  */
 export type Trigger = '' | ' ' | ';' | '.' | 'enter';
 
-// ==================================== Registry API + Builder ====================================
+// =============================================================================================
+// Registry API + Builder
+// =============================================================================================
 
 /** Contains all completion families for a given language, grouped by trigger. */
 export type CompletionRegistry<ScopeKind extends string> = Map<

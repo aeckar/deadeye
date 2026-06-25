@@ -58,18 +58,16 @@ export type ScopeResolver<ScopeKind extends string> = (
 export class ScopedCompletionContext<
     ScopeKind extends string,
 > extends CompletionContext {
-    readonly scopes: IntervalTree<Scope<ScopeKind>>;
-
     /** Users should create a {@link CompletionContext} first, then call {@link toScoped}. */
     private constructor(
         keyIn: string,
         cursor: Position,
         editor: TextEditor,
         identifiers: IdentifierRule,
-        scopes: IntervalTree<Scope<ScopeKind>>,
+        readonly scopes: IntervalTree<Scope<ScopeKind>>,
+        readonly scopesAtCursor: Scope<ScopeKind>[], // pre-compute
     ) {
         super(keyIn, cursor, editor, identifiers);
-        this.scopes = scopes;
     }
 
     static withResolver<ScopeKind extends string>(
@@ -79,12 +77,18 @@ export class ScopedCompletionContext<
         identifiers: IdentifierRule,
         resolver: ScopeResolver<ScopeKind>,
     ) {
+        const idx = editor.document.offsetAt(cursor);
+        const scopes = resolver(
+            new CompletionContext(keyIn, cursor, editor, identifiers),
+        );
+        const scopesAtCursor = scopes.search([idx, idx]);
         return new ScopedCompletionContext(
             keyIn,
             cursor,
             editor,
             identifiers,
-            resolver(new CompletionContext(keyIn, cursor, editor, identifiers)),
+            scopes,
+            scopesAtCursor,
         );
     }
 
@@ -95,7 +99,12 @@ export class ScopedCompletionContext<
             this.editor,
             this.identifiers,
             this.scopes,
+            this.scopesAtCursor,
         );
+    }
+
+    isScopeAtCursor(kind: ScopeKind): boolean {
+        return this.scopesAtCursor.find(scope => scope.kind === kind) ? true : false;
     }
 }
 
@@ -155,7 +164,7 @@ export type BoundariesCfg = ([string | null, string] | string)[];
  * - **`openByDefault` + `open === undefined`:** `<scope-marker> ...open... <primed>`
  * - **`open === undefined`:** `<scope-marker> ...primed... <close>`
  * - **`open !== undefined`:** `<scope-marker> ...primed... <open> ...open... <close>`
- * 
+ *
  * A scope starts open if any of its possible boundaries have an undefined open token.
  */
 export class Boundaries {
@@ -210,8 +219,8 @@ export class ScopeInfo<ScopeKind extends string> {
 
         /** A cached array of closing token kinds. */
         readonly closeKinds?: TokenKind[],
-    ) { }
-    
+    ) {}
+
     get isOpenByDefault(): boolean {
         return this.closeKinds !== undefined;
     }
@@ -353,7 +362,10 @@ export class ScopeStream<ScopeKind extends string> {
             const scope = unclosed[idx];
             for (const boundaries of scope.possibleBoundaries) {
                 // Attempt to open scope by matching to opener
-                if (token === boundaries.open && (!scope.isOpen || !scope.isReopened)) {
+                if (
+                    token === boundaries.open &&
+                    (!scope.isOpen || !scope.isReopened)
+                ) {
                     scope.open(start.end, [boundaries.open!]);
                     for (idx--; idx >= 0 && unclosed[idx]?.flatten; idx--) {
                         unclosed[idx].open(start.end, [boundaries.open!]);
