@@ -1,5 +1,5 @@
-import Tape from '../../tape';
-import { isLetter, isLowerLetter } from '../../text_utils';
+import Tape from '../../tape'
+import { isLetter, isLowerLetter } from '../../text_utils'
 
 // BASICALLY YU GOT
 /*
@@ -24,30 +24,30 @@ insert space after prefixes
 
 function revise(content: Tape): string {
     if (content.isExhausted()) {
-        return '';
+        return ''
     }
-    let sentenceBegin = true;
-    let wordBegin = true;
-    let wordStart = 0;
-    let wordBuf = '';
-    let revised = '';
+    let sentenceBegin = true
+    let wordBegin = true
+    let wordStart = 0
+    let wordBuf = ''
+    let revised = ''
     while (!content.isExhausted()) {
-        const ch = content.next()!;
+        const ch = content.next()!
         if (ch === '-' && content.cur() === '-') {
             // Replace `--` with em dash
             // This already exists as a hot shorthand,
             // but having a branch provides redundancy
-            content.pos += 2; // skip `--`
-            revised += '——';
-            wordBegin = false;
-            continue;
+            content.pos += 2 // skip `--`
+            revised += '——'
+            wordBegin = false
+            continue
         }
         if (sentenceBegin && isLowerLetter(ch)) {
             // Capitalize first letter of sentence
-            revised += ch.toUpperCase();
-            wordBegin = false;
-            sentenceBegin = false;
-            continue;
+            revised += ch.toUpperCase()
+            wordBegin = false
+            sentenceBegin = false
+            continue
         }
         if (
             wordBegin &&
@@ -55,23 +55,23 @@ function revise(content: Tape): string {
             (content.isExhausted() || !isLetter(content.cur()!))
         ) {
             // Capitalize singular "I"
-            revised += 'I';
-            wordBegin = false;
-            sentenceBegin = false;
-            continue;
+            revised += 'I'
+            wordBegin = false
+            sentenceBegin = false
+            continue
         }
         if (ch === '.' || ch === '!' || ch === '?') {
-            wordBegin = false;
-            sentenceBegin = true;
+            wordBegin = false
+            sentenceBegin = true
         } else if (Tape.isWs(ch)) {
-            wordBegin = true;
+            wordBegin = true
         } else if (isLetter(ch)) {
-            wordBegin = false;
-            sentenceBegin = false;
+            wordBegin = false
+            sentenceBegin = false
         } else {
-            wordBegin = false;
+            wordBegin = false
         }
-        revised += ch;
+        revised += ch
     }
-    return revised;
+    return revised
 }

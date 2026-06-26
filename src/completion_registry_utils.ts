@@ -1,29 +1,29 @@
 //! Algorithms and data structures used to parse completion shorthands.
 //!
 //! todo explain vocab
-import { MarkdownString, Position, Range, TextEditor, window } from 'vscode';
+import { MarkdownString, Position, Range, TextEditor, window } from 'vscode'
 
-import { rangeBefore } from './misc';
+import { rangeBefore } from './misc'
 import {
     ScopedCompletionContext,
     ScopeResolver,
     ScopeTree,
-} from './scope_registry_utils';
-import Tape from './tape';
+} from './scope_registry_utils'
+import Tape from './tape'
 import {
     Brackets,
     IdentifierRule,
     toMarkdown as md,
     reverse,
-} from './text_utils';
+} from './text_utils'
 
 // =============================================================================================
 // Utilities + Constants
 // =============================================================================================
 
-export const MAX_TOKEN_SEEK = 50;
-export const MAX_LINE_SEEK = 50;
-export const MAX_CHAR_SEEK = 2500;
+export const MAX_TOKEN_SEEK = 50
+export const MAX_LINE_SEEK = 50
+export const MAX_CHAR_SEEK = 2500
 
 export type FlagChar =
     | 'a'
@@ -52,20 +52,20 @@ export type FlagChar =
     | 'x'
     | 'y'
     | 'z'
-    | '!';
+    | '!'
 
 /**
  * A flag for some shorthand, representing a single lowercase letter or symbol.
  *
  * Can represent a range of characters by prepending a '-' and declaring two characters.
  */
-export type Flag = FlagChar | `-${FlagChar}${FlagChar}`;
+export type Flag = FlagChar | `-${FlagChar}${FlagChar}`
 
 /** Returned as values in the map returned by `Tape.consumeFlags`. */
 export type FlagMatch = {
-    readonly expansion: string;
-    readonly range: Range;
-};
+    readonly expansion: string
+    readonly range: Range
+}
 
 /**
  * The key used to trigger a completion.
@@ -82,7 +82,7 @@ export type FlagMatch = {
  * An empty string means there is no set trigger key,
  * and the completion will fire as soon as it is matched.
  */
-export type Trigger = '' | ' ' | ';' | '.' | 'enter';
+export type Trigger = '' | ' ' | ';' | '.' | 'enter'
 
 // =============================================================================================
 // Registry API + Builder
@@ -92,7 +92,7 @@ export type Trigger = '' | ' ' | ';' | '.' | 'enter';
 export type CompletionRegistry<ScopeKind extends string> = Map<
     Trigger,
     CompletionFamily<ScopeKind>[]
-> & { __brand: 'CompletionRegistry' };
+> & { __brand: 'CompletionRegistry' }
 
 /**
  * # Namespace
@@ -107,16 +107,16 @@ export namespace CompletionRegistry {
     export function newInstance<ScopeKind extends string>(
         ...families: CompletionFamilyCfg<ScopeKind>[]
     ): CompletionRegistry<ScopeKind> {
-        const byTrigger = new Map() as CompletionRegistry<ScopeKind>;
+        const byTrigger = new Map() as CompletionRegistry<ScopeKind>
         for (const cfg of families) {
-            const family = CompletionFamily.newInstance(cfg);
+            const family = CompletionFamily.newInstance(cfg)
             if (!byTrigger.has(family.trigger)) {
-                byTrigger.set(family.trigger, [family]);
+                byTrigger.set(family.trigger, [family])
             } else {
-                byTrigger.get(family.trigger)!.push(family);
+                byTrigger.get(family.trigger)!.push(family)
             }
         }
-        return byTrigger as CompletionRegistry<ScopeKind>;
+        return byTrigger as CompletionRegistry<ScopeKind>
     }
 }
 
@@ -124,7 +124,7 @@ export function substitute<ScopeKind extends string>(
     target: string,
     replacement: string,
 ): CompletionFamilyCfg<ScopeKind> {
-    const length = target.length;
+    const length = target.length
     return {
         docs: md`
         Expands the text.
@@ -134,30 +134,30 @@ export function substitute<ScopeKind extends string>(
         trigger: '',
         minLookbehind: length,
         resolver(ctx) {
-            const tape = ctx.leftOfCursor().reversed();
+            const tape = ctx.leftOfCursor().reversed()
             if (!tape.isAt(reverse(target))) {
-                return undefined;
+                return undefined
             }
             return Completion.newInstance({
                 preview: md`Insert \`${replacement}\`.`,
                 target: rangeBefore(ctx.cursor, length),
                 snippet: replacement.replaceAll('$', '\\$'),
-            });
+            })
         },
-    };
+    }
 }
 
 export type CompletionResolver<ScopeKind extends string> = (
     ctx: ScopedCompletionContext<ScopeKind>,
-) => Completion | undefined;
+) => Completion | undefined
 
 export type CompletionFamilyCfg<ScopeKind extends string> = {
-    docs: MarkdownString;
-    minLookbehind: number;
-    resolver: CompletionResolver<ScopeKind>;
-    trigger: Trigger;
-    scoping?: readonly ScopeTree<ScopeKind>[];
-};
+    docs: MarkdownString
+    minLookbehind: number
+    resolver: CompletionResolver<ScopeKind>
+    trigger: Trigger
+    scoping?: readonly ScopeTree<ScopeKind>[]
+}
 
 /**
  * A shorthand for a programming language element.
@@ -212,19 +212,19 @@ export class CompletionFamily<ScopeKind extends string> {
             cfg.trigger,
             cfg.scoping ?? ([] as const),
             cfg.resolver,
-        );
+        )
     }
 }
 
 export type CompletionCfg = {
-    preview: MarkdownString;
-    target: Range;
-    snippet: string;
-    errors?: Range[];
-    warnings?: Range[];
-    insertAt?: Position;
-    endCursorPos?: Position;
-};
+    preview: MarkdownString
+    target: Range
+    snippet: string
+    errors?: Range[]
+    warnings?: Range[]
+    insertAt?: Position
+    endCursorPos?: Position
+}
 
 /** The result of {@link CompletionFamily.resolver}. */
 export class Completion {
@@ -280,24 +280,24 @@ export class Completion {
     ) {}
 
     static newInstance(cfg: CompletionCfg) {
-        let errors: Range[] | undefined;
+        let errors: Range[] | undefined
         if (cfg.errors) {
-            const invalid = cfg.errors.filter(e => !cfg.target.contains(e));
+            const invalid = cfg.errors.filter(e => !cfg.target.contains(e))
             if (invalid.length > 0) {
                 const strings = invalid
                     .map(e => {
                         return (
                             `[${e.start.line}:${e.start.character}` +
                             `-${e.end.line}:${e.end.character}]`
-                        );
+                        )
                     })
-                    .join(', ');
+                    .join(', ')
                 window.showWarningMessage(
                     `Deadeye: Error range(s) outside of target: ${strings}`,
-                );
-                errors = cfg.errors.filter(e => cfg.target.contains(e));
+                )
+                errors = cfg.errors.filter(e => cfg.target.contains(e))
             } else {
-                errors = cfg.errors;
+                errors = cfg.errors
             }
         }
         return new Completion(
@@ -308,7 +308,7 @@ export class Completion {
             undefined, //todo warnings
             cfg.insertAt,
             cfg.endCursorPos,
-        );
+        )
     }
 }
 
@@ -320,7 +320,7 @@ export class Completion {
  * scope tree for the current position of the cursor.
  */
 export class CompletionContext {
-    readonly line: Tape;
+    readonly line: Tape
 
     constructor(
         protected readonly keyIn: string,
@@ -332,7 +332,7 @@ export class CompletionContext {
             editor.document.lineAt(cursor.line).text + keyIn,
             undefined,
             identifiers,
-        );
+        )
     }
 
     toScoped<ScopeKind extends string>(resolver: ScopeResolver<ScopeKind>) {
@@ -342,25 +342,25 @@ export class CompletionContext {
             this.editor,
             this.identifiers,
             resolver,
-        );
+        )
     }
 
     /** Returns a tape over the current line up to the cursor. */
     leftOfCursor(): Tape {
-        return this.line.before(this.cursor);
+        return this.line.before(this.cursor)
     }
 
     /** Returns a tape over the current line after the cursor. */
     rightOfCursor(): Tape {
-        return this.line.after(this.cursor);
+        return this.line.after(this.cursor)
     }
 
     seekOpenBracket(brackets: Brackets): Position | undefined {
-        return this._seekOpenBracket(brackets, this.cursor, true);
+        return this._seekOpenBracket(brackets, this.cursor, true)
     }
 
     seekCloseBracket(brackets: Brackets): Position | undefined {
-        return this._seekCloseBracket(brackets, this.cursor, true);
+        return this._seekCloseBracket(brackets, this.cursor, true)
     }
 
     fileUpToCursor(): Tape {
@@ -368,7 +368,7 @@ export class CompletionContext {
             this.editor.document.getText(
                 new Range(new Position(0, 0), this.cursor),
             ),
-        );
+        )
     }
 
     private static OTHER_BRACKETS: Record<string, string> = {
@@ -380,28 +380,28 @@ export class CompletionContext {
         '{': '([<',
         '[': '({<',
         '<': '({[',
-    };
+    }
 
     private _seekOpenBracket(
         brackets: Brackets,
         start: Position,
         recur: boolean,
     ): Position | undefined {
-        let depth = 0;
-        let lineLookbehind = 0;
-        const [open, closed] = brackets;
+        let depth = 0
+        let lineLookbehind = 0
+        const [open, closed] = brackets
         for (let line = start.line; line >= 0; line--, lineLookbehind++) {
             if (lineLookbehind > MAX_LINE_SEEK) {
-                return undefined;
+                return undefined
             }
-            const text = this.editor.document.lineAt(line).text;
-            const end = line === start.line ? start.character : text.length;
+            const text = this.editor.document.lineAt(line).text
+            const end = line === start.line ? start.character : text.length
             for (let character = end - 1; character >= 0; character--) {
-                const ch = text[character];
+                const ch = text[character]
                 if (recur) {
                     if (CompletionContext.OTHER_BRACKETS[open].includes(ch)) {
                         // missing closer for other type of bracket
-                        return undefined;
+                        return undefined
                     }
                     if (CompletionContext.OTHER_BRACKETS[closed].includes(ch)) {
                         const openPos = this._seekOpenBracket(
@@ -412,25 +412,25 @@ export class CompletionContext {
                                   )) as Brackets,
                             new Position(line, character),
                             false,
-                        );
+                        )
                         if (!openPos) {
-                            return undefined;
+                            return undefined
                         }
-                        line = openPos.line;
-                        character = openPos.character;
-                        continue;
+                        line = openPos.line
+                        character = openPos.character
+                        continue
                     }
                 } else if (ch === open) {
                     if (depth === 0) {
-                        return new Position(line, character + 1);
+                        return new Position(line, character + 1)
                     }
-                    depth--;
+                    depth--
                 } else if (ch === closed) {
-                    depth++;
+                    depth++
                 }
             }
         }
-        return undefined;
+        return undefined
     }
 
     private _seekCloseBracket(
@@ -438,26 +438,26 @@ export class CompletionContext {
         start: Position,
         recur: boolean,
     ): Position | undefined {
-        let depth = 0;
-        let lineLookbehind = 0;
-        const doc = this.editor.document;
-        const [open, closed] = brackets;
+        let depth = 0
+        let lineLookbehind = 0
+        const doc = this.editor.document
+        const [open, closed] = brackets
         for (
             let line = start.line;
             line < doc.lineCount;
             line++, lineLookbehind++
         ) {
             if (lineLookbehind > MAX_LINE_SEEK) {
-                return undefined;
+                return undefined
             }
-            const text = doc.lineAt(line).text;
-            const end = line === start.line ? start.character : text.length;
+            const text = doc.lineAt(line).text
+            const end = line === start.line ? start.character : text.length
             for (let character = 0; character < end; character++) {
-                const ch = text[character];
+                const ch = text[character]
                 if (recur) {
                     if (CompletionContext.OTHER_BRACKETS[closed].includes(ch)) {
                         // missing closer for other type of bracket
-                        return undefined;
+                        return undefined
                     }
                     if (CompletionContext.OTHER_BRACKETS[open].includes(ch)) {
                         const closedPos = this._seekCloseBracket(
@@ -468,34 +468,34 @@ export class CompletionContext {
                                   )) as Brackets,
                             new Position(line, character),
                             false,
-                        );
+                        )
                         if (!closedPos) {
-                            return undefined;
+                            return undefined
                         }
-                        line = closedPos.line;
-                        character = closedPos.character;
-                        continue;
+                        line = closedPos.line
+                        character = closedPos.character
+                        continue
                     }
                 } else if (ch === closed) {
                     if (depth === 0) {
-                        return new Position(line, character + 1);
+                        return new Position(line, character + 1)
                     }
-                    depth--;
+                    depth--
                 } else if (ch === open) {
-                    depth++;
+                    depth++
                 }
             }
         }
-        return undefined;
+        return undefined
     }
 }
 
 /** Created and stored after a shorthand is matched, and recalled once the trigger is pressed. */
 export type CompletionStrategy = {
-    readonly family: CompletionFamily<any>;
-    readonly trigger: Trigger;
-    readonly completion: Completion;
+    readonly family: CompletionFamily<any>
+    readonly trigger: Trigger
+    readonly completion: Completion
 
     /** The position of the cursor the instance this object was created. */
-    readonly pos: Position;
-};
+    readonly pos: Position
+}

@@ -1,5 +1,5 @@
-import { SymbolKind } from 'vscode';
-import { ScopeResolver } from '../../completion_registry_utils';
+import { SymbolKind } from 'vscode'
+import { ScopeResolver } from '../../completion_registry_utils'
 
 export type TsScopeKind =
     /* Declaration-level */
@@ -10,7 +10,7 @@ export type TsScopeKind =
     | 'fn' // Functions, Methods, Constructor blocks
     | 'enum'
     | 'namespace' // Namespaces or Modules
-    | 'object'; // Inside literal object assignments
+    | 'object' // Inside literal object assignments
 
 /* Expression/Statement */
 
@@ -18,34 +18,34 @@ const typescript: ScopeResolver<TsScopeKind> = symbol => {
     const kind = (() => {
         switch (symbol.kind) {
             case SymbolKind.Class:
-                return 'class';
+                return 'class'
             case SymbolKind.Interface:
-                return 'interface';
+                return 'interface'
             case SymbolKind.TypeParameter:
-                return 'type';
+                return 'type'
             case SymbolKind.Function:
             case SymbolKind.Method:
             case SymbolKind.Constructor:
-                return 'fn';
+                return 'fn'
             case SymbolKind.Enum:
-                return 'enum';
+                return 'enum'
             case SymbolKind.Module:
             case SymbolKind.Namespace:
-                return 'namespace';
+                return 'namespace'
             case SymbolKind.Object:
-                return 'object';
+                return 'object'
             default:
-                return 'toplevel';
+                return 'toplevel'
         }
-    })();
+    })()
 
     return {
         kind,
         symbol,
-    };
-};
+    }
+}
 
-export default typescript;
+export default typescript
 
 /*
 Why this design aligns with TypeScript semantics

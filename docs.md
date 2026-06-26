@@ -9,6 +9,7 @@ _Command chords_ are sequences of 2-4 characters that immediately perform an act
 - Encourage fluent programming
 
 If a chord is triggered accidentally, you can press undo and the cursor will be returned to the raw character sequence.
+
 - sfessfe
 
 Some chords require an argument, which might be:
@@ -109,8 +110,6 @@ run 'command' on 'target' in 'context'
 ## **2.3.0** Find Word
 
 **Trigger:** `df`
-
-
 
 ## **2.4.0** Movement
 

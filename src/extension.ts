@@ -31,6 +31,9 @@
 //  for standardness
 // use 'begin' for boolean, 'start' for specific idx
 
+//todo add spec.md for completion code/comment styles
+//todo completions for section/divider comments
+// todo [ in type anno auto-closes
 /*
 In TypeScript, you cannot use the # prefix inside a standard object literal {} type.
 The # syntax is exclusively reserved for runtime private properties within JavaScript classes.
@@ -199,16 +202,16 @@ import {
     commands,
     languages,
     window,
-} from 'vscode';
+} from 'vscode'
 
-import { Completion, CompletionStrategy } from './completion_registry_utils';
-import completionRegistries from './lang/completion_registries';
-import languagesById from './lang/languages';
-import scopeResolvers from './lang/scope_registries';
-import { ScopedCompletionContext } from './scope_registry_utils';
-import { expandTabStops } from './text_utils';
+import { Completion, CompletionStrategy } from './completion_registry_utils'
+import completionRegistries from './lang/completion_registries'
+import languagesById from './lang/languages'
+import scopeResolvers from './lang/scope_registries'
+import { ScopedCompletionContext } from './scope_registry_utils'
+import { expandTabStops } from './text_utils'
 
-let strategy: CompletionStrategy | undefined;
+let strategy: CompletionStrategy | undefined
 // let decorationSyncTimeout: NodeJS.Timeout | undefined;
 
 const decoration = window.createTextEditorDecorationType({
@@ -216,103 +219,103 @@ const decoration = window.createTextEditorDecorationType({
     border: '1px solid',
     borderRadius: '3px',
     color: new ThemeColor('editorInfo.foreground'),
-});
+})
 
 function cancelCompletion(editor: TextEditor) {
     if (strategy && editor.selection.active.isEqual(strategy.pos)) {
         // waiting for insertion of pressed key
-        return;
+        return
     }
-    strategy = undefined;
-    editor.setDecorations(decoration, []); // reset decorations
+    strategy = undefined
+    editor.setDecorations(decoration, []) // reset decorations
 }
 
 /** Extension initializer. */
 export function activate(context: ExtensionContext) {
     const cancelCompletionOnSelectionChange =
         window.onDidChangeTextEditorSelection(event => {
-            cancelCompletion(event.textEditor);
-        });
+            cancelCompletion(event.textEditor)
+        })
 
     // Prefer low-level command to `onDidChangeActiveTextEditor` listener
     // for optimal recognition of fast keystroke combos.
     const prepareCompletionOnKeystroke = commands.registerCommand(
         'type',
         async args => {
-            const editor = window.activeTextEditor;
+            const editor = window.activeTextEditor
             if (!editor) {
-                return;
+                return
             }
-            const keyIn = (args.text as string).trim(); // sometimes preceded by space
+            const keyIn = (args.text as string).trim() // sometimes preceded by space
             if (!keyIn) {
                 // pressed space
                 if (!strategy) {
                     // fixme for hot completions, other triggers
                     editor.edit(editBuilder => {
-                        editBuilder.insert(editor.selection.active, ' ');
-                    });
-                    return;
+                        editBuilder.insert(editor.selection.active, ' ')
+                    })
+                    return
                 }
-                applyCompletion(editor, strategy.completion);
-                strategy = undefined;
-                return;
+                applyCompletion(editor, strategy.completion)
+                strategy = undefined
+                return
             }
-            commands.executeCommand('default:type', args); // manually perform insertion
-            await updateStrategy(keyIn, editor);
+            commands.executeCommand('default:type', args) // manually perform insertion
+            await updateStrategy(keyIn, editor)
             if (strategy) {
-                editor.setDecorations(decoration, [strategy.completion.target]);
+                editor.setDecorations(decoration, [strategy.completion.target])
             }
         },
-    );
+    )
 
     const showDocsOnHover = languages.registerHoverProvider('rust', {
         provideHover(_, position, __) {
             if (!strategy || !strategy.completion.target.contains(position)) {
-                return null;
+                return null
             }
-            return new Hover(strategy.family.docs);
+            return new Hover(strategy.family.docs)
         },
-    });
+    })
 
     const showPreviewOnHover = languages.registerHoverProvider('rust', {
         provideHover(_, position, __) {
             if (!strategy || !strategy.completion.target.contains(position)) {
-                return null;
+                return null
             }
             // Since there can be multiple code blocks in a preview, don't bother
             // highlighting them by turning them into fenced code blocks.
-            return new Hover(expandTabStops(strategy.completion.preview));
+            return new Hover(expandTabStops(strategy.completion.preview))
         },
-    });
+    })
 
     context.subscriptions.push(
         prepareCompletionOnKeystroke,
         cancelCompletionOnSelectionChange,
         showPreviewOnHover,
         showDocsOnHover,
-    );
+    )
 }
 
 /** Runs every line-based completion for the current language. */
 async function updateStrategy(keyIn: string, editor: TextEditor) {
-    const active = editor.selection.active;
-    const cursor = new Position(active.line, active.character + 1); // adjust for key-in
-    const langId = editor.document.languageId;
+    const active = editor.selection.active
+    const cursor = new Position(active.line, active.character + 1) // adjust for key-in
+    const langId = editor.document.languageId
     const ctx = ScopedCompletionContext.withResolver(
         keyIn,
         cursor,
         editor,
         languagesById[langId].identifiers,
         scopeResolvers[langId],
-    );
+    )
     for (const [trigger, families] of completionRegistries[langId]) {
         for (const family of families) {
-            const completion = family.resolver(ctx.clone()); // clone for fresh line buffer
+            const completion = family.resolver(ctx.clone()) // clone for fresh line buffer
             if (!completion) {
-                continue;
+                continue
             }
-            strategy = { family, trigger, completion, pos: cursor };
-            return;
+            strategy = { family, trigger, completion, pos: cursor }
+            return
         }
     }
 }
@@ -321,12 +324,12 @@ async function applyCompletion(editor: TextEditor, completion: Completion) {
     await editor.insertSnippet(
         new SnippetString(completion.snippet),
         completion.target,
-    );
+    )
     if (!completion.endCursorPos) {
-        return;
+        return
     }
     editor.selection = new Selection(
         completion.endCursorPos,
         completion.endCursorPos,
-    );
+    )
 }

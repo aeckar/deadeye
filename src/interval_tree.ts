@@ -1,7 +1,7 @@
 //! For more information, see https://github.com/alexbol99/flatten-interval-tree.
 import type IntervalTreeClass from '@flatten-js/interval-tree' with {
     'resolution-mode': 'import',
-};
+}
 
 /**
  * Structural type of `Node` from
@@ -9,49 +9,49 @@ import type IntervalTreeClass from '@flatten-js/interval-tree' with {
  */
 export type IntervalNode<V> = {
     key: {
-        low: number;
-        high: number;
-        output: () => [number, number] | any;
-    } | null;
-    values: V[];
-    left: IntervalNode<V> | null;
-    right: IntervalNode<V> | null;
-    parent: IntervalNode<V> | null;
-    color: number;
-    max: { low: number; high: number };
-};
+        low: number
+        high: number
+        output: () => [number, number] | any
+    } | null
+    values: V[]
+    left: IntervalNode<V> | null
+    right: IntervalNode<V> | null
+    parent: IntervalNode<V> | null
+    color: number
+    max: { low: number; high: number }
+}
 
 /**
  * Structural type of `IntervalTree` from
  * [@flatten-js/interval-tree](https://github.com/alexbol99/flatten-interval-tree/blob/master/src/classes/IntervalTree.ts).
  */
 export type IntervalTree<V> = {
-    root: IntervalNode<V> | null;
-    nil_node: IntervalNode<V>;
+    root: IntervalNode<V> | null
+    nil_node: IntervalNode<V>
 
-    readonly size: number;
-    readonly keys: any[];
-    readonly values: V[];
-    readonly items: Array<{ key: any; value: V }>;
+    readonly size: number
+    readonly keys: any[]
+    readonly values: V[]
+    readonly items: Array<{ key: any; value: V }>
 
-    isEmpty(): boolean;
-    clear(): void;
-    insert(key: [number, number] | any, value?: V): IntervalNode<V> | undefined;
-    exist(key: [number, number] | any, value?: V): boolean;
-    remove(key: [number, number] | any, value?: V): IntervalNode<V> | undefined;
-    search(interval: [number, number] | any): V[];
+    isEmpty(): boolean
+    clear(): void
+    insert(key: [number, number] | any, value?: V): IntervalNode<V> | undefined
+    exist(key: [number, number] | any, value?: V): boolean
+    remove(key: [number, number] | any, value?: V): IntervalNode<V> | undefined
+    search(interval: [number, number] | any): V[]
     search<T>(
         interval: [number, number] | any,
         outputMapperFn: (value: V, key: any) => T,
-    ): T[];
-    intersect_any(interval: [number, number] | any): boolean;
-    forEach(visitor: (key: any, value: V) => void): void;
-    map<U>(callback: (value: V, key: any) => U): IntervalTree<U>;
-    iterate(interval?: [number, number] | any): IterableIterator<V>;
-};
+    ): T[]
+    intersect_any(interval: [number, number] | any): boolean
+    forEach(visitor: (key: any, value: V) => void): void
+    map<U>(callback: (value: V, key: any) => U): IntervalTree<U>
+    iterate(interval?: [number, number] | any): IterableIterator<V>
+}
 
 export class IntervalTreeService {
-    private static ctor?: typeof IntervalTreeClass;
+    private static ctor?: typeof IntervalTreeClass
 
     private constructor() {}
 
@@ -65,8 +65,8 @@ export class IntervalTreeService {
      */
     public static async start(): Promise<void> {
         if (!IntervalTreeService.ctor) {
-            const module = await import('@flatten-js/interval-tree');
-            IntervalTreeService.ctor = module.default;
+            const module = await import('@flatten-js/interval-tree')
+            IntervalTreeService.ctor = module.default
         }
     }
 
@@ -75,8 +75,8 @@ export class IntervalTreeService {
             throw new Error(
                 'IntervalTree class has not been loaded yet. ' +
                     'Please await IntervalTree.init() first.',
-            );
+            )
         }
-        return new IntervalTreeService.ctor<V>() as IntervalTree<V>;
+        return new IntervalTreeService.ctor<V>() as IntervalTree<V>
     }
 }

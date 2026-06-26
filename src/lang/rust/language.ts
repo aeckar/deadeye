@@ -1,13 +1,13 @@
-import { Language } from '../../language_utils';
-import Tape from '../../tape';
+import { Language } from '../../language_utils'
+import Tape from '../../tape'
 import {
     getCloseBracket,
     getOpenBracket,
     IdentifierRule,
-} from '../../text_utils';
+} from '../../text_utils'
 
-const STOP = '=,{};';
-const SIGIL = '&*!+-';
+const STOP = '=,{};'
+const SIGIL = '&*!+-'
 
 //ctrl-space for suggestions!
 //wI suppose I'll figure out what to name the files once I finish the project.
@@ -30,24 +30,24 @@ const SIGIL = '&*!+-';
  */
 export function consumeRustTarget(tape: Tape): string {
     function skipBalanced(tape: Tape, open: string, close: string): string {
-        let depth = 0;
-        let chunk = '';
+        let depth = 0
+        let chunk = ''
         while (!tape.isExhausted()) {
-            const ch = tape.next();
-            chunk += ch;
+            const ch = tape.next()
+            chunk += ch
             if (ch === open) {
-                depth++;
+                depth++
             } else if (ch === close) {
-                depth--;
+                depth--
                 if (depth === 0) {
-                    break;
+                    break
                 }
             }
         }
         if (!tape.isExhausted() && tape.cur() === '.') {
-            chunk += tape.next();
+            chunk += tape.next()
         }
-        return chunk;
+        return chunk
     }
 
     function skipBalancedReverse(
@@ -55,106 +55,106 @@ export function consumeRustTarget(tape: Tape): string {
         close: string,
         open: string,
     ): string {
-        let depth = 0;
-        let chunk = '';
+        let depth = 0
+        let chunk = ''
         while (!tape.isExhausted()) {
-            const ch = tape.next();
-            chunk = ch + chunk;
+            const ch = tape.next()
+            chunk = ch + chunk
             if (ch === close) {
-                depth++;
+                depth++
             } else if (ch === open) {
-                depth--;
+                depth--
                 if (depth === 0) {
-                    break;
+                    break
                 }
             }
         }
-        return chunk;
+        return chunk
     }
 
     function consumeForward(tape: Tape): string {
-        let result = '';
+        let result = ''
         while (!tape.isExhausted()) {
-            const ch = tape.cur()!;
+            const ch = tape.cur()!
             if (STOP.includes(ch) || SIGIL.includes(ch)) {
-                break;
+                break
             }
-            const close = getCloseBracket(ch);
+            const close = getCloseBracket(ch)
             if (close) {
-                result += skipBalanced(tape, ch, close);
-                continue;
+                result += skipBalanced(tape, ch, close)
+                continue
             }
             if (getOpenBracket(ch)) {
-                break;
+                break
             }
             if (Tape.isWs(ch)) {
-                const ws = tape.consumeWs();
-                const next = tape.cur();
+                const ws = tape.consumeWs()
+                const next = tape.cur()
                 if (next !== ':' && next !== '<') {
-                    tape.pos -= ws.length; // faster than `putBackWs`
-                    break;
+                    tape.pos -= ws.length // faster than `putBackWs`
+                    break
                 } else if (next === '<') {
-                    tape.adv(); // skip `<`
-                    result += ws + '<';
+                    tape.adv() // skip `<`
+                    result += ws + '<'
                 } else {
-                    tape.adv(); // skip first `:`
+                    tape.adv() // skip first `:`
                     if (tape.cur() !== ':') {
-                        tape.pos -= ws.length + 1;
-                        break;
+                        tape.pos -= ws.length + 1
+                        break
                     }
-                    tape.adv(); // skip second `:`
-                    result += ws + '::';
+                    tape.adv() // skip second `:`
+                    result += ws + '::'
                 }
-                continue;
+                continue
             }
-            result += tape.next();
+            result += tape.next()
         }
-        return result;
+        return result
     }
 
     function consumeReversed(tape: Tape): string {
-        let result = '';
+        let result = ''
         while (!tape.isExhausted()) {
-            const ch = tape.cur()!;
+            const ch = tape.cur()!
             if (STOP.includes(ch) || SIGIL.includes(ch)) {
-                break;
+                break
             }
-            const open = getOpenBracket(ch);
+            const open = getOpenBracket(ch)
             if (open) {
-                result = skipBalancedReverse(tape, ch, open) + result;
-                continue;
+                result = skipBalancedReverse(tape, ch, open) + result
+                continue
             }
             if (getCloseBracket(ch)) {
-                break;
+                break
             }
             if (Tape.isWs(ch)) {
-                const ws = tape.consumeWs();
-                const next = tape.cur();
+                const ws = tape.consumeWs()
+                const next = tape.cur()
                 if (next !== ':' && next !== '>') {
-                    tape.pos -= ws.length; // faster than `putBackWs`
-                    break;
+                    tape.pos -= ws.length // faster than `putBackWs`
+                    break
                 } else if (next === '>') {
-                    tape.adv(); // skip `>`
-                    result = '>' + ws + result;
+                    tape.adv() // skip `>`
+                    result = '>' + ws + result
                 } else {
-                    tape.adv(); // skip first `:`
+                    tape.adv() // skip first `:`
                     if (tape.cur() !== ':') {
-                        tape.pos -= ws.length + 1;
-                        break;
+                        tape.pos -= ws.length + 1
+                        break
                     }
-                    tape.adv(); // skip second `:`
-                    result = '::' + ws + result;
+                    tape.adv() // skip second `:`
+                    result = '::' + ws + result
                 }
-                continue;
+                continue
             }
-            result = tape.next() + result;
+            result = tape.next() + result
         }
-        return result;
+        return result
     }
     if (tape.isReversed) {
-        return consumeReversed(tape);
+        return consumeReversed(tape)
     }
-    return consumeForward(tape);
+    return consumeForward(tape)
 }
 
 export const rust = Language.newInstance({
@@ -252,6 +252,6 @@ export const rust = Language.newInstance({
         Language.C_CHAR,
     ],
     ignore: /\s/y,
-});
+})
 
-export default rust;
+export default rust

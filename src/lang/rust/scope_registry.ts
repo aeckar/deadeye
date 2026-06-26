@@ -1,4 +1,4 @@
-import { ScopeRegistry } from '../../scope_registry_utils';
+import { ScopeRegistry } from '../../scope_registry_utils'
 
 export type RustScopeKind =
     | 'struct'
@@ -20,8 +20,8 @@ export type RustScopeKind =
     | 'else'
     | 'loop'
     | 'match'
-    | 'matchArm';
-    
+    | 'matchArm'
+
 // | 'condition' // IMPOSSIBLE IN RUST bc no (); completions must infer scope
 // | 'typeParams' // $id < .. > //leave generocs out of lexer, defer to local ctx resolution
 // | 'typeArgs' // ${$ty $id | fn} < .. >
@@ -41,14 +41,14 @@ export type RustScopeKind =
 //  sign to determine whether it is a boolean operation or a generics operation.
 // I think I'm just going to leave that to the completions, and I will leave
 //  whitespace out of the token stream to improve performance.
-    // condition: {
-    //     possibleMarkers: ['OPEN_PAREN'],
-    //     possibleBoundaries: [[null, 'OPEN_PAREN']],
-    //     outerPrimedScope: 'conditional'
+// condition: {
+//     possibleMarkers: ['OPEN_PAREN'],
+//     possibleBoundaries: [[null, 'OPEN_PAREN']],
+//     outerPrimedScope: 'conditional'
 // },
 
 // struct init is also too complex to parse at scope time, defer to completions
-    
+
 export const rust = ScopeRegistry.newInstance<RustScopeKind>({
     struct: {
         possibleMarkers: ['STRUCT', 'UNION'],
@@ -85,7 +85,7 @@ export const rust = ScopeRegistry.newInstance<RustScopeKind>({
     macroArm: {
         possibleMarkers: ['FAT_ARROW'],
         possibleBoundaries: ['CURLY', [null, 'COMMA']],
-        outerOpenScope: 'macro', 
+        outerOpenScope: 'macro',
     },
     macroArmParams: {
         possibleMarkers: ['OPEN_PAREN'],
@@ -102,11 +102,15 @@ export const rust = ScopeRegistry.newInstance<RustScopeKind>({
     },
     assignment: {
         possibleMarkers: ['EQUALS'],
-        possibleBoundaries: [[null, 'SEMICOLON']]
+        possibleBoundaries: [[null, 'SEMICOLON']],
     },
     typeAnno: {
         possibleMarkers: ['COLON'],
-        possibleBoundaries: [[null, 'CLOSE_PAREN'], [null, 'CLOSE_CURLY'], [null, 'COMMA']]
+        possibleBoundaries: [
+            [null, 'CLOSE_PAREN'],
+            [null, 'CLOSE_CURLY'],
+            [null, 'COMMA'],
+        ],
     },
     conditional: {
         possibleMarkers: ['IF'],
@@ -121,14 +125,14 @@ export const rust = ScopeRegistry.newInstance<RustScopeKind>({
         possibleBoundaries: ['CURLY'],
     },
     match: {
-        possibleBoundaries: ['CURLY']
+        possibleBoundaries: ['CURLY'],
     },
     matchArm: {
         possibleMarkers: ['FAT_ARROW'],
         possibleBoundaries: ['CURLY', [null, 'COMMA']],
         outerOpenScope: 'match',
     },
-});
+})
 
 /*
     const file = ctx.fileUpToCursor();
@@ -154,4 +158,4 @@ export const rust = ScopeRegistry.newInstance<RustScopeKind>({
     }
 */
 
-export default rust;
+export default rust

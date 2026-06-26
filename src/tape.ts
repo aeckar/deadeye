@@ -1,15 +1,15 @@
 //! Cursor data structure.
-import { Position, Range } from 'vscode';
+import { Position, Range } from 'vscode'
 
-import { Flag, FlagMatch } from './completion_registry_utils';
-import { propertiesIn } from './misc';
+import { Flag, FlagMatch } from './completion_registry_utils'
+import { propertiesIn } from './misc'
 import {
     IdentifierRule,
     isLetter,
     isLowerLetter,
     isUpperLetter,
     reverse,
-} from './text_utils';
+} from './text_utils'
 
 /**
  * A lightweight cursor over a string for non-linear parsing.
@@ -31,14 +31,14 @@ import {
  * (see [TypeScript FAQ](https://github.com/Microsoft/TypeScript/wiki/FAQ#why-are-functions-with-fewer-parameters-assignable-to-functions-that-take-more-parameters)).
  */
 export default class Tape {
-    readonly raw: string;
-    readonly isReversed: boolean;
-    private readonly boundary: IdentifierRule;
-    pos: number;
+    readonly raw: string
+    readonly isReversed: boolean
+    private readonly boundary: IdentifierRule
+    pos: number
 
     /** The length of the remaining portion of the tape. */
     get length(): number {
-        return Math.max(0, this.raw.length - this.pos);
+        return Math.max(0, this.raw.length - this.pos)
     }
 
     private constructor(
@@ -47,33 +47,33 @@ export default class Tape {
         isReversed: boolean,
         boundary: IdentifierRule,
     ) {
-        this.raw = raw;
-        this.pos = pos;
-        this.isReversed = isReversed;
-        this.boundary = boundary;
+        this.raw = raw
+        this.pos = pos
+        this.isReversed = isReversed
+        this.boundary = boundary
     }
 
     [Symbol.iterator](): Iterator<string> {
-        let pos = this.pos;
-        const raw = this.raw;
+        let pos = this.pos
+        const raw = this.raw
         return {
             next(): IteratorResult<string> {
                 if (pos >= raw.length) {
-                    return { value: undefined, done: true };
+                    return { value: undefined, done: true }
                 }
-                return { value: raw[pos++], done: false };
+                return { value: raw[pos++], done: false }
             },
-        };
+        }
     }
 
     /** Returns a new instance over the original string. */
     static over(raw: string, pos = 0, boundary = IdentifierRule.STRICT) {
-        return new Tape(raw, pos, false, boundary);
+        return new Tape(raw, pos, false, boundary)
     }
 
     /** Returns true if the given character is space or tab. */
     static isWs(ch: string): boolean {
-        return ch === ' ' || ch === '\t';
+        return ch === ' ' || ch === '\t'
     }
 
     // =========================================================================================
@@ -82,12 +82,12 @@ export default class Tape {
 
     /** Returns a new instance over a slice over the original string. */
     slice(start: number, end = this.raw.length): Tape {
-        return Tape.over(this.raw.slice(start, end));
+        return Tape.over(this.raw.slice(start, end))
     }
 
     /** Returns a new instance over the original string up to the position of the cursor. */
     before(cursor: Position): Tape {
-        return this.slice(0, cursor.character + 1);
+        return this.slice(0, cursor.character + 1)
     }
 
     /**
@@ -95,17 +95,17 @@ export default class Tape {
      * starting from the position of the cursor.
      */
     after(cursor: Position): Tape {
-        return this.slice(cursor.character);
+        return this.slice(cursor.character)
     }
 
     /** Returns a snapshot of this cursor. */
     clone(): Tape {
-        return new Tape(this.raw, this.pos, this.isReversed, this.boundary);
+        return new Tape(this.raw, this.pos, this.isReversed, this.boundary)
     }
 
     /** Returns a new instance over the remaining string, reversed. */
     reversed(): Tape {
-        return new Tape(reverse(this.rest()), 0, true, this.boundary);
+        return new Tape(reverse(this.rest()), 0, true, this.boundary)
     }
 
     // =========================================================================================
@@ -114,12 +114,12 @@ export default class Tape {
 
     /** Returns the character at the given index. */
     get(idx: number): string {
-        return this.raw[idx];
+        return this.raw[idx]
     }
 
     /** Returns a substring over the original slice from the current position. */
     rest(): string {
-        return this.raw.slice(this.pos);
+        return this.raw.slice(this.pos)
     }
 
     // =========================================================================================
@@ -128,19 +128,19 @@ export default class Tape {
 
     /** Advances the current position by 1 character. */
     adv(): this {
-        this.pos += 1;
-        return this;
+        this.pos += 1
+        return this
     }
 
     /** Decrements the current position by 1 character. */
     dec(): this {
-        this.pos -= 1;
-        return this;
+        this.pos -= 1
+        return this
     }
 
     /** Returns true if the cursor is past the last character. */
     isExhausted(): boolean {
-        return this.pos >= this.raw.length;
+        return this.pos >= this.raw.length
     }
 
     /**
@@ -149,7 +149,7 @@ export default class Tape {
      * Not to be confused with `peek`, which returns the character *after* the current position.
      */
     cur(): string | undefined {
-        return this.raw[this.pos];
+        return this.raw[this.pos]
     }
 
     /**
@@ -161,9 +161,9 @@ export default class Tape {
      * If the tape is exhausted, `pos` will still be incremented.
      */
     next(): string | undefined {
-        const ch = this.raw[this.pos];
-        this.pos += 1;
-        return ch;
+        const ch = this.raw[this.pos]
+        this.pos += 1
+        return ch
     }
 
     /**
@@ -172,12 +172,12 @@ export default class Tape {
      * Not to be confused with `cur`, which returns the character at the current position.
      */
     peek(): string | undefined {
-        return this.raw[this.pos + 1];
+        return this.raw[this.pos + 1]
     }
 
     /** Returns the character at `pos - 1`, or `undefined` if that position is out of bounds. */
     peekBack(): string | undefined {
-        return this.raw[this.pos - 1];
+        return this.raw[this.pos - 1]
     }
 
     // =========================================================================================
@@ -188,20 +188,20 @@ export default class Tape {
     poll(pred: (ch: string, pos: number) => boolean): number | undefined {
         for (let i = this.pos; i < this.raw.length; i++) {
             if (pred(this.raw[i], i)) {
-                return i;
+                return i
             }
         }
-        return undefined;
+        return undefined
     }
 
     /** Returns the position of the last character returning true, or `undefined`. */
     pollBack(pred: (ch: string, pos: number) => boolean): number | undefined {
         for (let i = this.raw.length - 1; i >= this.pos; i--) {
             if (pred(this.raw[i], i)) {
-                return i;
+                return i
             }
         }
-        return undefined;
+        return undefined
     }
 
     // =========================================================================================
@@ -216,15 +216,15 @@ export default class Tape {
      * @return the substring iterated over.
      */
     consume(pred: (ch: string, pos: number) => boolean): string {
-        const end = this.poll((ch, pos) => !pred(ch, pos));
+        const end = this.poll((ch, pos) => !pred(ch, pos))
         if (end === undefined) {
-            const res = this.raw.slice(this.pos);
-            this.pos = this.raw.length;
-            return res;
+            const res = this.raw.slice(this.pos)
+            this.pos = this.raw.length
+            return res
         }
-        const res = this.raw.slice(this.pos, end);
-        this.pos = end;
-        return res;
+        const res = this.raw.slice(this.pos, end)
+        this.pos = end
+        return res
     }
 
     /**
@@ -233,26 +233,26 @@ export default class Tape {
      * @return the substring containing whitespace
      */
     consumeWs(): string {
-        return this.consume(ch => Tape.isWs(ch));
+        return this.consume(ch => Tape.isWs(ch))
     }
 
     /** Consumes the query starting at this position, or returns an empty string. */
     consumeAt(query: string): string {
         if (!this.isAt(query)) {
-            return '';
+            return ''
         }
-        this.pos += query.length;
-        return query;
+        this.pos += query.length
+        return query
     }
 
     /** Consumes the query starting at this position, or returns an empty string. */
     consumeEither(...queries: string[]): string {
         for (const query of queries) {
             if (this.consumeAt(query)) {
-                return query;
+                return query
             }
         }
-        return '';
+        return ''
     }
 
     /**
@@ -264,20 +264,20 @@ export default class Tape {
      * If a match to any chunk fails, `undefined` is returned.
      */
     consumeChunks(chunks: string[]): string[] | undefined {
-        const start = this.pos;
-        let parts = [];
+        const start = this.pos
+        let parts = []
         for (const [idx, chunk] of chunks.entries()) {
-            let next = this.consumeAt(chunk);
+            let next = this.consumeAt(chunk)
             if (!next) {
-                this.pos = start;
-                return undefined;
+                this.pos = start
+                return undefined
             }
-            parts.push(next);
+            parts.push(next)
             if (idx !== chunks.length - 1) {
-                parts.push(this.consumeWs());
+                parts.push(this.consumeWs())
             }
         }
-        return parts;
+        return parts
     }
 
     /**
@@ -300,41 +300,41 @@ export default class Tape {
         cursor: Position,
         possibleFlags: { [Key in Flag]?: string },
     ): Map<Flag, FlagMatch> | undefined {
-        let expansions: [number, string, Range][] = [];
+        let expansions: [number, string, Range][] = []
         while (!this.isExhausted()) {
-            let found = false;
+            let found = false
             for (const [idx, { key: flag, value: expansion }] of propertiesIn(
                 possibleFlags,
             )) {
                 if (!this.cur()) {
-                    break;
+                    break
                 }
-                const ch = this.cur()!;
-                const isRange = flag[0] === '-';
+                const ch = this.cur()!
+                const isRange = flag[0] === '-'
                 if (isRange) {
                     if (ch >= flag[1] && ch <= flag[2]) {
-                        found = true;
+                        found = true
                     }
                 } else if (ch === flag) {
-                    found = true;
+                    found = true
                 }
                 if (found) {
-                    const charPos = cursor.translate(0, -(this.pos + 1));
-                    const range = new Range(charPos, charPos.translate(0, 1));
-                    this.adv();
+                    const charPos = cursor.translate(0, -(this.pos + 1))
+                    const range = new Range(charPos, charPos.translate(0, 1))
+                    this.adv()
                     expansions.push([
                         idx,
                         isRange ? expansion.replaceAll('{}', ch) : expansion,
                         range,
-                    ]);
-                    break;
+                    ])
+                    break
                 }
             }
             if (!found) {
                 if (expansions.length !== 0) {
-                    break;
+                    break
                 } else {
-                    return undefined;
+                    return undefined
                 }
             }
         }
@@ -345,7 +345,7 @@ export default class Tape {
                     Object.entries(possibleFlags)[idx][0] as Flag,
                     { expansion, range },
                 ]),
-        );
+        )
     }
 
     /**
@@ -360,11 +360,11 @@ export default class Tape {
         | undefined {
         for (const [k, v] of Object.entries(possible)) {
             if (this.isAt(k)) {
-                this.pos += k.length;
-                return [k, v];
+                this.pos += k.length
+                return [k, v]
             }
         }
-        return undefined;
+        return undefined
     }
 
     /**
@@ -373,21 +373,21 @@ export default class Tape {
      */
     consumeCapitalized(): string {
         if (this.isReversed) {
-            let rest = this.consume(ch => isLowerLetter(ch));
-            let first = this.cur();
+            let rest = this.consume(ch => isLowerLetter(ch))
+            let first = this.cur()
             if (!first || !isUpperLetter(first)) {
-                return '';
+                return ''
             }
-            this.adv();
-            return first + rest;
+            this.adv()
+            return first + rest
         }
-        let first = this.cur();
+        let first = this.cur()
         if (!first || !isUpperLetter(first)) {
-            return '';
+            return ''
         }
-        this.adv();
-        let rest = this.consume(ch => isLowerLetter(ch));
-        return first + rest;
+        this.adv()
+        let rest = this.consume(ch => isLowerLetter(ch))
+        return first + rest
     }
 
     // =========================================================================================
@@ -402,13 +402,13 @@ export default class Tape {
      * @return the substring iterated over.
      */
     putBack(pred: (ch: string, pos: number) => boolean): string {
-        const end = this.pollBack((ch, pos) => !pred(ch, pos));
+        const end = this.pollBack((ch, pos) => !pred(ch, pos))
         if (end === undefined) {
-            return '';
+            return ''
         }
-        const res = this.raw.slice(this.pos, end);
-        this.pos = end;
-        return res;
+        const res = this.raw.slice(this.pos, end)
+        this.pos = end
+        return res
     }
 
     /**
@@ -424,7 +424,7 @@ export default class Tape {
      * @return the substring containing whitespace.
      */
     putBackWs(): string {
-        return this.putBack((ch, _) => Tape.isWs(ch));
+        return this.putBack((ch, _) => Tape.isWs(ch))
     }
 
     // =========================================================================================
@@ -438,12 +438,12 @@ export default class Tape {
      * or `false` and `pos` is restored to its original value.
      */
     seek(pred: (ch: string, pos: number) => boolean): boolean {
-        const found = this.poll(pred);
+        const found = this.poll(pred)
         if (found === undefined) {
-            return false;
+            return false
         }
-        this.pos = found;
-        return true;
+        this.pos = found
+        return true
     }
 
     /**
@@ -453,12 +453,12 @@ export default class Tape {
      * or `false` and `pos` is restored to its original value.
      */
     seekBack(pred: (ch: string, pos: number) => boolean): boolean {
-        const found = this.pollBack(pred);
+        const found = this.pollBack(pred)
         if (found === undefined) {
-            return false;
+            return false
         }
-        this.pos = found;
-        return true;
+        this.pos = found
+        return true
     }
 
     /**
@@ -468,12 +468,12 @@ export default class Tape {
      * or `false` and `pos` is restored to its original value.
      */
     seekAt(query: string): boolean {
-        const idx = this.raw.indexOf(query, this.pos);
+        const idx = this.raw.indexOf(query, this.pos)
         if (idx === -1) {
-            return false;
+            return false
         }
-        this.pos = idx;
-        return true;
+        this.pos = idx
+        return true
     }
 
     /**
@@ -486,17 +486,17 @@ export default class Tape {
      */
     seekAtIdentifier(query: string): boolean {
         if (this.isReversed) {
-            return false;
+            return false
         }
-        const start = this.pos;
+        const start = this.pos
         if (!this.seekAt(query)) {
-            return false;
+            return false
         }
         if (this._isAtIdentifier(query, this.pos)) {
-            return true;
+            return true
         }
-        this.pos = start;
-        return false;
+        this.pos = start
+        return false
     }
 
     // =========================================================================================
@@ -508,7 +508,7 @@ export default class Tape {
      * starts with `query`.
      */
     isAt(query: string): boolean {
-        return this.raw.startsWith(query, this.pos);
+        return this.raw.startsWith(query, this.pos)
     }
 
     /**
@@ -521,60 +521,60 @@ export default class Tape {
      * `false` if the adjacent character, if any, is not an identifier boundary.
      */
     isAtIdentifier(query: string): boolean {
-        return this._isAtIdentifier(query, this.raw.indexOf(query, this.pos));
+        return this._isAtIdentifier(query, this.raw.indexOf(query, this.pos))
     }
 
     private _isAtIdentifier(query: string, idx: number): boolean {
         if (!query) {
-            return true;
+            return true
         }
         if (idx === -1) {
-            return false;
+            return false
         }
         if (isLetter(this.raw[idx])) {
             // check boundary before match
-            const prevIdx = idx - 1;
+            const prevIdx = idx - 1
             if (prevIdx >= 0 && this.boundary.isStart(this.raw[prevIdx])) {
-                return false;
+                return false
             }
         }
         if (isLetter(this.raw[idx + query.length - 1])) {
             // check boundary after match
-            const nextIdx = idx + query.length;
+            const nextIdx = idx + query.length
             if (
                 nextIdx < this.raw.length &&
                 this.boundary.isPart(this.raw[nextIdx])
             ) {
-                return false;
+                return false
             }
         }
-        return true;
+        return true
     }
 
     /** Returns true if the character at the given position has clearance on its left side. */
     isLeftClear(): boolean {
-        return this._isLeftClear(this.pos);
+        return this._isLeftClear(this.pos)
     }
 
     private _isLeftClear(pos: number): boolean {
         if (this.isReversed) {
-            return this._isRightClear(pos);
+            return this._isRightClear(pos)
         }
-        const ch = this.raw[pos - 1];
-        return ch === undefined || Tape.isWs(ch);
+        const ch = this.raw[pos - 1]
+        return ch === undefined || Tape.isWs(ch)
     }
 
     /** Returns true if the character at the given position has clearance on its right side. */
     isRightClear(): boolean {
-        return this._isRightClear(this.pos);
+        return this._isRightClear(this.pos)
     }
 
     private _isRightClear(pos: number): boolean {
         if (this.isReversed) {
-            return this._isLeftClear(pos);
+            return this._isLeftClear(pos)
         }
-        const ch = this.raw[pos + 1];
-        return ch === undefined || Tape.isWs(ch);
+        const ch = this.raw[pos + 1]
+        return ch === undefined || Tape.isWs(ch)
     }
 
     /**
@@ -585,6 +585,6 @@ export default class Tape {
      * Assumes the current position is at the last character in the cluster.
      */
     isAnyClear(start: number): boolean {
-        return this._isLeftClear(start) || this.isRightClear();
+        return this._isLeftClear(start) || this.isRightClear()
     }
 }

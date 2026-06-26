@@ -1,7 +1,7 @@
-import { CompletionRegistry } from '../../completion_registry_utils';
-import { rangeBefore } from '../../misc';
-import { toMarkdown as md } from '../../text_utils';
-import { TsScopeKind } from './scope_registry';
+import { CompletionRegistry } from '../../completion_registry_utils'
+import { rangeBefore } from '../../misc'
+import { toMarkdown as md } from '../../text_utils'
+import { TsScopeKind } from './scope_registry'
 
 // Simple, non-contextual substitutions triggered globally or inline
 // const substitutions: CompletionSingle[] = [
@@ -51,21 +51,21 @@ const typescript = CompletionRegistry.newInstance<TsScopeKind>(
         minLookbehind: 1,
         scoping: [['fn'], ['object']],
         resolver(ctx) {
-            const tape = ctx.leftOfCursor();
-            tape.consumeWs();
+            const tape = ctx.leftOfCursor()
+            tape.consumeWs()
             const match = tape.consumeMatch({
                 c: 'const',
                 l: 'let',
-            });
+            })
             if (!match || !tape.isExhausted()) {
-                return undefined;
+                return undefined
             }
-            const [_, kword] = match;
+            const [_, kword] = match
             return {
                 preview: md`Insert \`${kword}\` declaration.`,
                 target: rangeBefore(ctx.cursor, 1),
                 snippet: kword + ' ',
-            };
+            }
         },
     },
     {
@@ -81,15 +81,15 @@ const typescript = CompletionRegistry.newInstance<TsScopeKind>(
         minLookbehind: 3, // '.aw'.length
         scoping: [['fn']],
         resolver(ctx) {
-            const tape = ctx.leftOfCursor().reversed();
+            const tape = ctx.leftOfCursor().reversed()
             if (!tape.consumeAt('wa') || !tape.consumeAt('.')) {
-                return undefined;
+                return undefined
             }
 
             // Reusing your logic for capturing the target token/expression left of the dot
-            const target = consumeTypeScriptTarget(tape);
+            const target = consumeTypeScriptTarget(tape)
             if (!target) {
-                return undefined;
+                return undefined
             }
 
             return {
@@ -98,7 +98,7 @@ Wrap expression with \`await\`.
                 `,
                 target: rangeBefore(ctx.cursor, target.length + 3),
                 snippet: `await ${target}`,
-            };
+            }
         },
     },
     {
@@ -126,7 +126,7 @@ Wrap expression with \`await\`.
         minLookbehind: 2,
         scoping: [['class']],
         resolver(ctx) {
-            const tape = ctx.leftOfCursor().reversed();
+            const tape = ctx.leftOfCursor().reversed()
             const flags = tape.consumeFlags(ctx.cursor, {
                 m: 'method',
                 v: 'variable',
@@ -135,61 +135,61 @@ Wrap expression with \`await\`.
                 p: 'public ',
                 r: 'private ',
                 o: 'protected ',
-            });
+            })
             if (!flags || !tape.isExhausted()) {
-                return undefined;
+                return undefined
             }
-            const flagMap = new Map(flags);
-            let expansion = '';
+            const flagMap = new Map(flags)
+            let expansion = ''
 
             // 1. Resolve Access Modifier (Default to none or public based on style preference)
             if (flagMap.has('p')) {
-                expansion += 'public ';
+                expansion += 'public '
             } else if (flagMap.has('r')) {
-                expansion += 'private ';
+                expansion += 'private '
             } else if (flagMap.has('o')) {
-                expansion += 'protected ';
+                expansion += 'protected '
             }
 
             // 2. Resolve Modifiers
             if (flagMap.has('s')) {
-                expansion += 'static ';
+                expansion += 'static '
             }
             if (flagMap.has('f')) {
-                expansion += 'async ';
+                expansion += 'async '
             }
 
             // 3. Resolve Structural Base
             if (flagMap.has('m')) {
-                expansion += '${1:methodName}($2): ${3:void} {\n\t$0\n}';
+                expansion += '${1:methodName}($2): ${3:void} {\n\t$0\n}'
             } else if (flagMap.has('v')) {
-                expansion += '${1:propertyName}: ${2:string};';
+                expansion += '${1:propertyName}: ${2:string};'
             }
 
             return {
                 preview: md`Insert class structure: \`${expansion.split('\n')[0]}\`.`,
                 target: rangeBefore(ctx.cursor, flags.size),
                 snippet: expansion,
-            };
+            }
         },
     },
-);
+)
 
 // Fallback helper stub matching your architecture requirements
 function consumeTypeScriptTarget(tape: any): string | undefined {
-    let target = '';
+    let target = ''
     while (!tape.isExhausted()) {
-        const char = tape.cur();
+        const char = tape.cur()
         if (char === ' ' || char === ';' || char === '\n') {
-            break;
+            break
         }
-        target = char + target;
-        tape.advance();
+        target = char + target
+        tape.advance()
     }
-    return target.length > 0 ? target : undefined;
+    return target.length > 0 ? target : undefined
 }
 
-export default typescript;
+export default typescript
 
 /*
 Key Design Enhancements For Your Ecosystem

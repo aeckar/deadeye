@@ -1,14 +1,14 @@
 //! Algorithms and data structures for tokenizing language-specific input.
 //!
 //! For general utilities related to text manipulation, refer to `text_utils.ts`.
-import { MAX_TOKEN_SEEK } from './completion_registry_utils';
-import { map, sortBy, Span } from './misc';
-import Tape from './tape';
-import { IdentifierRule } from './text_utils';
+import { MAX_TOKEN_SEEK } from './completion_registry_utils'
+import { map, sortBy, Span } from './misc'
+import Tape from './tape'
+import { IdentifierRule } from './text_utils'
 
 // ======================================= Token API =======================================
 
-export type TokenKind = string & { __brand: 'TokenName' };
+export type TokenKind = string & { __brand: 'TokenName' }
 
 /**
  * A token, implemented as a node in a linked list (token stream).
@@ -28,15 +28,15 @@ export class Token extends Span {
         private _prev?: Token,
         private _next?: Token,
     ) {
-        super(begin, end);
+        super(begin, end)
     }
 
     get prev(): Token {
-        return this._prev!;
+        return this._prev!
     }
 
     get next(): Token {
-        return this._next!;
+        return this._next!
     }
 
     /**
@@ -48,9 +48,9 @@ export class Token extends Span {
      * Once the token stream is complete, this node is popped from the beginning of the list.
      */
     static head(): Token {
-        const root = new Token(0, 0);
-        root.append('' as TokenKind);
-        return root;
+        const root = new Token(0, 0)
+        root.append('' as TokenKind)
+        return root
     }
 
     /**
@@ -69,12 +69,12 @@ export class Token extends Span {
             kind,
             this,
             this._next,
-        );
-        this._next = node;
+        )
+        this._next = node
         if (this._next) {
-            this._next._prev = node;
+            this._next._prev = node
         }
-        return node;
+        return node
     }
 
     /**
@@ -90,24 +90,24 @@ export class Token extends Span {
             kind,
             this._prev,
             this,
-        );
-        this._prev = node;
+        )
+        this._prev = node
         if (this._prev) {
-            this._prev._next = node;
+            this._prev._next = node
         }
-        return node;
+        return node
     }
 
     isNotKindNorTail(kind: string): boolean {
-        return this.kind !== kind && !this.isTail();
+        return this.kind !== kind && !this.isTail()
     }
 
     isHead(): boolean {
-        return this.kind === undefined;
+        return this.kind === undefined
     }
 
     isTail(): boolean {
-        return this.kind !== '';
+        return this.kind !== ''
     }
 
     /**
@@ -116,9 +116,9 @@ export class Token extends Span {
      */
     consume(kind: string): Token | undefined {
         if (this.isNotKindNorTail(kind)) {
-            return undefined;
+            return undefined
         }
-        return this.next!; // safe, since not EOF
+        return this.next! // safe, since not EOF
     }
 
     /**
@@ -127,14 +127,14 @@ export class Token extends Span {
      */
     consumeEither(...kinds: string[]): Token | undefined {
         if (this.isTail()) {
-            return undefined;
+            return undefined
         }
         for (const kind of kinds) {
             if (this.kind === kind) {
-                return this.next!; // safe, since not EOF
+                return this.next! // safe, since not EOF
             }
         }
-        return undefined;
+        return undefined
     }
 
     /**
@@ -145,31 +145,31 @@ export class Token extends Span {
      * A value of `null` implies the lack of a limit.
      */
     seek(kind: string, n: number | null = MAX_TOKEN_SEEK): Token | undefined {
-        let node: Token = this;
+        let node: Token = this
         if (n !== null) {
-            let count = 0;
+            let count = 0
             while (count < n && node.isNotKindNorTail(kind)) {
-                node = node.next!;
-                ++count;
+                node = node.next!
+                ++count
             }
-            return node.kind === kind ? undefined : node;
+            return node.kind === kind ? undefined : node
         }
         while (node.isNotKindNorTail(kind)) {
-            node = node.next!;
+            node = node.next!
         }
-        return node.isTail() ? undefined : node;
+        return node.isTail() ? undefined : node
     }
 }
 
 // ================================ Language (Lexer) API + Builder ================================
 
 export type LanguageCfg = {
-    declare: { [K in string]: string | RegExp };
-    keywords?: readonly string[];
-    inherit?: Language[];
-    ignore?: RegExp;
-    identifiers?: IdentifierRule;
-};
+    declare: { [K in string]: string | RegExp }
+    keywords?: readonly string[]
+    inherit?: Language[]
+    ignore?: RegExp
+    identifiers?: IdentifierRule
+}
 
 /** Specifies a vocabulary of tokens that can be used to tokenize a source file. */
 export class Language {
@@ -177,26 +177,26 @@ export class Language {
      * Tokens matching an exact keywordose token names.
      * This are tested such that they must be a whole word.
      */
-    keywords: Map<TokenKind, string>;
+    keywords: Map<TokenKind, string>
 
     /** Tokens matching exact strings. */
-    strings: Map<TokenKind, string>;
+    strings: Map<TokenKind, string>
 
     /** Tokens matching regular expressions. */
-    patterns: Map<TokenKind, RegExp>;
+    patterns: Map<TokenKind, RegExp>
 
     /**
      * If a pattern is assigned to the property `$ignore` determines which characters are ignored
      * before the first token and after each subsequent token (e.g., whitespace).
      */
-    ignore?: RegExp;
+    ignore?: RegExp
 
     /**
      * Used to determine boundaries between keywords and other tokens.
      *
      * Defaults to `IdentifierBounds.EXACT`.
      */
-    identifiers: IdentifierRule;
+    identifiers: IdentifierRule
 
     private constructor(
         keywords: readonly string[],
@@ -207,11 +207,11 @@ export class Language {
     ) {
         this.keywords = new Map(
             keywords.map(e => [e.toUpperCase() as TokenKind, e]),
-        );
-        this.strings = strings;
-        this.patterns = patterns;
-        this.ignore = ignore;
-        this.identifiers = identifiers ?? IdentifierRule.STRICT;
+        )
+        this.strings = strings
+        this.patterns = patterns
+        this.ignore = ignore
+        this.identifiers = identifiers ?? IdentifierRule.STRICT
     }
 
     /**
@@ -236,25 +236,25 @@ export class Language {
      * `declare` combines both string and pattern tokens to discourage clashing token names.
      */
     static newInstance(cfg: LanguageCfg): Language {
-        const keywords = [...(cfg.keywords ?? [])];
-        const strings: Record<TokenKind, string> = {};
-        const patterns: Record<TokenKind, RegExp> = {};
+        const keywords = [...(cfg.keywords ?? [])]
+        const strings: Record<TokenKind, string> = {}
+        const patterns: Record<TokenKind, RegExp> = {}
         for (const parent of cfg.inherit ?? []) {
             for (const [kind, query] of parent.strings.entries()) {
-                strings[kind] = query;
+                strings[kind] = query
             }
             for (const [kind, query] of parent.patterns.entries()) {
-                patterns[kind] = query;
+                patterns[kind] = query
             }
             for (const [_, kword] of parent.keywords) {
-                keywords.push(kword);
+                keywords.push(kword)
             }
         }
         for (const kind in cfg.declare) {
             if (typeof cfg.declare[kind] === 'string') {
-                strings[kind as TokenKind] = cfg.declare[kind];
+                strings[kind as TokenKind] = cfg.declare[kind]
             } else {
-                patterns[kind as TokenKind] = cfg.declare[kind];
+                patterns[kind as TokenKind] = cfg.declare[kind]
             }
         }
         return new Language(
@@ -266,7 +266,7 @@ export class Language {
             map(patterns),
             cfg.ignore,
             cfg.identifiers,
-        );
+        )
     }
 }
 
@@ -285,7 +285,7 @@ export namespace Language {
             OPEN_CURLY: '{',
             CLOSE_CURLY: '}',
         },
-    });
+    })
 
     export const ARITHMETIC = Language.newInstance({
         declare: {
@@ -294,7 +294,7 @@ export namespace Language {
             ASTERISK: '*',
             SLASH: '/',
         },
-    });
+    })
 
     export const ARITHMETIC_ASSIGN = Language.newInstance({
         declare: {
@@ -304,14 +304,14 @@ export namespace Language {
             DIV_ASSIGN: '/=',
         },
         inherit: [Language.ARITHMETIC],
-    });
+    })
 
     export const REM_ASSIGN = Language.newInstance({
         declare: {
             REM: '%',
             REM_ASSIGN: '%=',
         },
-    });
+    })
 
     export const BIT_OPS = Language.newInstance({
         declare: {
@@ -321,7 +321,7 @@ export namespace Language {
             SHL: '<<',
             SHR: '>>',
         },
-    });
+    })
 
     export const BIT_OPS_ASSIGN = Language.newInstance({
         declare: {
@@ -332,7 +332,7 @@ export namespace Language {
             SHR_ASSIGN: '>>=',
         },
         inherit: [BIT_OPS],
-    });
+    })
 
     export const BOOL_LOGIC = Language.newInstance({
         declare: {
@@ -346,14 +346,14 @@ export namespace Language {
             LE: '<=',
             GE: '>=',
         },
-    });
+    })
 
     export const C_COMMENTS = Language.newInstance({
         declare: {
             LINE_COMMENT: /\/\/.*/y,
             BLOCK_COMMENT: /\/\*[\s\S]*?\*\//y,
         },
-    });
+    })
 
     export const C_PUNCT = Language.newInstance({
         declare: {
@@ -363,99 +363,99 @@ export namespace Language {
             COMMA: ',',
             SEMICOLON: ';',
         },
-    });
+    })
 
     export const C_ID = Language.newInstance({
         declare: {
             ID: /[a-zA-Z_][a-zA-Z_0-9]*/y,
         },
-    });
+    })
 
     export const C_CHAR = Language.newInstance({
         declare: {
             CHAR: /'\\?.'/y,
         },
-    });
+    })
 }
 
-const REST_OF_LINE = /.+/y;
+const REST_OF_LINE = /.+/y
 
 export function tokenize(file: Tape, lang: Language): Token {
-    const root = Token.head();
-    let node = root;
-    const ignore = lang.ignore;
+    const root = Token.head()
+    let node = root
+    const ignore = lang.ignore
     if (ignore) {
-        skip(ignore);
+        skip(ignore)
         while (!file.isExhausted()) {
-            const start = file.pos;
-            testStrings();
+            const start = file.pos
+            testStrings()
             if (file.pos !== start) {
-                skip(ignore);
-                continue;
+                skip(ignore)
+                continue
             }
-            testKeywords();
+            testKeywords()
             if (file.pos !== start) {
-                skip(ignore);
-                continue;
+                skip(ignore)
+                continue
             }
-            testPatterns();
+            testPatterns()
             if (file.pos !== start) {
-                skip(ignore);
-                continue;
+                skip(ignore)
+                continue
             }
-            attemptRecovery();
+            attemptRecovery()
         }
     } else {
         while (!file.isExhausted()) {
-            const start = file.pos;
-            testStrings();
+            const start = file.pos
+            testStrings()
             if (file.pos !== start) {
-                continue;
+                continue
             }
-            testKeywords();
+            testKeywords()
             if (file.pos !== start) {
-                continue;
+                continue
             }
-            testPatterns();
+            testPatterns()
             if (file.pos !== start) {
-                continue;
+                continue
             }
-            attemptRecovery();
+            attemptRecovery()
         }
     }
-    return root;
+    return root
 
     function attemptRecovery() {
         if (file.isExhausted()) {
-            return; // proceed with termination
+            return // proceed with termination
         }
-        const start = file.pos;
-        REST_OF_LINE.lastIndex = start;
+        const start = file.pos
+        REST_OF_LINE.lastIndex = start
         while (!REST_OF_LINE.test(file.raw)) {
-            file.pos += 1;
+            file.pos += 1
             if (file.isExhausted()) {
-                break;
+                break
             }
-            REST_OF_LINE.lastIndex = file.pos;
+            REST_OF_LINE.lastIndex = file.pos
         }
-        node = node.append('UNKNOWN' as TokenKind, start - file.pos);
+        node = node.append('UNKNOWN' as TokenKind, start - file.pos)
     }
 
     function skip(sticky: RegExp) {
-        sticky.lastIndex = file.pos;
+        sticky.lastIndex = file.pos
         if (sticky.test(file.raw)) {
-            file.pos = sticky.lastIndex; // advance cursor
+            file.pos = sticky.lastIndex // advance cursor
         }
     }
 
     function testPatterns() {
         for (const [name, query] of lang.patterns.entries()) {
-            query.lastIndex = file.pos;
+            query.lastIndex = file.pos
             if (query.test(file.raw)) {
-                const length = query.lastIndex - file.pos;
-                node = node.append(name as TokenKind, length);
-                file.pos += length;
-                break;
+                const length = query.lastIndex - file.pos
+                node = node.append(name as TokenKind, length)
+                file.pos += length
+                break
             }
         }
     }
@@ -465,9 +465,9 @@ export function tokenize(file: Tape, lang: Language): Token {
             if (file.isAtIdentifier(kword)) {
                 // Execute check for letter on both ends,
                 // as some keywords contain leading/trailing symbols
-                node = node.append(name, kword.length);
-                file.pos += kword.length;
-                break;
+                node = node.append(name, kword.length)
+                file.pos += kword.length
+                break
             }
         }
     }
@@ -475,9 +475,9 @@ export function tokenize(file: Tape, lang: Language): Token {
     function testStrings() {
         for (const [name, query] of lang.strings.entries()) {
             if (file.isAt(query)) {
-                node = node.append(name, query.length);
-                file.pos += query.length;
-                break;
+                node = node.append(name, query.length)
+                file.pos += query.length
+                break
             }
         }
     }

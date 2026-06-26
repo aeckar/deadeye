@@ -1,8 +1,8 @@
 //! General utilities related to text manipulation.
 //!
 //! For tokenization and language-specific functionality, refer to `language_utils.ts`.
-import dedent from 'dedent-js';
-import { MarkdownString } from 'vscode';
+import dedent from 'dedent-js'
+import { MarkdownString } from 'vscode'
 
 // ` = U+1FEF
 /**
@@ -14,12 +14,12 @@ export function toMarkdown(
     s: string | TemplateStringsArray,
     ...values: readonly any[]
 ): MarkdownString {
-    return new MarkdownString(dedent(s, values));
+    return new MarkdownString(dedent(s, values))
 }
 
 /** Returns a copy of this string when reversed. */
 export function reverse(s: string): string {
-    return s.split('').reverse().join('');
+    return s.split('').reverse().join('')
 }
 
 /** Contains the possible chars for the first and subsequent characters in an identifier. */
@@ -30,40 +30,40 @@ export class IdentifierRule {
     ) {}
 
     isStart(ch: string): boolean {
-        return this.possibleStart.includes(ch);
+        return this.possibleStart.includes(ch)
     }
 
     isPart(ch: string): boolean {
-        return this.possiblePart.includes(ch);
+        return this.possiblePart.includes(ch)
     }
 }
 
 export namespace IdentifierRule {
     // https://stackoverflow.com/a/3609335/14178487
     /** Ensures identifiers never occur next to any starting or partial characters. */
-    export const STRICT = new IdentifierRule('', '');
+    export const STRICT = new IdentifierRule('', '')
 
     export const C_LIKE = new IdentifierRule(
         CharacterClass.ALPHA + '_',
         CharacterClass.ALPHA + CharacterClass.DIGIT + '_',
-    );
+    )
 }
 
 // =============================================================================================
 // Scannerless Parsing
 // =============================================================================================
 
-export type Brackets = (typeof BRACKETS)[number];
-export type OpenBracket = (typeof OPEN_BRACKETS)[number];
-export type CloseBracket = (typeof CLOSE_BRACKETS)[number];
+export type Brackets = (typeof BRACKETS)[number]
+export type OpenBracket = (typeof OPEN_BRACKETS)[number]
+export type CloseBracket = (typeof CLOSE_BRACKETS)[number]
 
-export const BRACKETS = ['()', '{}', '[]', '<>'] as const;
+export const BRACKETS = ['()', '{}', '[]', '<>'] as const
 
 /** Each element is analogous to that in `CLOSE_BRACKETS`. */
-export const OPEN_BRACKETS = ['(', '{', '[', '<'] as const;
+export const OPEN_BRACKETS = ['(', '{', '[', '<'] as const
 
 /** Each element is analogous to that in `OPEN_BRACKETS`. */
-export const CLOSE_BRACKETS = [')', '}', ']', '>'] as const;
+export const CLOSE_BRACKETS = [')', '}', ']', '>'] as const
 
 /**
  * Returns the appropriate closing bracket, or `undefined`
@@ -71,11 +71,11 @@ export const CLOSE_BRACKETS = [')', '}', ']', '>'] as const;
  * @see getOpenBracket
  */
 export function getCloseBracket(open: string): CloseBracket | undefined {
-    const idx = OPEN_BRACKETS.indexOf(open as OpenBracket);
+    const idx = OPEN_BRACKETS.indexOf(open as OpenBracket)
     if (idx === undefined) {
-        return undefined;
+        return undefined
     }
-    return CLOSE_BRACKETS[idx];
+    return CLOSE_BRACKETS[idx]
 }
 
 /**
@@ -85,11 +85,11 @@ export function getCloseBracket(open: string): CloseBracket | undefined {
  * @see getCloseBracket
  */
 export function getOpenBracket(close: string): OpenBracket | undefined {
-    const idx = CLOSE_BRACKETS.indexOf(close as CloseBracket);
+    const idx = CLOSE_BRACKETS.indexOf(close as CloseBracket)
     if (idx === undefined) {
-        return undefined;
+        return undefined
     }
-    return OPEN_BRACKETS[idx];
+    return OPEN_BRACKETS[idx]
 }
 
 /** Expands each tab stop (`$0`, `${1:C}) to a more descriptive form. */
@@ -98,7 +98,7 @@ export function expandTabStops(s: MarkdownString): MarkdownString {
         s.value
             .replace('$0', '/* stop here */')
             .replace(/\$\{?(\d)(?::.*?\})?/, '/* placeholder $1 */'),
-    );
+    )
 }
 
 // =============================================================================================
@@ -118,7 +118,7 @@ export function expandTabStops(s: MarkdownString): MarkdownString {
  * @see warnHtml
  */
 export function errorHtml(cause: string): string {
-    return `<p><span style="color:#e06c75">Error: ${cause}</span></p>`;
+    return `<p><span style="color:#e06c75">Error: ${cause}</span></p>`
 }
 
 /**
@@ -128,7 +128,7 @@ export function errorHtml(cause: string): string {
  * @see errorHtml
  */
 export function warnHtml(cause: string): string {
-    return `<p><span style="color:#e5a550">Warning: ${cause}</span></p>`;
+    return `<p><span style="color:#e5a550">Warning: ${cause}</span></p>`
 }
 
 /**
@@ -137,36 +137,36 @@ export function warnHtml(cause: string): string {
  */
 export function findWord(s: string, query: string): number {
     if (!query) {
-        return -1;
+        return -1
     }
-    let index = s.indexOf(query);
+    let index = s.indexOf(query)
     while (index !== -1) {
-        let isMatch = true;
+        let isMatch = true
 
         // === Check boundary before match ===
         if (isLetter(query[0])) {
-            const prevCharIndex = index - 1;
+            const prevCharIndex = index - 1
             if (prevCharIndex >= 0 && isLetter(s[prevCharIndex])) {
-                isMatch = false;
+                isMatch = false
             }
         }
 
         // === Check boundary after match ===
         if (isMatch && isLetter(query[query.length - 1])) {
-            const nextCharIndex = index + query.length;
+            const nextCharIndex = index + query.length
             if (nextCharIndex < s.length && isLetter(s[nextCharIndex])) {
-                isMatch = false;
+                isMatch = false
             }
         }
 
         if (isMatch) {
-            return index;
+            return index
         }
 
         // === Move past current index to find next occurrence ===
-        index = s.indexOf(query, index + 1);
+        index = s.indexOf(query, index + 1)
     }
-    return -1;
+    return -1
 }
 
 // =============================================================================================
@@ -174,61 +174,61 @@ export function findWord(s: string, query: string): number {
 // =============================================================================================
 
 export namespace CharacterClass {
-    export const ALPHA = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    export const DIGIT = '0123456789';
+    export const ALPHA = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    export const DIGIT = '0123456789'
 }
 
 /** Concatenates the strings and applies PascalCase. */
 export function toPascalCase(chunks: string[]): string {
-    return chunks.map(capitalize).join('');
+    return chunks.map(capitalize).join('')
 }
 
 /** Concatenates the strings and applies SCREAMING_SNAKE_CASE. */
 export function toScreamCase(chunks: string[]): string {
-    return chunks.map(s => s.toUpperCase()).join('_');
+    return chunks.map(s => s.toUpperCase()).join('_')
 }
 
 /** Concatenates the strings and applies snake_case. */
 export function toSnakeCase(chunks: string[]): string {
-    return chunks.map(s => s.toLowerCase()).join('_');
+    return chunks.map(s => s.toLowerCase()).join('_')
 }
 
 /** Concatenates the strings and applies camelCase. */
 export function toCamelCase(chunks: string[]): string {
     return chunks
         .map((s, idx) => (idx === 0 ? s.toLowerCase() : capitalize(s)))
-        .join('');
+        .join('')
 }
 
 /** Concatenates the strings and applies kebab-case. */
 export function toKebabCase(chunks: string[]): string {
-    return chunks.map(s => s.toLowerCase()).join('-');
+    return chunks.map(s => s.toLowerCase()).join('-')
 }
 
 /** Returns the same string with the first character capitalized. */
 export function capitalize(s: string): string {
     if (!s) {
-        return '';
+        return ''
     }
-    return s[0].toUpperCase() + s.slice(1);
+    return s[0].toUpperCase() + s.slice(1)
 }
 
 /** Returns true if the character is a digit. */
 export function isDigit(ch: string): boolean {
-    return ch >= '0' && ch <= '9';
+    return ch >= '0' && ch <= '9'
 }
 
 /** Returns true if the character is an uppercase letter. */
 export function isUpperLetter(ch: string): boolean {
-    return ch >= 'A' && ch <= 'Z';
+    return ch >= 'A' && ch <= 'Z'
 }
 
 /** Returns true if the character is a lowercase letter. */
 export function isLowerLetter(ch: string): boolean {
-    return ch >= 'a' && ch <= 'z';
+    return ch >= 'a' && ch <= 'z'
 }
 
 /** Returns true if the character is an uppercase or lowercase letter. */
 export function isLetter(ch: string): boolean {
-    return isLowerLetter(ch) || isUpperLetter(ch);
+    return isLowerLetter(ch) || isUpperLetter(ch)
 }

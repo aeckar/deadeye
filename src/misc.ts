@@ -1,6 +1,6 @@
 //! Utilities generalizable to most other projects.
-import { Position, Range } from 'vscode';
-import { Scope } from './scope_registry_utils';
+import { Position, Range } from 'vscode'
+import { Scope } from './scope_registry_utils'
 
 /**
  * Compares two values.
@@ -13,23 +13,23 @@ import { Scope } from './scope_registry_utils';
  * According to ECMA-262 Section 23.1.3.30,
  * all sorting functions provided by JavaScript are stable.
  */
-export type Comparator<T> = (cur: T, next: T) => number;
+export type Comparator<T> = (cur: T, next: T) => number
 
 /** A range of indices. */
 export class Span {
     /** The index of the first element. */
-    begin: number;
+    begin: number
 
     /** The index of the last element (exclusive). */
-    end: number;
+    end: number
 
     constructor(begin: number, end: number) {
-        this.begin = begin;
-        this.end = end;
+        this.begin = begin
+        this.end = end
     }
 
     get length() {
-        return this.end - this.begin;
+        return this.end - this.begin
     }
 }
 
@@ -40,20 +40,20 @@ export class Span {
  * especially when the key and value cannot be easily discerned from their types.
  */
 export class Property<K extends keyof any, V> {
-    readonly key: K;
-    readonly value: V;
+    readonly key: K
+    readonly value: V
 
     constructor(key: K, value: V) {
-        this.key = key;
-        this.value = value;
+        this.key = key
+        this.value = value
     }
 
     static from<K extends keyof any, V>(arr: [K, V]): Property<K, V> {
-        return new Property(arr[0], arr[1]);
+        return new Property(arr[0], arr[1])
     }
 
     toArray(): [K, V] {
-        return [this.key, this.value];
+        return [this.key, this.value]
     }
 }
 
@@ -63,21 +63,21 @@ export function rangeBefore(
 ): Range {
     if (from < 0) {
         // otherwise, would silently fail
-        throw new RangeError(`'from' must be non-negative, got ${from}`);
+        throw new RangeError(`'from' must be non-negative, got ${from}`)
     }
     if (from > cursor.character) {
         throw new RangeError(
             `'from' (${from}) exceeds cursor character position (${cursor.character})`,
-        );
+        )
     }
     return new Range(
         new Position(cursor.line, cursor.character - from),
         new Position(cursor.line, cursor.character),
-    );
+    )
 }
 
 export function after(cursor: Position, skip: number = 0): Position {
-    return new Position(cursor.line, cursor.character + skip + 1);
+    return new Position(cursor.line, cursor.character + skip + 1)
 }
 
 /**
@@ -86,14 +86,14 @@ export function after(cursor: Position, skip: number = 0): Position {
  * Most often used for indexed iteration.
  */
 export function propertiesIn<K extends number | string | symbol, V>(o: {
-    [T in K]?: V;
+    [T in K]?: V
 }): [number, Property<K, V>][] {
     // Object.entries returns [string, unknown][], so cast to the expected types
-    const entries = Object.entries(o) as unknown as [K, V][];
+    const entries = Object.entries(o) as unknown as [K, V][]
     return entries.map(
         ([key, val], idx) =>
             [idx, new Property(key, val)] as [number, Property<K, V>],
-    );
+    )
 }
 
 /**
@@ -105,14 +105,14 @@ export function properties<K extends keyof any, V>(
     o: Record<K, V>,
 ): Property<K, V>[] {
     return (Object.entries(o) as [K, V][]).map(([k, v]) => {
-        return new Property(k, v);
-    });
+        return new Property(k, v)
+    })
 }
 
 /** Collects each character in the given string and yields it preceded by its index. */
 export function* charsIn(s: string): Generator<[number, string]> {
     for (let idx = 0; idx < s.length; idx++) {
-        yield [idx, s[idx]];
+        yield [idx, s[idx]]
     }
 }
 
@@ -127,10 +127,10 @@ export function match<K extends keyof any, V>(
 ): Property<K, V> | undefined {
     for (const prop of properties(possible)) {
         if (query === prop.key) {
-            return prop;
+            return prop
         }
     }
-    return undefined;
+    return undefined
 }
 
 /**
@@ -143,14 +143,14 @@ export function map<K extends keyof any, V>(
     o: Record<K, V>,
     ...compareFns: Comparator<Property<K, V>>[]
 ): Map<K, V> {
-    let props = properties(o);
+    let props = properties(o)
     for (const compareFn of compareFns) {
-        props = props.sort(compareFn);
+        props = props.sort(compareFn)
     }
     return props.reduce((sorted, { key, value }) => {
-        sorted.set(key, value);
-        return sorted;
-    }, new Map());
+        sorted.set(key, value)
+        return sorted
+    }, new Map())
 }
 
 /**
@@ -160,5 +160,5 @@ export function map<K extends keyof any, V>(
 export function sortBy<K extends keyof any, V>(
     keyMap: (entry: Property<K, V>) => number,
 ): Comparator<Property<K, V>> {
-    return (cur, next) => keyMap(cur) - keyMap(next);
+    return (cur, next) => keyMap(cur) - keyMap(next)
 }

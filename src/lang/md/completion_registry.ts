@@ -1,8 +1,5 @@
-import {
-    CompletionRegistry,
-    substitute,
-} from '../../completion_registry_utils';
-import { isLowerLetter, toMarkdown as md } from '../../text_utils';
+import { CompletionRegistry, substitute } from '../../completion_registry_utils'
+import { isLowerLetter, toMarkdown as md } from '../../text_utils'
 
 // do not highlight hot shorthand - 1
 //dont use tm, rarely ever used by devs and writers
@@ -63,20 +60,20 @@ const markdown = CompletionRegistry.newInstance(
         `,
         minLookbehind: 1,
         resolver(ctx) {
-            const fwd = ctx.leftOfCursor();
-            const rev = fwd.reversed();
-            const key = 'biushcm';
+            const fwd = ctx.leftOfCursor()
+            const rev = fwd.reversed()
+            const key = 'biushcm'
 
             while (true) {
-                fwd.consume(ch => !isLowerLetter(ch));
-                fwd.consume(ch => key.includes(ch));
+                fwd.consume(ch => !isLowerLetter(ch))
+                fwd.consume(ch => key.includes(ch))
                 if (fwd.clone().dec().isRightClear()) {
                 }
             }
 
-            return {};
+            return {}
         },
     },
-);
+)
 
-export default markdown;
+export default markdown
