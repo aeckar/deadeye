@@ -30,7 +30,7 @@
 //todo make trigger always mandatory, keep triggers standard across extension installations
 //  for standardness
 // use 'begin' for boolean, 'start' for specific idx
-
+//todo make entire line sentence or title case
 //todo add spec.md for completion code/comment styles
 //todo completions for section/divider comments
 // todo [ in type anno auto-closes

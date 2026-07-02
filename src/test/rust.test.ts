@@ -27,17 +27,13 @@
  */
 
 import * as assert from 'assert'
-import { IntervalTreeService } from '../interval_tree'
+import { IntervalTree, IntervalTreeService } from '../interval_tree'
 import rust from '../lang/rust/language'
 import { rust as rustScopes } from '../lang/rust/scope_registry'
 import { Token, tokenize } from '../language_utils'
 import { ScopeInfo, ScopeStream } from '../scope_registry_utils'
 import Tape from '../tape'
 import { Scope } from '../scope_utils'
-
-// ===========================================================================
-// Helpers
-// ===========================================================================
 
 /** Collect all tokens from the stream into a plain array of kind strings. */
 function collectKinds(head: Token): string[] {
@@ -68,46 +64,16 @@ function tokenizeRust(src: string): Token {
     return tokenize(Tape.over(src), rust)
 }
 
-/**
- * Drive the scope stream over the full token stream produced from `src`.
- * Returns the closed-scope interval tree.
- */
-// async function extractScopes(src: string) {
-//     await IntervalTreeService.start()
-//     const head = tokenizeRust(src)
-//     const stream = new ScopeStream<string>(head)
-//     const registry = rustScopes
-
-//     while (!stream.isExhausted()) {
-//         let matched = false
-//         for (const [_, info] of registry.entries()) {
-//             if (stream.parse(info as ScopeInfo<string>)) {
-//                 matched = true
-//                 break
-//             }
-//         }
-//         if (!matched) {
-//             stream.collect()
-//             stream.adv()
-//         }
-//     }
-//     return stream.closed
-// }
-
 /** Search for all scopes at a byte offset. */
 function scopesAt(
-    tree: Awaited<ReturnType<typeof extractScopes>>,
+    tree: Awaited<IntervalTree<Scope<string>>>,
     offset: number,
 ) {
     return tree.search([offset, offset]) as Scope<string>[]
 }
 
-// ===========================================================================
-// Tokenizer tests
-// ===========================================================================
-
 suite('Rust Tokenizer', () => {
-    // === Whitespace handling ===
+    // === Whitespace Handling ===
 
     test('whitespace between tokens is ignored', () => {
         const kinds = collectKinds(tokenizeRust('fn   main'))
@@ -119,7 +85,7 @@ suite('Rust Tokenizer', () => {
         assert.deepStrictEqual(kinds, ['LET', 'ID'])
     })
 
-    // === Multi-character string tokens take priority ===
+    // === Multi-Character String Tokens Take Priority ===
 
     test(':: is a single PATH_SEP token, not two COLONs', () => {
         const kinds = collectKinds(tokenizeRust('foo::bar'))
@@ -156,7 +122,7 @@ suite('Rust Tokenizer', () => {
         assert.deepStrictEqual(kinds, ['SHL_ASSIGN'])
     })
 
-    // === Keyword whole-word matching ===
+    // === Keyword Whole-Word Matching ===
 
     test('`fn` as a whole word produces FN token', () => {
         const kinds = collectKinds(tokenizeRust('fn'))

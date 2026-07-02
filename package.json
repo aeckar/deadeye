@@ -23,7 +23,7 @@
         "watch-tests": "tsc -p . -w --outDir out",
         "package": "vite build --mode production",
         "lint": "eslint src",
-        "test": "vscode-test",
+        "test": "vscode-test --attach-argv --enable-logging",
         "format": "prettier . --write"
     },
     "devDependencies": {
