@@ -31,8 +31,9 @@ import { IntervalTreeService } from '../interval_tree'
 import rust from '../lang/rust/language'
 import { rust as rustScopes } from '../lang/rust/scope_registry'
 import { Token, tokenize } from '../language_utils'
-import { Scope, ScopeInfo, ScopeStream } from '../scope_registry_utils'
+import { ScopeInfo, ScopeStream } from '../scope_registry_utils'
 import Tape from '../tape'
+import { Scope } from '../scope_utils'
 
 // ===========================================================================
 // Helpers
@@ -71,27 +72,27 @@ function tokenizeRust(src: string): Token {
  * Drive the scope stream over the full token stream produced from `src`.
  * Returns the closed-scope interval tree.
  */
-async function extractScopes(src: string) {
-    await IntervalTreeService.start()
-    const head = tokenizeRust(src)
-    const stream = new ScopeStream<string>(head)
-    const registry = rustScopes
+// async function extractScopes(src: string) {
+//     await IntervalTreeService.start()
+//     const head = tokenizeRust(src)
+//     const stream = new ScopeStream<string>(head)
+//     const registry = rustScopes
 
-    while (!stream.isExhausted()) {
-        let matched = false
-        for (const [kind, info] of registry.entries()) {
-            if (stream.parse(info as ScopeInfo<string>)) {
-                matched = true
-                break
-            }
-        }
-        if (!matched) {
-            stream.collect()
-            stream.adv()
-        }
-    }
-    return stream.closed
-}
+//     while (!stream.isExhausted()) {
+//         let matched = false
+//         for (const [_, info] of registry.entries()) {
+//             if (stream.parse(info as ScopeInfo<string>)) {
+//                 matched = true
+//                 break
+//             }
+//         }
+//         if (!matched) {
+//             stream.collect()
+//             stream.adv()
+//         }
+//     }
+//     return stream.closed
+// }
 
 /** Search for all scopes at a byte offset. */
 function scopesAt(

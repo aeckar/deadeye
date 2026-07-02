@@ -265,9 +265,9 @@ export default class Tape {
      */
     consumeChunks(chunks: string[]): string[] | undefined {
         const start = this.pos
-        let parts = []
+        const parts = []
         for (const [idx, chunk] of chunks.entries()) {
-            let next = this.consumeAt(chunk)
+            const next = this.consumeAt(chunk)
             if (!next) {
                 this.pos = start
                 return undefined
@@ -300,7 +300,7 @@ export default class Tape {
         cursor: Position,
         possibleFlags: { [Key in Flag]?: string },
     ): Map<Flag, FlagMatch> | undefined {
-        let expansions: [number, string, Range][] = []
+        const expansions: [number, string, Range][] = []
         while (!this.isExhausted()) {
             let found = false
             for (const [idx, { key: flag, value: expansion }] of propertiesIn(
@@ -373,20 +373,20 @@ export default class Tape {
      */
     consumeCapitalized(): string {
         if (this.isReversed) {
-            let rest = this.consume(ch => isLowerLetter(ch))
-            let first = this.cur()
+            const rest = this.consume(ch => isLowerLetter(ch))
+            const first = this.cur()
             if (!first || !isUpperLetter(first)) {
                 return ''
             }
             this.adv()
             return first + rest
         }
-        let first = this.cur()
+        const first = this.cur()
         if (!first || !isUpperLetter(first)) {
             return ''
         }
         this.adv()
-        let rest = this.consume(ch => isLowerLetter(ch))
+        const rest = this.consume(ch => isLowerLetter(ch))
         return first + rest
     }
 
@@ -424,7 +424,7 @@ export default class Tape {
      * @return the substring containing whitespace.
      */
     putBackWs(): string {
-        return this.putBack((ch, _) => Tape.isWs(ch))
+        return this.putBack(ch => Tape.isWs(ch))
     }
 
     // =========================================================================================

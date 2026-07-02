@@ -4,6 +4,72 @@
 import dedent from 'dedent-js'
 import { MarkdownString } from 'vscode'
 
+// =============================================================================================
+// Letter Case
+// =============================================================================================
+
+export const ALPHA = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ' as const
+export const DIGIT = '0123456789' as const
+
+/** Concatenates the strings and applies PascalCase. */
+export function toPascalCase(chunks: string[]): string {
+    return chunks.map(capitalize).join('')
+}
+
+/** Concatenates the strings and applies SCREAMING_SNAKE_CASE. */
+export function toScreamCase(chunks: string[]): string {
+    return chunks.map(s => s.toUpperCase()).join('_')
+}
+
+/** Concatenates the strings and applies snake_case. */
+export function toSnakeCase(chunks: string[]): string {
+    return chunks.map(s => s.toLowerCase()).join('_')
+}
+
+/** Concatenates the strings and applies camelCase. */
+export function toCamelCase(chunks: string[]): string {
+    return chunks
+        .map((s, idx) => (idx === 0 ? s.toLowerCase() : capitalize(s)))
+        .join('')
+}
+
+/** Concatenates the strings and applies kebab-case. */
+export function toKebabCase(chunks: string[]): string {
+    return chunks.map(s => s.toLowerCase()).join('-')
+}
+
+/** Returns the same string with the first character capitalized. */
+export function capitalize(s: string): string {
+    if (!s) {
+        return ''
+    }
+    return s[0].toUpperCase() + s.slice(1)
+}
+
+/** Returns true if the character is a digit. */
+export function isDigit(ch: string): boolean {
+    return ch >= '0' && ch <= '9'
+}
+
+/** Returns true if the character is an uppercase letter. */
+export function isUpperLetter(ch: string): boolean {
+    return ch >= 'A' && ch <= 'Z'
+}
+
+/** Returns true if the character is a lowercase letter. */
+export function isLowerLetter(ch: string): boolean {
+    return ch >= 'a' && ch <= 'z'
+}
+
+/** Returns true if the character is an uppercase or lowercase letter. */
+export function isLetter(ch: string): boolean {
+    return isLowerLetter(ch) || isUpperLetter(ch)
+}
+
+// =============================================================================================
+// Miscellaneous
+// =============================================================================================
+
 // ` = U+1FEF
 /**
  * Returns a Markdown string, which can be used for documentation.
@@ -12,7 +78,7 @@ import { MarkdownString } from 'vscode'
  */
 export function toMarkdown(
     s: string | TemplateStringsArray,
-    ...values: readonly any[]
+    ...values: readonly unknown[]
 ): MarkdownString {
     return new MarkdownString(dedent(s, values))
 }
@@ -36,16 +102,14 @@ export class IdentifierRule {
     isPart(ch: string): boolean {
         return this.possiblePart.includes(ch)
     }
-}
 
-export namespace IdentifierRule {
     // https://stackoverflow.com/a/3609335/14178487
     /** Ensures identifiers never occur next to any starting or partial characters. */
-    export const STRICT = new IdentifierRule('', '')
+    static STRICT = new IdentifierRule('', '')
 
-    export const C_LIKE = new IdentifierRule(
-        CharacterClass.ALPHA + '_',
-        CharacterClass.ALPHA + CharacterClass.DIGIT + '_',
+    static C_LIKE = new IdentifierRule(
+        ALPHA + '_',
+        ALPHA + DIGIT + '_',
     )
 }
 
@@ -167,68 +231,4 @@ export function findWord(s: string, query: string): number {
         index = s.indexOf(query, index + 1)
     }
     return -1
-}
-
-// =============================================================================================
-// Letter Case
-// =============================================================================================
-
-export namespace CharacterClass {
-    export const ALPHA = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    export const DIGIT = '0123456789'
-}
-
-/** Concatenates the strings and applies PascalCase. */
-export function toPascalCase(chunks: string[]): string {
-    return chunks.map(capitalize).join('')
-}
-
-/** Concatenates the strings and applies SCREAMING_SNAKE_CASE. */
-export function toScreamCase(chunks: string[]): string {
-    return chunks.map(s => s.toUpperCase()).join('_')
-}
-
-/** Concatenates the strings and applies snake_case. */
-export function toSnakeCase(chunks: string[]): string {
-    return chunks.map(s => s.toLowerCase()).join('_')
-}
-
-/** Concatenates the strings and applies camelCase. */
-export function toCamelCase(chunks: string[]): string {
-    return chunks
-        .map((s, idx) => (idx === 0 ? s.toLowerCase() : capitalize(s)))
-        .join('')
-}
-
-/** Concatenates the strings and applies kebab-case. */
-export function toKebabCase(chunks: string[]): string {
-    return chunks.map(s => s.toLowerCase()).join('-')
-}
-
-/** Returns the same string with the first character capitalized. */
-export function capitalize(s: string): string {
-    if (!s) {
-        return ''
-    }
-    return s[0].toUpperCase() + s.slice(1)
-}
-
-/** Returns true if the character is a digit. */
-export function isDigit(ch: string): boolean {
-    return ch >= '0' && ch <= '9'
-}
-
-/** Returns true if the character is an uppercase letter. */
-export function isUpperLetter(ch: string): boolean {
-    return ch >= 'A' && ch <= 'Z'
-}
-
-/** Returns true if the character is a lowercase letter. */
-export function isLowerLetter(ch: string): boolean {
-    return ch >= 'a' && ch <= 'z'
-}
-
-/** Returns true if the character is an uppercase or lowercase letter. */
-export function isLetter(ch: string): boolean {
-    return isLowerLetter(ch) || isUpperLetter(ch)
 }

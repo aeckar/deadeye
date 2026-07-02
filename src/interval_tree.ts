@@ -11,7 +11,7 @@ export type IntervalNode<V> = {
     key: {
         low: number
         high: number
-        output: () => [number, number] | any
+        output: () => [number, number] | unknown
     } | null
     values: V[]
     left: IntervalNode<V> | null
@@ -30,24 +30,24 @@ export type IntervalTree<V> = {
     nil_node: IntervalNode<V>
 
     readonly size: number
-    readonly keys: any[]
+    readonly keys: unknown[]
     readonly values: V[]
-    readonly items: Array<{ key: any; value: V }>
+    readonly items: Array<{ key: unknown; value: V }>
 
     isEmpty(): boolean
     clear(): void
-    insert(key: [number, number] | any, value?: V): IntervalNode<V> | undefined
-    exist(key: [number, number] | any, value?: V): boolean
-    remove(key: [number, number] | any, value?: V): IntervalNode<V> | undefined
-    search(interval: [number, number] | any): V[]
+    insert(key: [number, number] | unknown, value?: V): IntervalNode<V> | undefined
+    exist(key: [number, number] | unknown, value?: V): boolean
+    remove(key: [number, number] | unknown, value?: V): IntervalNode<V> | undefined
+    search(interval: [number, number] | unknown): V[]
     search<T>(
-        interval: [number, number] | any,
-        outputMapperFn: (value: V, key: any) => T,
+        interval: [number, number] | unknown,
+        outputMapperFn: (value: V, key: unknown) => T,
     ): T[]
-    intersect_any(interval: [number, number] | any): boolean
-    forEach(visitor: (key: any, value: V) => void): void
-    map<U>(callback: (value: V, key: any) => U): IntervalTree<U>
-    iterate(interval?: [number, number] | any): IterableIterator<V>
+    intersect_unknown(interval: [number, number] | unknown): boolean
+    forEach(visitor: (key: unknown, value: V) => void): void
+    map<U>(callback: (value: V, key: unknown) => U): IntervalTree<U>
+    iterate(interval?: [number, number] | unknown): IterableIterator<V>
 }
 
 export class IntervalTreeService {

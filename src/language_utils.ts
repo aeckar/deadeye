@@ -145,7 +145,7 @@ export class Token extends Span {
      * A value of `null` implies the lack of a limit.
      */
     seek(kind: string, n: number | null = MAX_TOKEN_SEEK): Token | undefined {
-        let node: Token = this
+        let node: Token = this as Token
         if (n !== null) {
             let count = 0
             while (count < n && node.isNotKindNorTail(kind)) {
@@ -268,15 +268,8 @@ export class Language {
             cfg.identifiers,
         )
     }
-}
 
-/**
- * # Namespace
- *
- * Provides common language configurations.
- */
-export namespace Language {
-    export const BRACKETS = Language.newInstance({
+    static BRACKETS = Language.newInstance({
         declare: {
             OPEN_PAREN: '(',
             CLOSE_PAREN: ')',
@@ -287,7 +280,7 @@ export namespace Language {
         },
     })
 
-    export const ARITHMETIC = Language.newInstance({
+    static ARITHMETIC = Language.newInstance({
         declare: {
             PLUS: '+',
             MINUS: '-',
@@ -296,7 +289,7 @@ export namespace Language {
         },
     })
 
-    export const ARITHMETIC_ASSIGN = Language.newInstance({
+    static ARITHMETIC_ASSIGN = Language.newInstance({
         declare: {
             PLUS_ASSIGN: '+=',
             MINUS_ASSIGN: '-=',
@@ -306,14 +299,14 @@ export namespace Language {
         inherit: [Language.ARITHMETIC],
     })
 
-    export const REM_ASSIGN = Language.newInstance({
+    static REM_ASSIGN = Language.newInstance({
         declare: {
             REM: '%',
             REM_ASSIGN: '%=',
         },
     })
 
-    export const BIT_OPS = Language.newInstance({
+    static BIT_OPS = Language.newInstance({
         declare: {
             AND: '&',
             OR: '|',
@@ -323,7 +316,7 @@ export namespace Language {
         },
     })
 
-    export const BIT_OPS_ASSIGN = Language.newInstance({
+    static BIT_OPS_ASSIGN = Language.newInstance({
         declare: {
             AND_ASSIGN: '&=',
             OR_ASSIGN: '|=',
@@ -331,10 +324,10 @@ export namespace Language {
             SHL_ASSIGN: '<<=',
             SHR_ASSIGN: '>>=',
         },
-        inherit: [BIT_OPS],
+        inherit: [Language.BIT_OPS],
     })
 
-    export const BOOL_LOGIC = Language.newInstance({
+    static BOOL_LOGIC = Language.newInstance({
         declare: {
             AND_AND: '&&',
             OR_OR: '||',
@@ -348,14 +341,14 @@ export namespace Language {
         },
     })
 
-    export const C_COMMENTS = Language.newInstance({
+    static C_COMMENTS = Language.newInstance({
         declare: {
             LINE_COMMENT: /\/\/.*/y,
             BLOCK_COMMENT: /\/\*[\s\S]*?\*\//y,
         },
     })
 
-    export const C_PUNCT = Language.newInstance({
+    static C_PUNCT = Language.newInstance({
         declare: {
             EQUALS: '=',
             COLON: ':',
@@ -365,13 +358,13 @@ export namespace Language {
         },
     })
 
-    export const C_ID = Language.newInstance({
+    static C_ID = Language.newInstance({
         declare: {
             ID: /[a-zA-Z_][a-zA-Z_0-9]*/y,
         },
     })
 
-    export const C_CHAR = Language.newInstance({
+    static C_CHAR = Language.newInstance({
         declare: {
             CHAR: /'\\?.'/y,
         },

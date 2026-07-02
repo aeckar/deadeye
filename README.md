@@ -1,5 +1,13 @@
 # deadeye
 
+- ignore linting in testing
+- use rimraf for `npm run clean`
+- test: `npm run test`
+
+types if ai chats:
+    research
+    debugging
+    advising
 After writing up a brief description, we recommend including the following sections.
 
 ##

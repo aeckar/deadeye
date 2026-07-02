@@ -146,7 +146,9 @@ where
 /*
 keep assignment purely as an expression/statement scope detected by the text parser
 */
+// inserting comma inside identifier moves it to end + fmt
 
+// typescript: prettier handles ; quirks
 // scalability: language-specific global constants accessible by passing key to aggregator
 // scalability: keep names flat to reduce code duplication
 
@@ -180,7 +182,7 @@ A raw scanner satisfies all four. The symbol tree satisfies none of them fully. 
 //for overlapping scopes, check match for every token (possible marker)
 
 //todo space after function in js -- insert smart parentheses
-
+//todo ts: convert namespace to const object (including export const CAPS = )
 // todo create shared utils, shorthands for c-like languages/ts & js/js frameworks
 // todo bash/batch/powershell
 // no dockerfile/docker-compose support, since simple enough + case-insensitive
@@ -204,11 +206,14 @@ import {
     window,
 } from 'vscode'
 
-import { Completion, CompletionStrategy } from './completion_registry_utils'
+import {
+    Completion,
+    CompletionStrategy,
+    ScopedCompletionContext,
+} from './completion_registry_utils'
 import completionRegistries from './lang/completion_registries'
 import languagesById from './lang/languages'
 import scopeResolvers from './lang/scope_registries'
-import { ScopedCompletionContext } from './scope_registry_utils'
 import { expandTabStops } from './text_utils'
 
 let strategy: CompletionStrategy | undefined
@@ -269,7 +274,7 @@ export function activate(context: ExtensionContext) {
     )
 
     const showDocsOnHover = languages.registerHoverProvider('rust', {
-        provideHover(_, position, __) {
+        provideHover(_, position) {
             if (!strategy || !strategy.completion.target.contains(position)) {
                 return null
             }
@@ -278,7 +283,7 @@ export function activate(context: ExtensionContext) {
     })
 
     const showPreviewOnHover = languages.registerHoverProvider('rust', {
-        provideHover(_, position, __) {
+        provideHover(_, position) {
             if (!strategy || !strategy.completion.target.contains(position)) {
                 return null
             }

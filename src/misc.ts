@@ -1,6 +1,5 @@
 //! Utilities generalizable to most other projects.
 import { Position, Range } from 'vscode'
-import { Scope } from './scope_registry_utils'
 
 /**
  * Compares two values.
@@ -33,13 +32,16 @@ export class Span {
     }
 }
 
+/** A valid key in a JavaScript object. */
+export type JsKey = string | number | symbol
+
 /**
  * A key-value pair that may exist as an entry in a JavaScript object.
  *
  * Use of this class over standard 2-tuples encourages conciseness,
  * especially when the key and value cannot be easily discerned from their types.
  */
-export class Property<K extends keyof any, V> {
+export class Property<K extends JsKey, V> {
     readonly key: K
     readonly value: V
 
@@ -48,7 +50,7 @@ export class Property<K extends keyof any, V> {
         this.value = value
     }
 
-    static from<K extends keyof any, V>(arr: [K, V]): Property<K, V> {
+    static from<K extends JsKey, V>(arr: [K, V]): Property<K, V> {
         return new Property(arr[0], arr[1])
     }
 
@@ -101,7 +103,7 @@ export function propertiesIn<K extends number | string | symbol, V>(o: {
  *
  * Unlike {@link Object.entries}, encourages type safety and allows for type inference.
  */
-export function properties<K extends keyof any, V>(
+export function properties<K extends JsKey, V>(
     o: Record<K, V>,
 ): Property<K, V>[] {
     return (Object.entries(o) as [K, V][]).map(([k, v]) => {
@@ -121,7 +123,7 @@ export function* charsIn(s: string): Generator<[number, string]> {
  *
  * For completion matching, values should not have a trailing space.
  */
-export function match<K extends keyof any, V>(
+export function match<K extends JsKey, V>(
     query: K,
     possible: Record<K, V>,
 ): Property<K, V> | undefined {
@@ -139,7 +141,7 @@ export function match<K extends keyof any, V>(
  * As guaranteed by ECMA-262 Section 24.1, the order of map entries is persistent.
  * This enables preemptive sorting of entries using `compareFn`.
  */
-export function map<K extends keyof any, V>(
+export function map<K extends JsKey, V>(
     o: Record<K, V>,
     ...compareFns: Comparator<Property<K, V>>[]
 ): Map<K, V> {
@@ -157,7 +159,7 @@ export function map<K extends keyof any, V>(
  * Returns a comparator that maps every entry in a collection to a weight value,
  * where higher weights are placed after lower ones when recombined into a sorted collection.
  */
-export function sortBy<K extends keyof any, V>(
+export function sortBy<K extends JsKey, V>(
     keyMap: (entry: Property<K, V>) => number,
 ): Comparator<Property<K, V>> {
     return (cur, next) => keyMap(cur) - keyMap(next)

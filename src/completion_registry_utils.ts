@@ -1,14 +1,11 @@
-//! Algorithms and data structures used to parse completion shorthands.
+//! Completion registry API and utilities.
+//!
+//! Additionally, provides algorithms and data structures used to parse completion shorthands.
 //!
 //! todo explain vocab
 import { MarkdownString, Position, Range, TextEditor, window } from 'vscode'
 
 import { rangeBefore } from './misc'
-import {
-    ScopedCompletionContext,
-    ScopeResolver,
-    ScopeTree,
-} from './scope_registry_utils'
 import Tape from './tape'
 import {
     Brackets,
@@ -16,6 +13,8 @@ import {
     toMarkdown as md,
     reverse,
 } from './text_utils'
+import { IntervalTree } from './interval_tree'
+import { Scope, ScopeTree } from './scope_utils'
 
 // =============================================================================================
 // Utilities + Constants
@@ -95,29 +94,22 @@ export type CompletionRegistry<ScopeKind extends string> = Map<
 > & { __brand: 'CompletionRegistry' }
 
 /**
- * # Namespace
- *
- * Provides `newInstance` as an initializer.
+ * Initializes a completion family for each configuration,
+ * then stores each in a map, grouped by trigger.
  */
-export namespace CompletionRegistry {
-    /**
-     * Initializes a completion family for each configuration,
-     * then stores each in a map, grouped by trigger.
-     */
-    export function newInstance<ScopeKind extends string>(
-        ...families: CompletionFamilyCfg<ScopeKind>[]
-    ): CompletionRegistry<ScopeKind> {
-        const byTrigger = new Map() as CompletionRegistry<ScopeKind>
-        for (const cfg of families) {
-            const family = CompletionFamily.newInstance(cfg)
-            if (!byTrigger.has(family.trigger)) {
-                byTrigger.set(family.trigger, [family])
-            } else {
-                byTrigger.get(family.trigger)!.push(family)
-            }
+export function newCompletionRegistry<ScopeKind extends string>(
+    ...families: CompletionFamilyCfg<ScopeKind>[]
+): CompletionRegistry<ScopeKind> {
+    const byTrigger = new Map() as CompletionRegistry<ScopeKind>
+    for (const cfg of families) {
+        const family = CompletionFamily.newInstance(cfg)
+        if (!byTrigger.has(family.trigger)) {
+            byTrigger.set(family.trigger, [family])
+        } else {
+            byTrigger.get(family.trigger)!.push(family)
         }
-        return byTrigger as CompletionRegistry<ScopeKind>
     }
+    return byTrigger as CompletionRegistry<ScopeKind>
 }
 
 export function substitute<ScopeKind extends string>(
@@ -492,10 +484,91 @@ export class CompletionContext {
 
 /** Created and stored after a shorthand is matched, and recalled once the trigger is pressed. */
 export type CompletionStrategy = {
-    readonly family: CompletionFamily<any>
+    readonly family: CompletionFamily<string>
     readonly trigger: Trigger
     readonly completion: Completion
 
     /** The position of the cursor the instance this object was created. */
     readonly pos: Position
+}
+
+// =============================================================================================
+// Scoped Completion Context
+// =============================================================================================
+
+/**
+ * Implemented by a top-level constant for each language,
+ * which is then be passed as an entry to `scopeResolvers` (`lang/scope_resolvers.ts`).
+ * This then provides scope resolution for a given `langId`.
+ */
+export type ScopeResolver<ScopeKind extends string> = (
+    ctx: CompletionContext,
+) => IntervalTree<Scope<ScopeKind>>
+
+/**
+ * Contains the scope tree for the current cursor position.
+ *
+ * {@link Completion Completions} and completion prefixes are resolved
+ * using instances of this class.
+ *
+ * # Implementation
+ *
+ * Must be bundled with the completion registry API to prevent a circular dependency
+ * with the scope registry API.
+ *
+ * @see CompletionContext
+ */
+export class ScopedCompletionContext<
+    ScopeKind extends string,
+> extends CompletionContext {
+    /** Users should create a {@link CompletionContext} first, then call {@link toScoped}. */
+    private constructor(
+        keyIn: string,
+        cursor: Position,
+        editor: TextEditor,
+        identifiers: IdentifierRule,
+        readonly scopes: IntervalTree<Scope<ScopeKind>>,
+        readonly scopesAtCursor: Scope<ScopeKind>[], // pre-compute
+    ) {
+        super(keyIn, cursor, editor, identifiers)
+    }
+
+    static withResolver<ScopeKind extends string>(
+        keyIn: string,
+        cursor: Position,
+        editor: TextEditor,
+        identifiers: IdentifierRule,
+        resolver: ScopeResolver<ScopeKind>,
+    ) {
+        const idx = editor.document.offsetAt(cursor)
+        const scopes = resolver(
+            new CompletionContext(keyIn, cursor, editor, identifiers),
+        )
+        const scopesAtCursor = scopes.search([idx, idx])
+        return new ScopedCompletionContext(
+            keyIn,
+            cursor,
+            editor,
+            identifiers,
+            scopes,
+            scopesAtCursor,
+        )
+    }
+
+    clone(): ScopedCompletionContext<ScopeKind> {
+        return new ScopedCompletionContext(
+            this.keyIn,
+            this.cursor,
+            this.editor,
+            this.identifiers,
+            this.scopes,
+            this.scopesAtCursor,
+        )
+    }
+
+    isScopeAtCursor(kind: ScopeKind): boolean {
+        return this.scopesAtCursor.find(scope => scope.kind === kind)
+            ? true
+            : false
+    }
 }

@@ -1,6 +1,6 @@
 import { Language } from '../language_utils'
 import rust from './rust/language'
-import typescript from './ts/language'
+// import typescript from './ts/language'
 
 /**
  * Contains the vocabulary of every supported language.
@@ -13,7 +13,7 @@ import typescript from './ts/language'
  */
 const languagesById: Record<string, Language> = {
     rust,
-    typescript,
+    // typescript,
 }
 
 export default languagesById

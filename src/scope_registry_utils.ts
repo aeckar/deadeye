@@ -1,114 +1,10 @@
-import { Position, TextEditor } from 'vscode'
-import { CompletionContext } from './completion_registry_utils'
+//! Scope registry API and utilities.
+//!
+//! todo explain vocab
 import { IntervalTree, IntervalTreeService } from './interval_tree'
 import { Token, TokenKind } from './language_utils'
-import { properties, Span } from './misc'
-import { IdentifierRule } from './text_utils'
-
-/**
- * A possible configuration of nested scopes.
- *
- * Scope kinds may be prefixed by `...` to indicate any sequence of scopes leading to that one.
- *
- * Nested scopes are not required to be adjacent; they must simply be present in the same order.
- * If not provided as an argument, the completion is matched in all scopes.
- * Passing an empty array is considered to be the top-level scope.
- */
-export type ScopeTree<ScopeKind extends string> = (
-    | ScopeKind
-    | `...${ScopeKind}`
-)[]
-
-/** A member in the scope tree at a particular position in a file. */
-export class Scope<ScopeKind extends string> extends Span {
-    constructor(
-        /** The type of scope, as defined in `lang/<langId>/scopes.ts`. */
-        readonly kind: ScopeKind,
-
-        /**
-         * The position of the first character of the scope marker
-         * (`if`, `fn`, `impl`, `mod`, etc.), which is primarily useful to hot completions
-         * that modify the scope signature.
-         */
-        readonly markerPos: number,
-        begin: number,
-        end: number,
-    ) {
-        super(begin, end)
-    }
-}
-
-/**
- * Implemented by a top-level constant for each language,
- * which is then be passed as an entry to `scopeResolvers` (`lang/scope_resolvers.ts`).
- * This then provides scope resolution for a given `langId`.
- */
-export type ScopeResolver<ScopeKind extends string> = (
-    ctx: CompletionContext,
-) => IntervalTree<Scope<ScopeKind>>
-
-/**
- * Contains the scope tree for the current cursor position.
- *
- * {@link Completion Completions} and completion prefixes are resolved
- * using instances of this class.
- *
- * @see CompletionContext
- */
-export class ScopedCompletionContext<
-    ScopeKind extends string,
-> extends CompletionContext {
-    /** Users should create a {@link CompletionContext} first, then call {@link toScoped}. */
-    private constructor(
-        keyIn: string,
-        cursor: Position,
-        editor: TextEditor,
-        identifiers: IdentifierRule,
-        readonly scopes: IntervalTree<Scope<ScopeKind>>,
-        readonly scopesAtCursor: Scope<ScopeKind>[], // pre-compute
-    ) {
-        super(keyIn, cursor, editor, identifiers)
-    }
-
-    static withResolver<ScopeKind extends string>(
-        keyIn: string,
-        cursor: Position,
-        editor: TextEditor,
-        identifiers: IdentifierRule,
-        resolver: ScopeResolver<ScopeKind>,
-    ) {
-        const idx = editor.document.offsetAt(cursor)
-        const scopes = resolver(
-            new CompletionContext(keyIn, cursor, editor, identifiers),
-        )
-        const scopesAtCursor = scopes.search([idx, idx])
-        return new ScopedCompletionContext(
-            keyIn,
-            cursor,
-            editor,
-            identifiers,
-            scopes,
-            scopesAtCursor,
-        )
-    }
-
-    clone(): ScopedCompletionContext<ScopeKind> {
-        return new ScopedCompletionContext(
-            this.keyIn,
-            this.cursor,
-            this.editor,
-            this.identifiers,
-            this.scopes,
-            this.scopesAtCursor,
-        )
-    }
-
-    isScopeAtCursor(kind: ScopeKind): boolean {
-        return this.scopesAtCursor.find(scope => scope.kind === kind)
-            ? true
-            : false
-    }
-}
+import { properties } from './misc'
+import { Scope } from './scope_utils'
 
 export class UnclosedScope<ScopeKind extends string> {
     private _begin?: number
@@ -407,14 +303,12 @@ export type ScopeRegistry<ScopeKind extends string> = Map<
     ScopeInfo<ScopeKind>
 > & { __brand: 'CompletionRegistry' }
 
-export namespace ScopeRegistry {
-    export function newInstance<ScopeKind extends string>(
-        cfg: ScopeRegistryCfg<ScopeKind>,
-    ): ScopeRegistry<ScopeKind> {
-        const registry = new Map<ScopeKind, ScopeInfo<ScopeKind>>()
-        for (const { key, value } of properties(cfg)) {
-            registry.set(key, ScopeInfo.newInstance(key, value))
-        }
-        return registry as ScopeRegistry<ScopeKind>
+export function newScopeRegistry<ScopeKind extends string>(
+    cfg: ScopeRegistryCfg<ScopeKind>,
+): ScopeRegistry<ScopeKind> {
+    const registry = new Map<ScopeKind, ScopeInfo<ScopeKind>>()
+    for (const { key, value } of properties(cfg)) {
+        registry.set(key, ScopeInfo.newInstance(key, value))
     }
+    return registry as ScopeRegistry<ScopeKind>
 }

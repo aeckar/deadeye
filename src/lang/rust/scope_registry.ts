@@ -1,4 +1,4 @@
-import { ScopeRegistry } from '../../scope_registry_utils'
+import { newScopeRegistry } from '../../scope_registry_utils'
 
 export type RustScopeKind =
     | 'struct'
@@ -49,7 +49,7 @@ export type RustScopeKind =
 
 // struct init is also too complex to parse at scope time, defer to completions
 
-export const rust = ScopeRegistry.newInstance<RustScopeKind>({
+export const rust = newScopeRegistry<RustScopeKind>({
     struct: {
         possibleMarkers: ['STRUCT', 'UNION'],
         possibleBoundaries: ['CURLY'],

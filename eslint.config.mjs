@@ -5,7 +5,6 @@ import eslintConfigPrettier from 'eslint-config-prettier'
 export default [
     eslint.configs.recommended,
     ...tseslint.configs.recommended,
-
     {
         files: ['**/*.ts'],
         plugins: {
@@ -17,6 +16,13 @@ export default [
             sourceType: 'module',
         },
         rules: {
+            "@typescript-eslint/no-unused-vars": [
+                "error",
+                { 
+                    "argsIgnorePattern": "^_+$",
+                    "varsIgnorePattern": "^_+$" 
+                }
+            ],
             '@typescript-eslint/naming-convention': [
                 'warn',
                 {

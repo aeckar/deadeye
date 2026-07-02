@@ -1,5 +1,5 @@
-import { CompletionRegistry, substitute } from '../../completion_registry_utils'
-import { isLowerLetter, toMarkdown as md } from '../../text_utils'
+import { newCompletionRegistry, substitute } from '../../completion_registry_utils'
+// import { isLowerLetter, toMarkdown as md } from '../../text_utils'
 
 // do not highlight hot shorthand - 1
 //dont use tm, rarely ever used by devs and writers
@@ -32,48 +32,48 @@ Because every common Markdown construct is supported as a completion, it is advi
 
 // try double space/semi
 
-const markdown = CompletionRegistry.newInstance(
+const markdown = newCompletionRegistry(
     substitute('(c)', '©'),
     substitute('--', '——'),
-    {
-        // ` = U+1FEF
-        docs: md`
-            Formats the following text.
+    // {
+    //     // ` = U+1FEF
+    //     docs: md`
+    //         Formats the following text.
 
-            \`bic important code\` → \`***`important code`*** \`
+    //         \`bic important code\` → \`***`important code`*** \`
 
-            | Flag | Mnemonic             | Expansion          |
-            | :--- | :------------------- | :----------------- |
-            | b    | <u>b</u>old          | \`**\` \`**\`          |
-            | i    | <u>i</u>talics       | \`*\` \`*\`            |
-            | u    | <u>u</u>nderline     | \`<u>\` \`</u>\`       |
-            | s    | <u>s</u>trikethrough | \`~~\` \`~~\`          |
-            | h    | <u>h</u>ighlight     | \`<mark>\` \`</mark>\` |
-            | c    | <u>c</u>ode          | \``\` \``\`            |
-            | m    | <u>m</u>ath          | \`$\` \`$\`            |
+    //         | Flag | Mnemonic             | Expansion          |
+    //         | :--- | :------------------- | :----------------- |
+    //         | b    | <u>b</u>old          | \`**\` \`**\`          |
+    //         | i    | <u>i</u>talics       | \`*\` \`*\`            |
+    //         | u    | <u>u</u>nderline     | \`<u>\` \`</u>\`       |
+    //         | s    | <u>s</u>trikethrough | \`~~\` \`~~\`          |
+    //         | h    | <u>h</u>ighlight     | \`<mark>\` \`</mark>\` |
+    //         | c    | <u>c</u>ode          | \``\` \``\`            |
+    //         | m    | <u>m</u>ath          | \`$\` \`$\`            |
 
-            todo add 2nd trigger
+    //         todo add 2nd trigger
 
-            **Syntax:** <flags> <word1> <word2> ... <wordN>
+    //         **Syntax:** <flags> <word1> <word2> ... <wordN>
 
-            **Terminator: ** \` \` (if using space trigger)
-        `,
-        minLookbehind: 1,
-        resolver(ctx) {
-            const fwd = ctx.leftOfCursor()
-            const rev = fwd.reversed()
-            const key = 'biushcm'
+    //         **Terminator: ** \` \` (if using space trigger)
+    //     `,
+    //     minLookbehind: 1,
+    //     resolver(ctx) {
+    //         const fwd = ctx.leftOfCursor()
+    //         const rev = fwd.reversed()
+    //         const key = 'biushcm'
 
-            while (true) {
-                fwd.consume(ch => !isLowerLetter(ch))
-                fwd.consume(ch => key.includes(ch))
-                if (fwd.clone().dec().isRightClear()) {
-                }
-            }
+    //         while (true) {
+    //             fwd.consume(ch => !isLowerLetter(ch))
+    //             fwd.consume(ch => key.includes(ch))
+    //             if (fwd.clone().dec().isRightClear()) {
+    //             }
+    //         }
 
-            return {}
-        },
-    },
+    //         return {}
+    //     },
+    // },
 )
 
 export default markdown
