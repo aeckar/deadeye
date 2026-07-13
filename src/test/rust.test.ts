@@ -24,7 +24,7 @@
  */
 
 import * as assert from 'assert'
-import { IntervalTree, IntervalTreeService } from '../interval_utils'
+import { IntervalTreeService, itemsAt } from '../interval_utils'
 import rust from '../lang/rust/language'
 import { rust as rustScopes } from '../lang/rust/scope_registry'
 import { Token } from '../language_utils'
@@ -53,11 +53,6 @@ function collectTokens(
         t = t.next
     }
     return tokens
-}
-
-/** Search for all scopes at a byte offset. */
-function scopesAt(tree: IntervalTree<Scope<string>>, offset: number): Scope<string>[] {
-    return tree.search([offset, offset]) as Scope<string>[]
 }
 
 suite('Rust Tokenizer', () => {
@@ -348,7 +343,7 @@ suite('Rust Scope Stream', () => {
         const closeCurly = src.indexOf('}')
 
         // Search inside the body
-        const inside = scopesAt(tree, openCurly + 1)
+        const inside = itemsAt(tree, openCurly + 1)
         const fn_scope = inside.find(s => s.kind === 'fn')
         assert.ok(fn_scope, 'fn scope should exist')
         // begin is right after `{`, end is right before `}`
@@ -359,7 +354,7 @@ suite('Rust Scope Stream', () => {
     test('struct scope spans from open to close curly', async () => {
         const src = 'struct Foo { x: u32, }'
         const tree = await parse(src)
-        const inside = scopesAt(tree, src.indexOf('{') + 1)
+        const inside = itemsAt(tree, src.indexOf('{') + 1)
         assert.ok(
             inside.find(s => s.kind === 'struct'),
             'struct scope must be present',
@@ -369,7 +364,7 @@ suite('Rust Scope Stream', () => {
     test('impl scope is created', async () => {
         const src = 'impl Foo { fn bar() {} }'
         const tree = await parse(src)
-        const inside = scopesAt(tree, src.indexOf('{') + 1)
+        const inside = itemsAt(tree, src.indexOf('{') + 1)
         assert.ok(
             inside.find(s => s.kind === 'impl'),
             'impl scope must be present',
@@ -379,7 +374,7 @@ suite('Rust Scope Stream', () => {
     test('mod scope is created', async () => {
         const src = 'mod tests { fn helper() {} }'
         const tree = await parse(src)
-        const inside = scopesAt(tree, src.indexOf('{') + 1)
+        const inside = itemsAt(tree, src.indexOf('{') + 1)
         assert.ok(
             inside.find(s => s.kind === 'mod'),
             'mod scope must be present',
@@ -389,7 +384,7 @@ suite('Rust Scope Stream', () => {
     test('enum scope is created', async () => {
         const src = 'enum Color { Red, Green, Blue }'
         const tree = await parse(src)
-        const inside = scopesAt(tree, src.indexOf('{') + 1)
+        const inside = itemsAt(tree, src.indexOf('{') + 1)
         assert.ok(
             inside.find(s => s.kind === 'enum'),
             'enum scope must be present',
@@ -397,9 +392,9 @@ suite('Rust Scope Stream', () => {
     })
 
     test('trait scope is created', async () => {
-        const src = 'trait Drawable { fn draw(&self); }' //FIXME: no fnparam scope?
+        const src = 'trait Drawable { fn draw(&self); }'
         const tree = await parse(src)
-        const inside = scopesAt(tree, src.indexOf('{') + 1)
+        const inside = itemsAt(tree, src.indexOf('{') + 1)
         assert.ok(
             inside.find(s => s.kind === 'trait'),
             'trait scope must be present',
@@ -416,7 +411,7 @@ suite('Rust Scope Stream', () => {
 
         // Position inside `fn bar`'s body — after the second `{`
         const innerOpen = src.lastIndexOf('{')
-        const inside = scopesAt(tree, innerOpen + 1)
+        const inside = itemsAt(tree, innerOpen + 1)
 
         const hasImpl = inside.find(s => s.kind === 'impl')
         const hasFn = inside.find(s => s.kind === 'fn')
@@ -430,7 +425,7 @@ suite('Rust Scope Stream', () => {
 
         // Position right after impl's `{` but before `fn`
         const implOpen = src.indexOf('{')
-        const inside = scopesAt(tree, implOpen + 1)
+        const inside = itemsAt(tree, implOpen + 1)
         assert.ok(
             !inside.find(s => s.kind === 'fn'),
             'fn scope should not cover impl opener',
@@ -444,7 +439,7 @@ suite('Rust Scope Stream', () => {
     test('async fn: async scope flattens onto fn scope (same interval)', async () => {
         const src = 'async fn foo() { }'
         const tree = await parse(src)
-        const inside = scopesAt(tree, src.indexOf('{') + 1)
+        const inside = itemsAt(tree, src.indexOf('{') + 1)
 
         const asyncScope = inside.find(s => s.kind === 'async')
         const fnScope = inside.find(s => s.kind === 'fn')
@@ -466,7 +461,7 @@ suite('Rust Scope Stream', () => {
     test('const fn: const scope flattens onto fn scope', async () => {
         const src = 'const fn add(a: u32, b: u32) -> u32 { a + b }'
         const tree = await parse(src)
-        const inside = scopesAt(tree, src.indexOf('{') + 1)
+        const inside = itemsAt(tree, src.indexOf('{') + 1)
 
         const constScope = inside.find(s => s.kind === 'const')
         const fnScope = inside.find(s => s.kind === 'fn')
@@ -486,7 +481,7 @@ suite('Rust Scope Stream', () => {
 
         // A position inside the param list — after `(`
         const paramOpen = src.indexOf('(')
-        const inside = scopesAt(tree, paramOpen + 1)
+        const inside = itemsAt(tree, paramOpen + 1)
         assert.ok(
             inside.find(s => s.kind === 'fnParams'),
             'fnParams scope must be present in param list',
@@ -499,7 +494,7 @@ suite('Rust Scope Stream', () => {
 
         // A position inside fn body, after `{`
         const bodyOpen = src.indexOf('{')
-        const insideBody = scopesAt(tree, bodyOpen + 1)
+        const insideBody = itemsAt(tree, bodyOpen + 1)
         assert.ok(
             !insideBody.find(s => s.kind === 'fnParams'),
             'fnParams must not extend into fn body',
@@ -513,7 +508,7 @@ suite('Rust Scope Stream', () => {
     test('macro scope is created for macro_rules!', async () => {
         const src = 'macro_rules! my_mac { () => {} }'
         const tree = await parse(src)
-        const inside = scopesAt(tree, src.indexOf('{') + 1)
+        const inside = itemsAt(tree, src.indexOf('{') + 1)
         assert.ok(
             inside.find(s => s.kind === 'macro'),
             'macro scope must exist',
@@ -586,7 +581,7 @@ suite('Rust Scope Stream', () => {
         // Between the two functions — right after the first `}`
         const between = src.indexOf('}') + 1
         const tree = await parse(src)
-        const inside = scopesAt(tree, between)
+        const inside = itemsAt(tree, between)
         const fn_scopes = inside.filter(s => s.kind === 'fn')
         assert.strictEqual(
             fn_scopes.length,

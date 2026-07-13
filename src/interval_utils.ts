@@ -51,6 +51,11 @@ export type ReadOnlyIntervalTree<V> = {
     forEach(visitor: (key: Interval, value: V) => void): void
 }
 
+/** Search for all scopes at a byte offset. */
+export function itemsAt<V>(tree: IntervalTree<V>, offset: number): readonly V[] {
+    return tree.search([offset, offset])
+}
+
 /**
  * Imports the library module for `@flatten-js/interval-tree`
  * and provides a factory function for {@link IntervalTree}.
@@ -80,7 +85,7 @@ export class IntervalTreeService {
         if (!IntervalTreeService.CTOR) {
             throw new Error(
                 'IntervalTree class has not been loaded yet. ' +
-                    'Please await IntervalTree.init() first.',
+                    'Please await IntervalTreeService.start() first.',
             )
         }
         return new IntervalTreeService.CTOR<V>() as IntervalTree<V>

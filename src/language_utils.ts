@@ -6,7 +6,9 @@ import { newMap, sortBy, Span } from './misc_utils'
 import Tape from './tape'
 import { IdentifierRule } from './text_utils'
 
-// ============================================ Token API ============================================
+// =============================================================================================
+// Token API
+// =============================================================================================
 
 export const CURLIES = ['OPEN_CURLY', 'CLOSE_CURLY'] as const
 
@@ -170,7 +172,9 @@ export class Token extends Span {
     }
 }
 
-// ===================================== Language (Lexer) Description API =====================================
+// =============================================================================================
+// Language (Lexer) Description API
+// =============================================================================================
 
 export type LanguageCfg = {
     declare: { [K in string]: string | RegExp }
@@ -460,7 +464,7 @@ export class Language {
         }
         return root
     }
-    
+
     private skip(tape: Tape) {
         const pattern = this.ignore
         if (!pattern) {

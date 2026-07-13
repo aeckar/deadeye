@@ -6,7 +6,9 @@ import { Token, TokenKind, UnknownTokenKind } from './language_utils'
 import { properties } from './misc_utils'
 import { Scope } from './scope_utils'
 
-// ==================================== Scope Description API ====================================
+// =============================================================================================
+// Scope Description API
+// =============================================================================================
 
 export type BoundariesCfg = (readonly [
     UnknownTokenKind | null,
@@ -143,7 +145,9 @@ export function newScopeRegistry<ScopeKind extends string>(
     return registry as ScopeRegistry<ScopeKind>
 }
 
-// ====================================== Scope Analysis API ======================================
+// =============================================================================================
+// Scope Analysis API
+// =============================================================================================
 
 /** Returns all valid scopes found in the token stream. */
 export function extractScopes<ScopeKind extends string>(

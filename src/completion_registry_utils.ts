@@ -1,6 +1,6 @@
 //! Completion registry API and utilities.
 //!
-//! Additionally, provides algorithms and data structures used to parse completion shorthands.
+//! Also provides algorithms and data structures used to parse completion shorthands.
 import { MarkdownString, Position, Range, TextEditor, window } from 'vscode'
 
 import { IntervalTree } from './interval_utils'
