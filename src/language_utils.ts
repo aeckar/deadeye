@@ -377,7 +377,6 @@ export function tokenize(file: Tape, lang: Language): Token {
     const root = Token.head()
     let node = root
     const ignore = lang.ignore
-    console.log('efwefs');
     
     if (ignore) {
         skip(ignore)

@@ -4,6 +4,8 @@
 - use rimraf for `npm run clean`
 - test: `npm run test`
 
+
+remember to right click and press `debug tests` instead of `run tests`
 types if ai chats:
     research
     debugging
