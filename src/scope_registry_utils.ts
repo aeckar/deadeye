@@ -1,11 +1,166 @@
 //! Scope registry API and utilities.
 //!
-//! todo explain vocab
+//! Unlike `scope_utils.ts`, contains logic for scope analysis.
 import { IntervalTree, IntervalTreeService } from './interval_utils'
 import { Token, TokenKind, UnknownTokenKind } from './language_utils'
-import { properties } from './misc'
+import { properties } from './misc_utils'
 import { Scope } from './scope_utils'
 
+// ==================================== Scope Description API ====================================
+
+export type BoundariesCfg = (readonly [
+    UnknownTokenKind | null,
+    UnknownTokenKind,
+])[]
+
+/**
+ * The boundaries of a scope.
+ *
+ * Possibilties:
+ * - **`openByDefault` + `open === undefined`:** `<scope-marker> ...open... <primed>`
+ * - **`open === undefined`:** `<scope-marker> ...primed... <close>`
+ * - **`open !== undefined`:** `<scope-marker> ...primed... <open> ...open... <close>`
+ *
+ * A scope starts open if any of its possible boundaries have an undefined open token.
+ */
+export class Boundaries {
+    // explicit passing of `undefined` allowable here, since it is also a declaration
+    constructor(
+        readonly open: TokenKind | undefined,
+        readonly close: TokenKind,
+    ) {}
+
+    toString(): string {
+        return `[${this.open}, ${this.close}]`
+    }
+
+    static newInstance(cfg: BoundariesCfg): Boundaries[] {
+        const boundaryMarkers: Boundaries[] = []
+        for (const boundaries of cfg) {
+            const [open, close] = boundaries
+            boundaryMarkers.push(Boundaries.unchecked(open, close))
+        }
+        return boundaryMarkers
+    }
+
+    static unchecked(
+        open: UnknownTokenKind | null,
+        close: UnknownTokenKind,
+    ): Boundaries {
+        return new Boundaries(
+            (open ?? undefined) as TokenKind,
+            close as TokenKind,
+        )
+    }
+}
+
+export type ScopeInfoCfg<ScopeKind extends string> = {
+    boundariesPool: BoundariesCfg
+    markerPool?: readonly UnknownTokenKind[]
+    terminatorPool?: readonly UnknownTokenKind[]
+    flatten?: boolean
+    outerOpenScope?: ScopeKind
+    outerPrimedScope?: ScopeKind
+}
+
+/**
+ * Contains specification details for a given scope.
+ *
+ * The type of each value in a {@link ScopeRegistry}.
+ *
+ * @see {@link ScopeStream}
+ */
+export class ScopeInfo<ScopeKind extends string> {
+    private constructor(
+        readonly scopeKind: ScopeKind,
+        readonly markerPool: readonly UnknownTokenKind[],
+        readonly boundariesPool: readonly Boundaries[],
+        readonly terminatorPool: readonly UnknownTokenKind[],
+        readonly flatten: boolean,
+        readonly outerOpenScope?: ScopeKind,
+        readonly outerPrimedScope?: ScopeKind,
+
+        /** Closing token kinds, cached for easy access if open by default. */
+        readonly closeKinds?: readonly TokenKind[],
+    ) {}
+
+    get isOpenByDefault(): boolean {
+        return this.closeKinds !== undefined
+    }
+
+    toString(): string {
+        return `ScopeInfo(${this.scopeKind})`
+    }
+
+    static newInstance<ScopeKind extends string>(
+        scopeKind: ScopeKind,
+        cfg: ScopeInfoCfg<ScopeKind>,
+    ): ScopeInfo<ScopeKind> {
+        const boundaries = Boundaries.newInstance(cfg.boundariesPool)
+        const isOpenByDefault = boundaries.find(e => e.open === undefined)
+        return new ScopeInfo(
+            scopeKind,
+            cfg.markerPool ?? [scopeKind.toUpperCase()],
+            boundaries,
+            cfg.terminatorPool ?? [],
+            cfg.flatten ?? false,
+            cfg.outerOpenScope,
+            cfg.outerPrimedScope,
+            isOpenByDefault ? boundaries.map(e => e.close) : undefined,
+        )
+    }
+}
+
+/**
+ * Configuration DSL for {@link ScopeRegistry}.
+ * @see {@link newScopeRegistry}
+ */
+export type ScopeRegistryCfg<ScopeKind extends string> = {
+    [K in ScopeKind]: ScopeInfoCfg<ScopeKind>
+}
+
+/**
+ * Top-level data structure mapping every unique scope for a given language
+ * to its {@link ScopeInfo details}.
+ *
+ * This type is a branded {@link Map}.
+ *
+ * @see {@link newScopeRegistry}
+ * @see {@link extractScopes}
+ */
+export type ScopeRegistry<ScopeKind extends string> = Map<
+    ScopeKind,
+    ScopeInfo<ScopeKind>
+> & { __brand: 'CompletionRegistry' }
+
+export function newScopeRegistry<ScopeKind extends string>(
+    cfg: ScopeRegistryCfg<ScopeKind>,
+): ScopeRegistry<ScopeKind> {
+    const registry = new Map<ScopeKind, ScopeInfo<ScopeKind>>()
+    for (const { key, value } of properties(cfg)) {
+        registry.set(key, ScopeInfo.newInstance(key, value))
+    }
+    return registry as ScopeRegistry<ScopeKind>
+}
+
+// ====================================== Scope Analysis API ======================================
+
+/** Returns all valid scopes found in the token stream. */
+export function extractScopes<ScopeKind extends string>(
+    begin: Token,
+    registry: ScopeRegistry<ScopeKind>,
+): IntervalTree<Scope<ScopeKind>> {
+    const stream = new ScopeStream<ScopeKind>(begin)
+    while (!stream.isExhausted()) {
+        for (const query of registry.values()) {
+            if (stream.parse(query)) break
+        }
+        stream.collect()
+    }
+    return stream.closed
+}
+
+/** A scope in the `unclosed` stack of {@link ScopeStream} */
 export class UnclosedScope<ScopeKind extends string> {
     private _begin?: number
     private _expectedClose?: readonly TokenKind[]
@@ -73,102 +228,6 @@ export class UnclosedScope<ScopeKind extends string> {
             return new Scope(this.kind, this.markerPos, this.begin!, end)
         }
         return new Scope(this.kind, this.markerPos, this.markerPos, end)
-    }
-}
-
-export type BoundariesCfg = (readonly [
-    UnknownTokenKind | null,
-    UnknownTokenKind,
-])[]
-
-/**
- * The boundaries of a scope.
- *
- * Possibilties:
- * - **`openByDefault` + `open === undefined`:** `<scope-marker> ...open... <primed>`
- * - **`open === undefined`:** `<scope-marker> ...primed... <close>`
- * - **`open !== undefined`:** `<scope-marker> ...primed... <open> ...open... <close>`
- *
- * A scope starts open if any of its possible boundaries have an undefined open token.
- */
-export class Boundaries {
-    // explicit passing of `undefined` allowable here, since it is also a declaration
-    constructor(
-        readonly open: TokenKind | undefined,
-        readonly close: TokenKind,
-    ) {}
-
-    toString(): string {
-        return `[${this.open}, ${this.close}]`
-    }
-
-    static newInstance(cfg: BoundariesCfg): Boundaries[] {
-        const boundaryMarkers: Boundaries[] = []
-        for (const boundaries of cfg) {
-            const [open, close] = boundaries
-            boundaryMarkers.push(Boundaries.unchecked(open, close))
-        }
-        return boundaryMarkers
-    }
-
-    static unchecked(
-        open: UnknownTokenKind | null,
-        close: UnknownTokenKind,
-    ): Boundaries {
-        return new Boundaries(
-            (open ?? undefined) as TokenKind,
-            close as TokenKind,
-        )
-    }
-}
-
-export type ScopeInfoCfg<ScopeKind extends string> = {
-    boundariesPool: BoundariesCfg
-    markerPool?: readonly UnknownTokenKind[]
-    terminatorPool?: readonly UnknownTokenKind[]
-    flatten?: boolean
-    outerOpenScope?: ScopeKind
-    outerPrimedScope?: ScopeKind
-}
-
-export class ScopeInfo<ScopeKind extends string> {
-    private constructor(
-        readonly scopeKind: ScopeKind,
-        readonly markerPool: readonly UnknownTokenKind[],
-        readonly boundariesPool: readonly Boundaries[],
-        readonly terminatorPool: readonly UnknownTokenKind[],
-        readonly flatten: boolean,
-        readonly outerOpenScope?: ScopeKind,
-        readonly outerPrimedScope?: ScopeKind,
-
-        /** Closing token kinds, cached for easy access if open by default. */
-        readonly closeKinds?: readonly TokenKind[],
-    ) {}
-
-    get isOpenByDefault(): boolean {
-        return this.closeKinds !== undefined
-    }
-
-    toString(): string {
-        return `ScopeInfo(${this.scopeKind})`
-    }
-
-    static newInstance<ScopeKind extends string>(
-        scopeKind: ScopeKind,
-        cfg: ScopeInfoCfg<ScopeKind>,
-    ): ScopeInfo<ScopeKind> {
-        const boundaries = Boundaries.newInstance(cfg.boundariesPool)
-        const isOpenByDefault = boundaries.find(e => e.open === undefined)
-        return new ScopeInfo(
-            scopeKind,
-            cfg.markerPool ?? [scopeKind.toUpperCase()],
-            boundaries,
-            cfg.terminatorPool ?? [],
-            cfg.flatten ?? false,
-            cfg.outerOpenScope,
-            cfg.outerPrimedScope,
-            isOpenByDefault ? boundaries.map(e => e.close) : undefined,
-        )
     }
 }
 
@@ -345,23 +404,4 @@ export class ScopeStream<ScopeKind extends string> {
         }
         return modified
     }
-}
-
-export type ScopeRegistryCfg<ScopeKind extends string> = {
-    [K in ScopeKind]: ScopeInfoCfg<ScopeKind>
-}
-
-export type ScopeRegistry<ScopeKind extends string> = Map<
-    ScopeKind,
-    ScopeInfo<ScopeKind>
-> & { __brand: 'CompletionRegistry' }
-
-export function newScopeRegistry<ScopeKind extends string>(
-    cfg: ScopeRegistryCfg<ScopeKind>,
-): ScopeRegistry<ScopeKind> {
-    const registry = new Map<ScopeKind, ScopeInfo<ScopeKind>>()
-    for (const { key, value } of properties(cfg)) {
-        registry.set(key, ScopeInfo.newInstance(key, value))
-    }
-    return registry as ScopeRegistry<ScopeKind>
 }

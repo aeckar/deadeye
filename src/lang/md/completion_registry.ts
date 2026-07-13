@@ -1,4 +1,7 @@
-import { newCompletionRegistry, substitute } from '../../completion_registry_utils'
+import {
+    newCompletionRegistry,
+    substitute,
+} from '../../completion_registry_utils'
 // import { isLowerLetter, toMarkdown as md } from '../../text_utils'
 
 // do not highlight hot shorthand - 1

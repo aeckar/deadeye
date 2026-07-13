@@ -158,7 +158,7 @@ export function consumeRustTarget(tape: Tape): string {
 }
 
 export const rust = Language.newInstance({
-    identifiers: new IdentifierRule(
+    idRule: new IdentifierRule(
         IdentifierRule.C_LIKE.startPool,
         IdentifierRule.C_LIKE.partPool + '#', // `#` for raw identifiers
     ),

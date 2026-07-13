@@ -150,7 +150,7 @@ export function match<K extends JsKey, V>(
  * As guaranteed by ECMA-262 Section 24.1, the order of map entries is persistent.
  * This enables preemptive sorting of entries using `compareFn`.
  */
-export function map<K extends JsKey, V>(
+export function newMap<K extends JsKey, V>(
     o: Record<K, V>,
     ...compareFns: Comparator<Property<K, V>>[]
 ): Map<K, V> {

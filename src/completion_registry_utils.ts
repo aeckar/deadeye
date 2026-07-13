@@ -1,12 +1,10 @@
 //! Completion registry API and utilities.
 //!
 //! Additionally, provides algorithms and data structures used to parse completion shorthands.
-//!
-//! todo explain vocab
 import { MarkdownString, Position, Range, TextEditor, window } from 'vscode'
 
 import { IntervalTree } from './interval_utils'
-import { rangeBefore } from './misc'
+import { rangeBefore } from './misc_utils'
 import { Scope, ScopeTree } from './scope_utils'
 import Tape from './tape'
 import {
@@ -17,7 +15,7 @@ import {
 } from './text_utils'
 
 // =============================================================================================
-// Utilities + Constants
+// Utilities & Constants
 // =============================================================================================
 
 export const MAX_TOKEN_SEEK = 50
@@ -84,7 +82,7 @@ export type FlagMatch = {
 export type Trigger = '' | ' ' | ';' | '.' | 'enter'
 
 // =============================================================================================
-// Registry API + Builder
+// Completion Registry API
 // =============================================================================================
 
 /** Contains all completion families for a given language, grouped by trigger. */
@@ -493,7 +491,7 @@ export type CompletionStrategy = {
 }
 
 // =============================================================================================
-// Scoped Completion Context
+// Scoped Completion Context API
 // =============================================================================================
 
 /**
@@ -528,7 +526,7 @@ export class ScopedCompletionContext<
         editor: TextEditor,
         identifiers: IdentifierRule,
         readonly scopes: IntervalTree<Scope<ScopeKind>>,
-        readonly scopesAtCursor: Scope<ScopeKind>[], // pre-compute
+        readonly scopesAtCursor: readonly Scope<ScopeKind>[], // caller should pre-compute
     ) {
         super(keyIn, cursor, editor, identifiers)
     }

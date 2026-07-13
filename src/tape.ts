@@ -2,7 +2,7 @@
 import { Position, Range } from 'vscode'
 
 import { Flag, FlagMatch } from './completion_registry_utils'
-import { propertiesIn } from './misc'
+import { propertiesIn } from './misc_utils'
 import {
     IdentifierRule,
     isLetter,

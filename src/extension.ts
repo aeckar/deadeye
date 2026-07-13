@@ -310,7 +310,7 @@ async function updateStrategy(keyIn: string, editor: TextEditor) {
         keyIn,
         cursor,
         editor,
-        languagesById[langId].identifiers,
+        languagesById[langId].idRule,
         scopeResolvers[langId],
     )
     for (const [trigger, families] of completionRegistries[langId]) {

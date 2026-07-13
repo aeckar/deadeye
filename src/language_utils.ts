@@ -2,20 +2,30 @@
 //!
 //! For general utilities related to text manipulation, refer to `text_utils.ts`.
 import { MAX_TOKEN_SEEK } from './completion_registry_utils'
-import { map, sortBy, Span } from './misc'
+import { newMap, sortBy, Span } from './misc_utils'
 import Tape from './tape'
 import { IdentifierRule } from './text_utils'
 
+// ============================================ Token API ============================================
+
 export const CURLIES = ['OPEN_CURLY', 'CLOSE_CURLY'] as const
 
-// ======================================= Token API =======================================
-
-/** An identifier assigned to a token that is unique per language. */
+/**
+ * An identifier assigned to a token that is unique per language.
+ *
+ * Invalid source code is assigned a token of `UNKNOWN`.
+ */
 export type TokenKind = string & { __brand: 'TokenName' }
 
 /**
  * Newtype over `string` to denote that the value should be equal to a valid `TokenKind`,
  * but that this cannot be guaranteed at compile-time.
+ *
+ * # Implementation
+ *
+ * Support for propogating {@link TokenKind} types was considered.
+ * However, after much experimentation, it was deemed too complex to implement
+ * without creating many foot-guns with the type system.
  */
 export type UnknownTokenKind = string
 
@@ -160,14 +170,14 @@ export class Token extends Span {
     }
 }
 
-// ================================ Language (Lexer) API + Builder ================================
+// ===================================== Language (Lexer) Description API =====================================
 
 export type LanguageCfg = {
     declare: { [K in string]: string | RegExp }
     keywords?: readonly string[]
     inherit?: readonly Language[]
     ignore?: RegExp
-    identifiers?: IdentifierRule
+    idRule?: IdentifierRule
 }
 
 /** Specifies a vocabulary of tokens that can be used to tokenize a source file. */
@@ -195,7 +205,7 @@ export class Language {
      *
      * Defaults to `IdentifierBounds.EXACT`.
      */
-    identifiers: IdentifierRule
+    idRule: IdentifierRule
 
     private constructor(
         keywords: readonly string[],
@@ -210,7 +220,7 @@ export class Language {
         this.strings = strings
         this.patterns = patterns
         this.ignore = ignore
-        this.identifiers = identifiers ?? IdentifierRule.STRICT
+        this.idRule = identifiers ?? IdentifierRule.STRICT
     }
 
     /**
@@ -264,13 +274,13 @@ export class Language {
         }
         return new Language(
             keywords,
-            map(
+            newMap(
                 strings,
                 sortBy(prop => -prop.value.length), // parse longer tokens first
             ),
-            map(patterns),
+            newMap(patterns),
             cfg.ignore,
-            cfg.identifiers,
+            cfg.idRule,
         )
     }
 
@@ -375,108 +385,90 @@ export class Language {
             CHAR: /'\\?.'/y,
         },
     })
-}
 
-export function tokenize(file: Tape, lang: Language): Token {
-    const root = Token.head()
-    let node = root
-    const ignore = lang.ignore
+    /**
+     * Returns the token stream found within the given source code.
+     *
+     * If `target` is a string, it is converted to a `Tape` with the `idRule` of the given language.
+     */
+    tokenize(target: string | Tape): Token {
+        const tape =
+            typeof target === 'string'
+                ? Tape.over(target, 0, this.idRule)
+                : target
+        const root = Token.head()
+        let node = root
+        this.skip(tape)
+        while (!tape.isExhausted()) {
+            const start = tape.pos
 
-    if (ignore) {
-        skip(ignore)
-        while (!file.isExhausted()) {
-            const start = file.pos
-            testKeywords()
-            if (file.pos !== start) {
-                skip(ignore)
+            // === 1. Test Keywords ===
+            for (const [name, kword] of this.keywords) {
+                if (tape.isAtIdentifier(kword)) {
+                    // Execute check for letter on both ends,
+                    // as some keywords contain leading/trailing symbols
+                    tape.pos += kword.length
+                    node = node.append(name, kword.length, tape.pos)
+                    break
+                }
+            }
+            if (tape.pos !== start) {
+                this.skip(tape)
                 continue
             }
-            testStrings()
-            if (file.pos !== start) {
-                skip(ignore)
+
+            // === 2. Test Strings ===
+            for (const [name, query] of this.strings.entries()) {
+                if (tape.isAt(query)) {
+                    tape.pos += query.length
+                    node = node.append(name, query.length, tape.pos)
+                }
+            }
+            if (tape.pos !== start) {
+                this.skip(tape)
                 continue
             }
-            testPatterns()
-            if (file.pos !== start) {
-                skip(ignore)
+
+            // === 3. Test Patterns ===
+            for (const [name, query] of this.patterns.entries()) {
+                query.lastIndex = tape.pos
+                if (query.test(tape.raw)) {
+                    const length = query.lastIndex - tape.pos
+                    tape.pos += length
+                    node = node.append(name as TokenKind, length, tape.pos)
+                    break
+                }
+            }
+            if (tape.pos !== start) {
+                this.skip(tape)
                 continue
             }
-            attemptRecovery()
+
+            // === 4. Attempt Recovery ===
+            if (tape.isExhausted()) {
+                continue
+            }
+            while (!tape.isExhausted() && tape.raw[tape.pos] !== '\n') {
+                // Advance past the rest of the current line (or to EOF)
+                tape.pos += 1
+            }
+            if (tape.pos === start) {
+                // Stuck on newline itself; skip it so we always make progress
+                tape.pos += 1
+            }
+            node = node.append('UNKNOWN' as TokenKind, tape.pos - start, start)
         }
-    } else {
-        while (!file.isExhausted()) {
-            const start = file.pos
-            testKeywords()
-            if (file.pos !== start) {
-                continue
-            }
-            testStrings()
-            if (file.pos !== start) {
-                continue
-            }
-            testPatterns()
-            if (file.pos !== start) {
-                continue
-            }
-            attemptRecovery()
-        }
+        return root
     }
-    return root
-
-    function attemptRecovery() {
-        if (file.isExhausted()) {
-            return // proceed with termination
+    
+    private skip(tape: Tape) {
+        const pattern = this.ignore
+        if (!pattern) {
+            return
         }
-        const start = file.pos
-        // Advance past the rest of the current line (or to EOF)
-        while (!file.isExhausted() && file.raw[file.pos] !== '\n') {
-            file.pos += 1
-        }
-        if (file.pos === start) {
-            // Stuck on a newline itself — skip it so we always make progress
-            file.pos += 1
-        }
-        node = node.append('UNKNOWN' as TokenKind, file.pos - start, start)
-    }
-
-    function skip(sticky: RegExp) {
-        sticky.lastIndex = file.pos
-        if (sticky.test(file.raw)) {
-            file.pos = sticky.lastIndex // advance cursor
-        }
-    }
-
-    function testPatterns() {
-        for (const [name, query] of lang.patterns.entries()) {
-            query.lastIndex = file.pos
-            if (query.test(file.raw)) {
-                const length = query.lastIndex - file.pos
-                node = node.append(name as TokenKind, length, file.pos)
-                file.pos += length
-                break
-            }
-        }
-    }
-
-    function testKeywords() {
-        for (const [name, kword] of lang.keywords) {
-            if (file.isAtIdentifier(kword)) {
-                // Execute check for letter on both ends,
-                // as some keywords contain leading/trailing symbols
-                node = node.append(name, kword.length, file.pos)
-                file.pos += kword.length
-                break
-            }
-        }
-    }
-
-    function testStrings() {
-        for (const [name, query] of lang.strings.entries()) {
-            if (file.isAt(query)) {
-                node = node.append(name, query.length, file.pos)
-                file.pos += query.length
-                break
-            }
+        pattern.lastIndex = tape.pos
+        if (pattern.test(tape.raw)) {
+            tape.pos = pattern.lastIndex // advance cursor
         }
     }
 }
