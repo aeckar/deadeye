@@ -9,8 +9,12 @@
             "name": "Run Extension",
             "type": "extensionHost",
             "request": "launch",
-            "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
-            "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/dist/**/*.js"
+            ],
             "preLaunchTask": "${defaultBuildTask}"
         },
         {
@@ -21,24 +25,30 @@
                 "--extensionDevelopmentPath=${workspaceFolder}",
                 "--extensionTestsPath=${workspaceFolder}/out/test"
             ],
-            "outFiles": ["${workspaceFolder}/out/**/*.js"],
+            "outFiles": [
+                "${workspaceFolder}/out/**/*.js"
+            ],
             "sourceMaps": true,
             "preLaunchTask": "npm: compile-tests"
         },
         {
+
             "name": "Debug Tests (Mocha)",
-            "type": "node",
+            "type": "extensionHost",
             "request": "launch",
-            "program": "${workspaceFolder}/node_modules/.pnpm/node_modules/mocha/bin/mocha.js",
+            "runtimeExecutable": "${execPath}",
             "args": [
-                "--ui", "tdd",
-                "--timeout", "10000",
-                "${workspaceFolder}/out/test/rust.test.js"
+                "--extensionDevelopmentPath=${workspaceFolder}",
+                "--extensionTestsPath=${workspaceFolder}/out/test"
             ],
-            "outFiles": ["${workspaceFolder}/out/**/*.js"],
-            "sourceMaps": true,
+            "outFiles": [
+                "${workspaceFolder}/out/**/*.js"
+            ],
+            "sourceMaps": true, // enable breakpoints
             "preLaunchTask": "npm: compile-tests",
-            "internalConsoleOptions": "openOnSessionStart"
+            "env": {
+                "MOCHA_TEST_FILE": "${workspaceFolder}/out/test/rust.test.js"
+            }
         }
     ]
 }

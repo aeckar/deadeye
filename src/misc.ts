@@ -1,5 +1,6 @@
 //! Utilities generalizable to most other projects.
 import { Position, Range } from 'vscode'
+import { Interval } from './interval_utils'
 
 /**
  * Compares two values.
@@ -29,6 +30,14 @@ export class Span {
 
     get length() {
         return this.end - this.begin
+    }
+
+    toString(): string {
+        return `${this.begin}..${this.end}`
+    }
+
+    interval(): Interval {
+        return [this.begin, this.end]
     }
 }
 
@@ -113,7 +122,7 @@ export function properties<K extends JsKey, V>(
 
 /** Collects each character in the given string and yields it preceded by its index. */
 export function* charsIn(s: string): Generator<[number, string]> {
-    for (let idx = 0; idx < s.length; idx++) {
+    for (let idx = 0; idx < s.length; ++idx) {
         yield [idx, s[idx]]
     }
 }
@@ -125,9 +134,9 @@ export function* charsIn(s: string): Generator<[number, string]> {
  */
 export function match<K extends JsKey, V>(
     query: K,
-    possible: Record<K, V>,
+    pool: Record<K, V>,
 ): Property<K, V> | undefined {
-    for (const prop of properties(possible)) {
+    for (const prop of properties(pool)) {
         if (query === prop.key) {
             return prop
         }

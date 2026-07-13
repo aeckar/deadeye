@@ -212,7 +212,7 @@
 // // .<space> => :: after capitalized target or builtin-type or ')'
 
 // //step 1: match to completion
-// // step 2: if trigger is next change, execute stored completion--otherwise, toss
+// // step 2: if trigger is next change, execute stored --completionotherwise, toss
 
 // //todo maybe highlight code examples in docs (or maybe just $0...)
 // // todo highlight and color and underline completions/chords ready to be triggered
@@ -260,7 +260,6 @@
 
 // ⎵ ;
 
-
 // grey squiggly when left of scope marker to show help
 // */
 
@@ -282,7 +281,7 @@
 // //todo autocorrect keywords according to context
 
 // //todo cursor in word + tab = indent line (should alr exist but alright)
-// //todo vecof id one, id two, 
+// //todo vecof id one, id two,
 // const rust = CompletionRegistry.newInstance<RustScopeKind>(
 //     // {
 //     //     docs: md`equals asssignment`
@@ -296,7 +295,7 @@
 //         trigger: '',
 //         resolver(ctx) {
 //             if (ctx.isScopeAtCursor('typeAnno')) {
-                
+
 //             }
 //         },
 //     },
@@ -519,7 +518,7 @@
 //         //fixme false positive match if doing `if if {}...`, good enough for now
 //         docs: md`
 //             Inserts an \`else\` block or \`else if\` block after the enclosing \`if\` statement.
-            
+
 //             \`\`\`
 //             if {
 //                 ...
@@ -536,7 +535,7 @@
 //             \`\`\`
 
 //             **Basic forms:** \`else\`, \`elif\`
-            
+
 //             **Constraints:**
 //             - In an if-statement
 //             - \`if\` keyword not farther than \`${MAX_LINE_SEEK}\` lines away
@@ -669,7 +668,7 @@
 //             }
 //             let pre = [...flags].map(([_, sub]) => sub).join('');
 //             if (pre && pre[0] !== '&') {
-//                 // missing `r` flag, but reference modifier given--assume reference
+//                 // missing `r` flag, but reference modifier --givenassume reference
 //                 pre = '&' + pre;
 //             }
 //             return Completion.newInstance({
@@ -936,10 +935,10 @@
 //     // },
 // );
 
-// /* 
+// /*
 //     },  perhaps on \n after auto-{}?
 //     {
-        
+
 //     },
 // */
 // export default rust;

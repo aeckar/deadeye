@@ -8,7 +8,8 @@ import { MarkdownString } from 'vscode'
 // Letter Case
 // =============================================================================================
 
-export const ALPHA = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ' as const
+export const ALPHA =
+    'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ' as const
 export const DIGIT = '0123456789' as const
 
 /** Concatenates the strings and applies PascalCase. */
@@ -91,26 +92,23 @@ export function reverse(s: string): string {
 /** Contains the possible chars for the first and subsequent characters in an identifier. */
 export class IdentifierRule {
     constructor(
-        readonly possibleStart: string,
-        readonly possiblePart: string,
+        readonly startPool: string,
+        readonly partPool: string,
     ) {}
 
     isStart(ch: string): boolean {
-        return this.possibleStart.includes(ch)
+        return this.startPool.includes(ch)
     }
 
     isPart(ch: string): boolean {
-        return this.possiblePart.includes(ch)
+        return this.partPool.includes(ch)
     }
 
     // https://stackoverflow.com/a/3609335/14178487
     /** Ensures identifiers never occur next to any starting or partial characters. */
     static STRICT = new IdentifierRule('', '')
 
-    static C_LIKE = new IdentifierRule(
-        ALPHA + '_',
-        ALPHA + DIGIT + '_',
-    )
+    static C_LIKE = new IdentifierRule(ALPHA + '_', ALPHA + DIGIT + '_')
 }
 
 // =============================================================================================

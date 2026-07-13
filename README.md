@@ -4,14 +4,35 @@
 - use rimraf for `npm run clean`
 - test: `npm run test`
 
-
 remember to right click and press `debug tests` instead of `run tests`
 types if ai chats:
-    research
-    debugging
-    advising
+research
+debugging
+advising
 After writing up a brief description, we recommend including the following sections.
 
+getter properties must be proven to not have side effects
+(purely functions on readonly)
+
+prefer gutter testing, if not go to `testing` tab in vsc
+
+prefer readonly arrays for DSL properties
+-is booleans only make sense when referring to this/self
+use `pool` naming for collections of items where any one may be matched (1 or 0 times)
+## Testing
+
+See https://code.visualstudio.com/api/working-with-extensions/testing-extension#quick-setup-the-test-cli
+
+Tests are run through the extension host, which is a specialized version of Visual Studio Code, and from that it runs mocha to then execute each unit test. It cannot run mocha directly because it won't run in the extension host, which supplies the VS Code module dynamically. If you're having trouble with source maps, ensure that you have source maps defined as inline in vite.config.js and true in tsconfig.json for the best experience. 
+
+tostring of array type removes brackets!
+debug string reps should try to be unambiguous when printed in sequence
+
+We used V over Webpack for speed and reliability reasons. And we used PNPM over NPM for the same reason. This is in contrast to the defaults for VS Code extension scaffolding. 
+
+try npm run clean if source map is misaligned (debugger step-over is inaccurate)
+
+ensure `pnpm run watch-tests` is running when running tests to ensure code is continuously compiled
 ##
 
 ## Features

@@ -6,9 +6,18 @@ import { map, sortBy, Span } from './misc'
 import Tape from './tape'
 import { IdentifierRule } from './text_utils'
 
+export const CURLIES = ['OPEN_CURLY', 'CLOSE_CURLY'] as const
+
 // ======================================= Token API =======================================
 
+/** An identifier assigned to a token that is unique per language. */
 export type TokenKind = string & { __brand: 'TokenName' }
+
+/**
+ * Newtype over `string` to denote that the value should be equal to a valid `TokenKind`,
+ * but that this cannot be guaranteed at compile-time.
+ */
+export type UnknownTokenKind = string
 
 /**
  * A token, implemented as a node in a linked list (token stream).
@@ -17,8 +26,11 @@ export type TokenKind = string & { __brand: 'TokenName' }
  * Token streams always contain at least two elements: the root node and the EOF node.
  *
  * Special token kinds:
- * - **Root:** `undefined`
- * - **EOF:** `''`
+ * - **Head:** `undefined`
+ * - **Tail:** `''`
+ *
+ * Whether a token is special can be checked easily by using its kind as a condition itself,
+ * since special token kinds are falsey.
  */
 export class Token extends Span {
     private constructor(
@@ -39,6 +51,18 @@ export class Token extends Span {
         return this._next!
     }
 
+    toString(): string {
+        let kind: string
+        if (this.isHead) {
+            kind = '<head>'
+        } else if (this.isTail) {
+            kind = '<tail>'
+        } else {
+            kind = this.kind!
+        }
+        return `${kind} @ ${this.begin}..${this.end}`
+    }
+
     /**
      * Returns the first token in the token stream.
      *
@@ -54,7 +78,7 @@ export class Token extends Span {
     }
 
     /**
-     * Appends a new token to the stream with the given properties.
+     * Appends a new token to the stream with the given properties, directly after in the input.
      * Preserves the original next token.
      *
      * @returns The inserted token.
@@ -62,52 +86,27 @@ export class Token extends Span {
     append(
         kind: TokenKind,
         length: number = kind.length /* works well with EOF */,
+        start: number = this.end,
     ): Token {
-        const node = new Token(
-            this.begin,
-            this.begin + length,
-            kind,
-            this,
-            this._next,
-        )
+        const oldNext = this._next
+        const node = new Token(start, start + length, kind, this, oldNext)
         this._next = node
-        if (this._next) {
-            this._next._prev = node
-        }
-        return node
-    }
-
-    /**
-     * Prepends a new token to the stream with the given properties.
-     * Preserves the original previous token
-     *
-     * @returns The inserted token.
-     */
-    prepend(kind: TokenKind, length: number = kind.length): Token {
-        const node = new Token(
-            this.begin - length,
-            this.begin,
-            kind,
-            this._prev,
-            this,
-        )
-        this._prev = node
-        if (this._prev) {
-            this._prev._next = node
+        if (oldNext) {
+            oldNext._prev = node
         }
         return node
     }
 
     isNotKindNorTail(kind: string): boolean {
-        return this.kind !== kind && !this.isTail()
+        return this.kind !== kind && !this.isTail
     }
 
-    isHead(): boolean {
+    get isHead(): boolean {
         return this.kind === undefined
     }
 
-    isTail(): boolean {
-        return this.kind !== ''
+    get isTail(): boolean {
+        return this.kind === ''
     }
 
     /**
@@ -126,7 +125,7 @@ export class Token extends Span {
      * or `undefined` if none exists.
      */
     consumeEither(...kinds: string[]): Token | undefined {
-        if (this.isTail()) {
+        if (this.isTail) {
             return undefined
         }
         for (const kind of kinds) {
@@ -152,12 +151,12 @@ export class Token extends Span {
                 node = node.next!
                 ++count
             }
-            return node.kind === kind ? undefined : node
+            return node.kind === kind ? node : undefined
         }
         while (node.isNotKindNorTail(kind)) {
             node = node.next!
         }
-        return node.isTail() ? undefined : node
+        return node.isTail ? undefined : node
     }
 }
 
@@ -166,7 +165,7 @@ export class Token extends Span {
 export type LanguageCfg = {
     declare: { [K in string]: string | RegExp }
     keywords?: readonly string[]
-    inherit?: Language[]
+    inherit?: readonly Language[]
     ignore?: RegExp
     identifiers?: IdentifierRule
 }
@@ -217,15 +216,18 @@ export class Language {
     /**
      * Returns a map of name-capture entries for each token.
      *
+     * Keywords are not strictly language keywords, but rather tokens whose kind is the same as
+     * its matching string in all uppercase. They are given precedence over ordinary string tokens.
+     *
      * Evaluation order:
-     * 1. String
-     * 2. Keyword
+     * 1. Keyword
+     * 2. String
      * 3. Pattern
      *
      * Precedence rules:
+     * - **Keyword:** Declaration order, declared first
      * - **String:** Longer queries are matched first
-     * - **Pattern:** Declaration order
-     * - **Keyword:** Declaration order
+     * - **Pattern:** Declaration order, declared first
      *
      * # Implementation
      *
@@ -239,17 +241,6 @@ export class Language {
         const keywords = [...(cfg.keywords ?? [])]
         const strings: Record<TokenKind, string> = {}
         const patterns: Record<TokenKind, RegExp> = {}
-        for (const parent of cfg.inherit ?? []) {
-            for (const [kind, query] of parent.strings.entries()) {
-                strings[kind] = query
-            }
-            for (const [kind, query] of parent.patterns.entries()) {
-                patterns[kind] = query
-            }
-            for (const [_, kword] of parent.keywords) {
-                keywords.push(kword)
-            }
-        }
         for (const kind in cfg.declare) {
             if (typeof cfg.declare[kind] === 'string') {
                 strings[kind as TokenKind] = cfg.declare[kind]
@@ -257,11 +248,25 @@ export class Language {
                 patterns[kind as TokenKind] = cfg.declare[kind]
             }
         }
+        for (const parent of cfg.inherit ?? []) {
+            for (const [kind, query] of parent.strings.entries()) {
+                strings[kind] = query
+            }
+
+            // For keywords and patterns, collect from parent as last step to ensure
+            // locally defined tokens are parsed first.
+            for (const [kind, query] of parent.patterns.entries()) {
+                patterns[kind] = query
+            }
+            for (const [_, kword] of parent.keywords) {
+                keywords.push(kword)
+            }
+        }
         return new Language(
             keywords,
             map(
                 strings,
-                sortBy(prop => prop.value.length),
+                sortBy(prop => -prop.value.length), // parse longer tokens first
             ),
             map(patterns),
             cfg.ignore,
@@ -280,23 +285,24 @@ export class Language {
         },
     })
 
-    static ARITHMETIC = Language.newInstance({
+    /** Handles ambiguity between slash operator and comments */
+    static C_MATH = Language.newInstance({
         declare: {
             PLUS: '+',
             MINUS: '-',
             ASTERISK: '*',
-            SLASH: '/',
+            SLASH: /\/(?![/*])/y,
         },
     })
 
-    static ARITHMETIC_ASSIGN = Language.newInstance({
+    static C_MATH_ASSIGN = Language.newInstance({
         declare: {
             PLUS_ASSIGN: '+=',
             MINUS_ASSIGN: '-=',
             MULT_ASSIGN: '*=',
             DIV_ASSIGN: '/=',
         },
-        inherit: [Language.ARITHMETIC],
+        inherit: [Language.C_MATH],
     })
 
     static REM_ASSIGN = Language.newInstance({
@@ -371,23 +377,21 @@ export class Language {
     })
 }
 
-const REST_OF_LINE = /.+/y
-
 export function tokenize(file: Tape, lang: Language): Token {
     const root = Token.head()
     let node = root
     const ignore = lang.ignore
-    
+
     if (ignore) {
         skip(ignore)
         while (!file.isExhausted()) {
             const start = file.pos
-            testStrings()
+            testKeywords()
             if (file.pos !== start) {
                 skip(ignore)
                 continue
             }
-            testKeywords()
+            testStrings()
             if (file.pos !== start) {
                 skip(ignore)
                 continue
@@ -402,11 +406,11 @@ export function tokenize(file: Tape, lang: Language): Token {
     } else {
         while (!file.isExhausted()) {
             const start = file.pos
-            testStrings()
+            testKeywords()
             if (file.pos !== start) {
                 continue
             }
-            testKeywords()
+            testStrings()
             if (file.pos !== start) {
                 continue
             }
@@ -424,15 +428,15 @@ export function tokenize(file: Tape, lang: Language): Token {
             return // proceed with termination
         }
         const start = file.pos
-        REST_OF_LINE.lastIndex = start
-        while (!REST_OF_LINE.test(file.raw)) {
+        // Advance past the rest of the current line (or to EOF)
+        while (!file.isExhausted() && file.raw[file.pos] !== '\n') {
             file.pos += 1
-            if (file.isExhausted()) {
-                break
-            }
-            REST_OF_LINE.lastIndex = file.pos
         }
-        node = node.append('UNKNOWN' as TokenKind, start - file.pos)
+        if (file.pos === start) {
+            // Stuck on a newline itself — skip it so we always make progress
+            file.pos += 1
+        }
+        node = node.append('UNKNOWN' as TokenKind, file.pos - start, start)
     }
 
     function skip(sticky: RegExp) {
@@ -447,7 +451,7 @@ export function tokenize(file: Tape, lang: Language): Token {
             query.lastIndex = file.pos
             if (query.test(file.raw)) {
                 const length = query.lastIndex - file.pos
-                node = node.append(name as TokenKind, length)
+                node = node.append(name as TokenKind, length, file.pos)
                 file.pos += length
                 break
             }
@@ -459,7 +463,7 @@ export function tokenize(file: Tape, lang: Language): Token {
             if (file.isAtIdentifier(kword)) {
                 // Execute check for letter on both ends,
                 // as some keywords contain leading/trailing symbols
-                node = node.append(name, kword.length)
+                node = node.append(name, kword.length, file.pos)
                 file.pos += kword.length
                 break
             }
@@ -469,7 +473,7 @@ export function tokenize(file: Tape, lang: Language): Token {
     function testStrings() {
         for (const [name, query] of lang.strings.entries()) {
             if (file.isAt(query)) {
-                node = node.append(name, query.length)
+                node = node.append(name, query.length, file.pos)
                 file.pos += query.length
                 break
             }

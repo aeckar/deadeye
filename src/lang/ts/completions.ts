@@ -31,6 +31,8 @@
 // // todo technically already performing spec engineering thru doc comment validation...
 
 // // todo ensure --idx and not idx-- (or ++)
+//find: ([_a-zA-Z][_a-zA-Z0-9]*?)(--|\+\+)
+//replace: $2$1
 
 // // todo completion: string type union, with checker
 // // todo completion: type<->class

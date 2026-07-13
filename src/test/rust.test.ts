@@ -27,19 +27,20 @@
  */
 
 import * as assert from 'assert'
-import { IntervalTree, IntervalTreeService } from '../interval_tree'
+import { IntervalTree, IntervalTreeService } from '../interval_utils'
 import rust from '../lang/rust/language'
 import { rust as rustScopes } from '../lang/rust/scope_registry'
 import { Token, tokenize } from '../language_utils'
 import { ScopeInfo, ScopeStream } from '../scope_registry_utils'
-import Tape from '../tape'
 import { Scope } from '../scope_utils'
+import Tape from '../tape'
+import { IdentifierRule } from '../text_utils'
 
 /** Collect all tokens from the stream into a plain array of kind strings. */
 function collectKinds(head: Token): string[] {
     const kinds: string[] = []
     let t = head.next // skip the root (kind === undefined)
-    while (!t.isTail()) {
+    while (!t.isTail) {
         kinds.push(t.kind as string)
         t = t.next
     }
@@ -52,7 +53,7 @@ function collectTokens(
 ): Array<{ kind: string; begin: number; end: number }> {
     const tokens: Array<{ kind: string; begin: number; end: number }> = []
     let t = head.next
-    while (!t.isTail()) {
+    while (!t.isTail) {
         tokens.push({ kind: t.kind as string, begin: t.begin, end: t.end })
         t = t.next
     }
@@ -61,14 +62,11 @@ function collectTokens(
 
 /** Tokenize a source string using the Rust language definition. */
 function tokenizeRust(src: string): Token {
-    return tokenize(Tape.over(src), rust)
+    return tokenize(Tape.over(src, 0, IdentifierRule.C_LIKE), rust)
 }
 
 /** Search for all scopes at a byte offset. */
-function scopesAt(
-    tree: Awaited<IntervalTree<Scope<string>>>,
-    offset: number,
-) {
+function scopesAt(tree: Awaited<IntervalTree<Scope<string>>>, offset: number) {
     return tree.search([offset, offset]) as Scope<string>[]
 }
 
@@ -150,7 +148,7 @@ suite('Rust Tokenizer', () => {
         const selfKinds = collectKinds(tokenizeRust('self'))
         assert.deepStrictEqual(selfKinds, ['SELF'])
         const SelfKinds = collectKinds(tokenizeRust('Self'))
-        assert.deepStrictEqual(SelfKinds, ['SELF'])
+        assert.deepStrictEqual(SelfKinds, ['SELF_TY'])
     })
 
     // === Literals ===
@@ -337,17 +335,12 @@ suite('Rust Scope Stream', () => {
         const stream = new ScopeStream<string>(head)
 
         while (!stream.isExhausted()) {
-            let matched = false
             for (const [, info] of rustScopes.entries()) {
                 if (stream.parse(info as ScopeInfo<string>)) {
-                    matched = true
                     break
                 }
             }
-            if (!matched) {
-                stream.collect()
-                stream.adv()
-            }
+            stream.collect()
         }
         return stream.closed
     }
@@ -414,7 +407,7 @@ suite('Rust Scope Stream', () => {
     })
 
     test('trait scope is created', async () => {
-        const src = 'trait Drawable { fn draw(&self); }'
+        const src = 'trait Drawable { fn draw(&self); }' //FIXME: no fnparam scope?
         const tree = await parse(src)
         const inside = scopesAt(tree, src.indexOf('{') + 1)
         assert.ok(

@@ -31,26 +31,16 @@ import {
  * (see [TypeScript FAQ](https://github.com/Microsoft/TypeScript/wiki/FAQ#why-are-functions-with-fewer-parameters-assignable-to-functions-that-take-more-parameters)).
  */
 export default class Tape {
-    readonly raw: string
-    readonly isReversed: boolean
-    private readonly boundary: IdentifierRule
-    pos: number
+    private constructor(
+        readonly raw: string,
+        public pos: number,
+        readonly isReversed: boolean,
+        private readonly idRule: IdentifierRule,
+    ) {}
 
     /** The length of the remaining portion of the tape. */
     get length(): number {
         return Math.max(0, this.raw.length - this.pos)
-    }
-
-    private constructor(
-        raw: string,
-        pos: number,
-        isReversed: boolean,
-        boundary: IdentifierRule,
-    ) {
-        this.raw = raw
-        this.pos = pos
-        this.isReversed = isReversed
-        this.boundary = boundary
     }
 
     [Symbol.iterator](): Iterator<string> {
@@ -61,14 +51,14 @@ export default class Tape {
                 if (pos >= raw.length) {
                     return { value: undefined, done: true }
                 }
-                return { value: raw[pos++], done: false }
+                return { value: raw[++pos], done: false }
             },
         }
     }
 
     /** Returns a new instance over the original string. */
-    static over(raw: string, pos = 0, boundary = IdentifierRule.STRICT) {
-        return new Tape(raw, pos, false, boundary)
+    static over(raw: string, pos = 0, idRule = IdentifierRule.STRICT) {
+        return new Tape(raw, pos, false, idRule)
     }
 
     /** Returns true if the given character is space or tab. */
@@ -100,12 +90,12 @@ export default class Tape {
 
     /** Returns a snapshot of this cursor. */
     clone(): Tape {
-        return new Tape(this.raw, this.pos, this.isReversed, this.boundary)
+        return new Tape(this.raw, this.pos, this.isReversed, this.idRule)
     }
 
     /** Returns a new instance over the remaining string, reversed. */
     reversed(): Tape {
-        return new Tape(reverse(this.rest()), 0, true, this.boundary)
+        return new Tape(reverse(this.rest()), 0, true, this.idRule)
     }
 
     // =========================================================================================
@@ -186,7 +176,7 @@ export default class Tape {
 
     /** Returns the position of the first character returning true, or `undefined`. */
     poll(pred: (ch: string, pos: number) => boolean): number | undefined {
-        for (let i = this.pos; i < this.raw.length; i++) {
+        for (let i = this.pos; i < this.raw.length; ++i) {
             if (pred(this.raw[i], i)) {
                 return i
             }
@@ -196,7 +186,7 @@ export default class Tape {
 
     /** Returns the position of the last character returning true, or `undefined`. */
     pollBack(pred: (ch: string, pos: number) => boolean): number | undefined {
-        for (let i = this.raw.length - 1; i >= this.pos; i--) {
+        for (let i = this.raw.length - 1; i >= this.pos; --i) {
             if (pred(this.raw[i], i)) {
                 return i
             }
@@ -298,13 +288,13 @@ export default class Tape {
      */
     consumeFlags(
         cursor: Position,
-        possibleFlags: { [Key in Flag]?: string },
+        flagPool: { [Key in Flag]?: string },
     ): Map<Flag, FlagMatch> | undefined {
         const expansions: [number, string, Range][] = []
         while (!this.isExhausted()) {
             let found = false
             for (const [idx, { key: flag, value: expansion }] of propertiesIn(
-                possibleFlags,
+                flagPool,
             )) {
                 if (!this.cur()) {
                     break
@@ -342,7 +332,7 @@ export default class Tape {
             expansions
                 .sort(([idx1], [idx2]) => idx1 - idx2)
                 .map(([idx, expansion, range]) => [
-                    Object.entries(possibleFlags)[idx][0] as Flag,
+                    Object.entries(flagPool)[idx][0] as Flag,
                     { expansion, range },
                 ]),
         )
@@ -355,10 +345,10 @@ export default class Tape {
      *
      * @return the pair whose key matched, or `undefined` if none did.
      */
-    consumeMatch(possible: { [Key in string]: string }):
+    consumeMatch(pool: { [Key in string]: string }):
         | [string, string]
         | undefined {
-        for (const [k, v] of Object.entries(possible)) {
+        for (const [k, v] of Object.entries(pool)) {
             if (this.isAt(k)) {
                 this.pos += k.length
                 return [k, v]
@@ -521,7 +511,7 @@ export default class Tape {
      * `false` if the adjacent character, if any, is not an identifier boundary.
      */
     isAtIdentifier(query: string): boolean {
-        return this._isAtIdentifier(query, this.raw.indexOf(query, this.pos))
+        return this._isAtIdentifier(query, this.pos)
     }
 
     private _isAtIdentifier(query: string, idx: number): boolean {
@@ -534,7 +524,7 @@ export default class Tape {
         if (isLetter(this.raw[idx])) {
             // check boundary before match
             const prevIdx = idx - 1
-            if (prevIdx >= 0 && this.boundary.isStart(this.raw[prevIdx])) {
+            if (prevIdx >= 0 && this.idRule.isStart(this.raw[prevIdx])) {
                 return false
             }
         }
@@ -543,12 +533,12 @@ export default class Tape {
             const nextIdx = idx + query.length
             if (
                 nextIdx < this.raw.length &&
-                this.boundary.isPart(this.raw[nextIdx])
+                this.idRule.isPart(this.raw[nextIdx])
             ) {
                 return false
             }
         }
-        return true
+        return this.raw.startsWith(query, idx)
     }
 
     /** Returns true if the character at the given position has clearance on its left side. */

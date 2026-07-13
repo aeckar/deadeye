@@ -5,7 +5,9 @@
 //! todo explain vocab
 import { MarkdownString, Position, Range, TextEditor, window } from 'vscode'
 
+import { IntervalTree } from './interval_utils'
 import { rangeBefore } from './misc'
+import { Scope, ScopeTree } from './scope_utils'
 import Tape from './tape'
 import {
     Brackets,
@@ -13,8 +15,6 @@ import {
     toMarkdown as md,
     reverse,
 } from './text_utils'
-import { IntervalTree } from './interval_tree'
-import { Scope, ScopeTree } from './scope_utils'
 
 // =============================================================================================
 // Utilities + Constants
@@ -382,13 +382,13 @@ export class CompletionContext {
         let depth = 0
         let lineLookbehind = 0
         const [open, closed] = brackets
-        for (let line = start.line; line >= 0; line--, lineLookbehind++) {
+        for (let line = start.line; line >= 0; --line, ++lineLookbehind) {
             if (lineLookbehind > MAX_LINE_SEEK) {
                 return undefined
             }
             const text = this.editor.document.lineAt(line).text
             const end = line === start.line ? start.character : text.length
-            for (let character = end - 1; character >= 0; character--) {
+            for (let character = end - 1; character >= 0; --character) {
                 const ch = text[character]
                 if (recur) {
                     if (CompletionContext.OTHER_BRACKETS[open].includes(ch)) {
@@ -416,9 +416,9 @@ export class CompletionContext {
                     if (depth === 0) {
                         return new Position(line, character + 1)
                     }
-                    depth--
+                    --depth
                 } else if (ch === closed) {
-                    depth++
+                    ++depth
                 }
             }
         }
@@ -437,14 +437,14 @@ export class CompletionContext {
         for (
             let line = start.line;
             line < doc.lineCount;
-            line++, lineLookbehind++
+            ++line, ++lineLookbehind
         ) {
             if (lineLookbehind > MAX_LINE_SEEK) {
                 return undefined
             }
             const text = doc.lineAt(line).text
             const end = line === start.line ? start.character : text.length
-            for (let character = 0; character < end; character++) {
+            for (let character = 0; character < end; ++character) {
                 const ch = text[character]
                 if (recur) {
                     if (CompletionContext.OTHER_BRACKETS[closed].includes(ch)) {
@@ -472,9 +472,9 @@ export class CompletionContext {
                     if (depth === 0) {
                         return new Position(line, character + 1)
                     }
-                    depth--
+                    --depth
                 } else if (ch === open) {
-                    depth++
+                    ++depth
                 }
             }
         }

@@ -1,3 +1,4 @@
+import { CURLIES } from '../../language_utils'
 import { newScopeRegistry } from '../../scope_registry_utils'
 
 export type RustScopeKind =
@@ -51,86 +52,91 @@ export type RustScopeKind =
 
 export const rust = newScopeRegistry<RustScopeKind>({
     struct: {
-        possibleMarkers: ['STRUCT', 'UNION'],
-        possibleBoundaries: ['CURLY'],
+        markerPool: ['STRUCT', 'UNION'],
+        boundariesPool: [CURLIES],
     },
     fn: {
-        possibleBoundaries: ['CURLY'],
+        boundariesPool: [CURLIES],
+        terminatorPool: ['SEMICOLON'],
     },
     enum: {
-        possibleBoundaries: ['CURLY'],
+        boundariesPool: [CURLIES],
+        terminatorPool: ['SEMICOLON'],
     },
     trait: {
-        possibleBoundaries: ['CURLY'],
+        boundariesPool: [CURLIES],
     },
     mod: {
-        possibleBoundaries: ['CURLY'],
+        boundariesPool: [CURLIES],
+        terminatorPool: ['SEMICOLON'],
     },
     extern: {
-        possibleBoundaries: ['CURLY'],
+        boundariesPool: [CURLIES],
         flatten: true,
     },
     async: {
-        possibleBoundaries: ['CURLY'],
+        boundariesPool: [CURLIES],
         flatten: true,
     },
     const: {
-        possibleBoundaries: ['CURLY'],
+        boundariesPool: [CURLIES],
         flatten: true,
     },
     macro: {
-        possibleMarkers: ['MACRO_RULES'],
-        possibleBoundaries: ['CURLY'],
+        markerPool: ['MACRO_RULES'],
+        boundariesPool: [CURLIES],
     },
     macroArm: {
-        possibleMarkers: ['FAT_ARROW'],
-        possibleBoundaries: ['CURLY', [null, 'COMMA']],
+        markerPool: ['FAT_ARROW'],
+        boundariesPool: [CURLIES],
+        terminatorPool: ['SEMICOLON'],
         outerOpenScope: 'macro',
     },
     macroArmParams: {
-        possibleMarkers: ['OPEN_PAREN'],
-        possibleBoundaries: [[null, 'CLOSE_PAREN']],
+        markerPool: ['OPEN_PAREN'],
+        boundariesPool: [[null, 'CLOSE_PAREN']],
         outerOpenScope: 'macro',
     },
     fnParams: {
-        possibleMarkers: ['OPEN_PAREN'],
-        possibleBoundaries: [[null, 'CLOSE_PAREN']],
+        markerPool: ['OPEN_PAREN'],
+        boundariesPool: [[null, 'CLOSE_PAREN']],
         outerPrimedScope: 'fn',
-    },
+    }, // todo lambdas use lookbehind
     impl: {
-        possibleBoundaries: ['CURLY'],
+        boundariesPool: [CURLIES],
     },
     assignment: {
-        possibleMarkers: ['EQUALS'],
-        possibleBoundaries: [[null, 'SEMICOLON']],
+        markerPool: ['EQUALS'],
+        boundariesPool: [[null, 'SEMICOLON']],
     },
     typeAnno: {
-        possibleMarkers: ['COLON'],
-        possibleBoundaries: [
+        markerPool: ['COLON'],
+        boundariesPool: [
             [null, 'CLOSE_PAREN'],
             [null, 'CLOSE_CURLY'],
             [null, 'COMMA'],
         ],
     },
     conditional: {
-        possibleMarkers: ['IF'],
-        possibleBoundaries: ['CURLY'],
+        markerPool: ['IF'],
+        boundariesPool: [CURLIES],
     },
     else: {
-        possibleBoundaries: ['CURLY'],
+        boundariesPool: [CURLIES],
         flatten: true,
     },
     loop: {
-        possibleMarkers: ['LOOP', 'FOR', 'WHILE'],
-        possibleBoundaries: ['CURLY'],
+        markerPool: ['LOOP', 'FOR', 'WHILE'],
+        boundariesPool: [CURLIES],
     },
     match: {
-        possibleBoundaries: ['CURLY'],
+        boundariesPool: [CURLIES],
     },
     matchArm: {
-        possibleMarkers: ['FAT_ARROW'],
-        possibleBoundaries: ['CURLY', [null, 'COMMA']],
-        outerOpenScope: 'match',
+        markerPool: ['FAT_ARROW'],
+        boundariesPool: [CURLIES],
+        terminatorPool: ['COMMA'], 
+        outerOpenScope: 'match', // todo no way to scope short match arms
     },
 })
 

@@ -36,9 +36,9 @@ export function consumeRustTarget(tape: Tape): string {
             const ch = tape.next()
             chunk += ch
             if (ch === open) {
-                depth++
+                ++depth
             } else if (ch === close) {
-                depth--
+                --depth
                 if (depth === 0) {
                     break
                 }
@@ -61,9 +61,9 @@ export function consumeRustTarget(tape: Tape): string {
             const ch = tape.next()
             chunk = ch + chunk
             if (ch === close) {
-                depth++
+                ++depth
             } else if (ch === open) {
-                depth--
+                --depth
                 if (depth === 0) {
                     break
                 }
@@ -159,8 +159,8 @@ export function consumeRustTarget(tape: Tape): string {
 
 export const rust = Language.newInstance({
     identifiers: new IdentifierRule(
-        IdentifierRule.C_LIKE.possibleStart,
-        IdentifierRule.C_LIKE.possiblePart + '#', // `#` for raw identifiers
+        IdentifierRule.C_LIKE.startPool,
+        IdentifierRule.C_LIKE.partPool + '#', // `#` for raw identifiers
     ),
     keywords: [
         // === Strict Keywords ===
@@ -191,7 +191,6 @@ export const rust = Language.newInstance({
         'ref',
         'return',
         'self',
-        'Self',
         'static',
         'struct',
         'super',
@@ -222,6 +221,7 @@ export const rust = Language.newInstance({
         'union', // must be followed by open brace
     ],
     declare: {
+        SELF_TY: 'Self',
         MACRO_RULES: 'macro_rules!',
         FAT_ARROW: '=>',
         THIN_ARROW: '->',
@@ -242,7 +242,7 @@ export const rust = Language.newInstance({
     },
     inherit: [
         Language.BRACKETS,
-        Language.ARITHMETIC_ASSIGN,
+        Language.C_MATH_ASSIGN,
         Language.REM_ASSIGN,
         Language.BIT_OPS_ASSIGN,
         Language.BOOL_LOGIC,
@@ -251,7 +251,7 @@ export const rust = Language.newInstance({
         Language.C_ID,
         Language.C_CHAR,
     ],
-    ignore: /\s/y,
+    ignore: /\s*/y,
 })
 
 export default rust
