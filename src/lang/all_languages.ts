@@ -7,7 +7,7 @@ import rustLanguage from './rust/language'
  * The key is the `langId`.
  */
 const allLanguages: Record<string, Language> = {
-    rustLanguage,
+    rust: rustLanguage,
 }
 
 export default allLanguages

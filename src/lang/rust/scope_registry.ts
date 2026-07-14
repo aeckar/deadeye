@@ -140,28 +140,4 @@ export const rustScopes = newScopeRegistry<RustScopeKind>({
     },
 })
 
-/*
-    const file = ctx.fileUpToCursor();
-    const stream = new ScopeStream<RustScopeKind>(tokenize(file, lang));
-    while (!stream.isExhausted()) {
-        let matched = false;
-        matched = stream.parse({
-            scopeKind: 'struct',
-            possibleBoundaries: CURLY,
-            markers: ['STRUCT', 'UNION'],
-        });
-        if (matched) {
-            continue;
-        }
-        matched = stream.parse({
-            scopeKind: 'fn',
-            possibleBoundaries: CURLY,
-        }); //...
-        if (matched) {
-            continue;
-        }
-        stream.collect();
-    }
-*/
-
 export default rustScopes

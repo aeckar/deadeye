@@ -6,7 +6,7 @@ import {
 import { after, rangeBefore } from '../../misc'
 import Tape from '../../tape'
 import { findWord, md, toSnakeCase } from '../../text'
-import { consumeRustTarget, rust as lang } from './language'
+import { consumeRustTarget, rustLanguage as lang } from './language'
 import { RustScopeKind } from './scope_registry'
 
 // optimizing docs should add proper punctation, capitalization
