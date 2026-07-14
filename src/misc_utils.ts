@@ -2,6 +2,9 @@
 import { Position, Range } from 'vscode'
 import { Interval } from './interval_utils'
 
+/** Evaluates to a string union of all public member keys. */
+export type Member<T> = Exclude<keyof T, 'prototype'>
+
 /**
  * Compares two values.
  *

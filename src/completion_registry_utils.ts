@@ -142,11 +142,11 @@ export type CompletionResolver<ScopeKind extends string> = (
 ) => Completion | undefined
 
 export type CompletionFamilyCfg<ScopeKind extends string> = {
-    docs: MarkdownString
-    minLookbehind: number
-    resolver: CompletionResolver<ScopeKind>
-    trigger: Trigger
-    scoping?: readonly ScopeTree<ScopeKind>[]
+    readonly docs: MarkdownString
+    readonly minLookbehind: number
+    readonly resolver: CompletionResolver<ScopeKind>
+    readonly trigger: Trigger
+    readonly scoping?: readonly ScopeTree<ScopeKind>[]
 }
 
 /**

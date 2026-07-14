@@ -3,6 +3,7 @@
 //! For tokenization and language-specific functionality, refer to `language_utils.ts`.
 import dedent from 'dedent-js'
 import { MarkdownString } from 'vscode'
+import { Member } from './misc_utils'
 
 // =============================================================================================
 // Letter Case
@@ -104,6 +105,19 @@ export class IdentifierRule {
         return this.partPool.includes(ch)
     }
 
+    /**
+     * Presets:
+     * - `STRICT`: ["", ""]
+     * - `C_LIKE`: [ALPHA + "_", ALPHA + DIGIT + "_"]
+     */
+    static resolve(
+        key: IdentifierRule | Member<typeof IdentifierRulePreset>,
+    ): IdentifierRule {
+        return typeof key === 'string' ? IdentifierRulePreset[key] : key
+    }
+}
+
+class IdentifierRulePreset {
     // https://stackoverflow.com/a/3609335/14178487
     /** Ensures identifiers never occur next to any starting or partial characters. */
     static STRICT = new IdentifierRule('', '')

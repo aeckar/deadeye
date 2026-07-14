@@ -19,6 +19,10 @@ prefer gutter testing, if not go to `testing` tab in vsc
 prefer readonly arrays for DSL properties
 -is booleans only make sense when referring to this/self
 use `pool` naming for collections of items where any one may be matched (1 or 0 times)
+
+cfg types must be strictly object/record types
+
+`preset` design pattern
 ## Testing
 
 See https://code.visualstudio.com/api/working-with-extensions/testing-extension#quick-setup-the-test-cli

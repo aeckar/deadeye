@@ -57,7 +57,7 @@ export default class Tape {
     }
 
     /** Returns a new instance over the original string. */
-    static over(raw: string, pos = 0, idRule = IdentifierRule.STRICT) {
+    static over(raw: string, pos = 0, idRule = IdentifierRule.resolve('STRICT')) {
         return new Tape(raw, pos, false, idRule)
     }
 

@@ -10,7 +10,7 @@ import { Scope } from './scope_utils'
 // Scope Description API
 // =============================================================================================
 
-export type BoundariesCfg = (readonly [
+export type BoundariesPool = (readonly [
     UnknownTokenKind | null,
     UnknownTokenKind,
 ])[]
@@ -36,9 +36,9 @@ export class Boundaries {
         return `[${this.open}, ${this.close}]`
     }
 
-    static newInstance(cfg: BoundariesCfg): Boundaries[] {
+    static newInstancePool(pool: BoundariesPool): Boundaries[] {
         const boundaryMarkers: Boundaries[] = []
-        for (const boundaries of cfg) {
+        for (const boundaries of pool) {
             const [open, close] = boundaries
             boundaryMarkers.push(Boundaries.unchecked(open, close))
         }
@@ -57,12 +57,12 @@ export class Boundaries {
 }
 
 export type ScopeInfoCfg<ScopeKind extends string> = {
-    boundariesPool: BoundariesCfg
-    markerPool?: readonly UnknownTokenKind[]
-    terminatorPool?: readonly UnknownTokenKind[]
-    flatten?: boolean
-    outerOpenScope?: ScopeKind
-    outerPrimedScope?: ScopeKind
+    readonly boundariesPool: BoundariesPool
+    readonly markerPool?: readonly UnknownTokenKind[]
+    readonly terminatorPool?: readonly UnknownTokenKind[]
+    readonly flatten?: boolean
+    readonly outerOpenScope?: ScopeKind
+    readonly outerPrimedScope?: ScopeKind
 }
 
 /**
@@ -98,7 +98,7 @@ export class ScopeInfo<ScopeKind extends string> {
         scopeKind: ScopeKind,
         cfg: ScopeInfoCfg<ScopeKind>,
     ): ScopeInfo<ScopeKind> {
-        const boundaries = Boundaries.newInstance(cfg.boundariesPool)
+        const boundaries = Boundaries.newInstancePool(cfg.boundariesPool)
         const isOpenByDefault = boundaries.find(e => e.open === undefined)
         return new ScopeInfo(
             scopeKind,
@@ -118,7 +118,7 @@ export class ScopeInfo<ScopeKind extends string> {
  * @see {@link newScopeRegistry}
  */
 export type ScopeRegistryCfg<ScopeKind extends string> = {
-    [K in ScopeKind]: ScopeInfoCfg<ScopeKind>
+    readonly [K in ScopeKind]: ScopeInfoCfg<ScopeKind>
 }
 
 /**
