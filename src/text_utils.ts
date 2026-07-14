@@ -127,7 +127,8 @@ export class IdRule {
 }
 
 /**
- *
+ * # API
+ * 
  * Members should not be accessed directly,
  * but should instead be obtained from {@link Language.resolve}.
  */

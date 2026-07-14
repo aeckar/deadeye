@@ -323,8 +323,8 @@ export class Language {
                 if (tape.isAtIdentifier(kword)) {
                     // Execute check for letter on both ends,
                     // as some keywords contain leading/trailing symbols
-                    tape.pos += kword.length
                     node = node.append(name, kword.length, tape.pos)
+                    tape.pos += kword.length
                     break
                 }
             }
@@ -336,8 +336,8 @@ export class Language {
             // === 2. Test Strings ===
             for (const [name, query] of this.strings.entries()) {
                 if (tape.isAt(query)) {
-                    tape.pos += query.length
                     node = node.append(name, query.length, tape.pos)
+                    tape.pos += query.length
                 }
             }
             if (tape.pos !== start) {
@@ -350,8 +350,8 @@ export class Language {
                 query.lastIndex = tape.pos
                 if (query.test(tape.raw)) {
                     const length = query.lastIndex - tape.pos
-                    tape.pos += length
                     node = node.append(name as TokenKind, length, tape.pos)
+                    tape.pos += length
                     break
                 }
             }
@@ -392,7 +392,12 @@ export class Language {
 /**
  * Constants must be defined as static variables in this class,
  * since declaration as plain object incurs errors due to recursive reference of `inherit`.
+ * 
+ * Since {@link Language.newInstance} accesses this class before it is initialized,
+ * members must inherit from instances and not member keys.
  *
+ * # API
+ * 
  * Members should not be accessed directly,
  * but should instead be obtained from {@link Language.resolve}.
  */
@@ -409,7 +414,7 @@ export class LanguagePreset {
     })
 
     /** Handles ambiguity between slash operator and comments */
-    static __C_MATH = Language.newInstance({
+    static __ARITH = Language.newInstance({
         declare: {
             PLUS: '+',
             MINUS: '-',
@@ -418,14 +423,14 @@ export class LanguagePreset {
         },
     })
 
-    static __C_MATH_ASSIGN = Language.newInstance({
+    static __ARITH_ASSIGN = Language.newInstance({
         declare: {
             PLUS_ASSIGN: '+=',
             MINUS_ASSIGN: '-=',
             MULT_ASSIGN: '*=',
             DIV_ASSIGN: '/=',
         },
-        inherit: ['C_MATH'],
+        inherit: [LanguagePreset.__ARITH],
     })
 
     static __REM_ASSIGN = Language.newInstance({
@@ -453,7 +458,7 @@ export class LanguagePreset {
             SHL_ASSIGN: '<<=',
             SHR_ASSIGN: '>>=',
         },
-        inherit: ['BIT_OPS'],
+        inherit: [LanguagePreset.__BIT_OPS],
     })
 
     static __BOOL_LOGIC = Language.newInstance({

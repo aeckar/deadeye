@@ -238,8 +238,7 @@ export const rust = Language.newInstance({
     },
     inherit: [
         'BRACKETS',
-        'C_MATH_ASSIGN',
-        'C_MATH_ASSIGN',
+        'ARITH_ASSIGN',
         'REM_ASSIGN',
         'BIT_OPS_ASSIGN',
         'BOOL_LOGIC',
