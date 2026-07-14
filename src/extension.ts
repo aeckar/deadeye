@@ -194,33 +194,32 @@ A raw scanner satisfies all four. The symbol tree satisfies none of them fully. 
 // }
 
 import {
+    commands,
     ExtensionContext,
     Hover,
+    languages,
     Position,
     Range,
     Selection,
     SnippetString,
     TextEditor,
     ThemeColor,
-    commands,
-    languages,
     window,
 } from 'vscode'
 
 import {
     Completion,
+    CompletionContext,
     CompletionStrategy,
-    ScopedCompletionContext,
 } from './completion_registry_utils'
-import { OpenFileManager } from './open_file_manager'
-import completionRegistries from './lang/completion_registries'
-import languagesById from './lang/languages'
-import scopeResolvers from './lang/scope_registries'
+import { documentManager, DocumentService } from './document_utils'
+import allCompletionRegistries from './lang/all_completion_registries'
+import allLanguages from './lang/all_languages'
+import allScopeRegistries from './lang/all_scope_registries'
 import { Direction } from './misc_utils'
 import { expandTabStops } from './text_utils'
 
 let completionStrategy: CompletionStrategy | undefined
-let fileManager: OpenFileManager
 
 const decoration = window.createTextEditorDecorationType({
     borderColor: new ThemeColor('editorInfo.foreground'),
@@ -243,7 +242,7 @@ function cancelCompletion(editor: TextEditor) {
 
 /** Extension initializer. */
 export function activate(context: ExtensionContext) {
-    fileManager = new OpenFileManager(context)
+    DocumentService.start(context)
 
     const cancelCompletionOnSelectionChange =
         window.onDidChangeTextEditorSelection(event => {
@@ -335,6 +334,14 @@ export function activate(context: ExtensionContext) {
     )
 }
 
+async function applySmartDeletion(editor: TextEditor, direction: Direction) {
+    if (!editor.selection.isEmpty) {
+        applySmartSelectionDeletion(editor)
+        return
+    }
+    applySmartCaretDeletion(editor, direction)
+}
+
 async function applySmartSelectionDeletion(editor: TextEditor) {
     const document = editor.document
     const selection = editor.selection
@@ -354,6 +361,14 @@ async function applySmartSelectionDeletion(editor: TextEditor) {
                 if (node.end > maxEnd) {
                     maxEnd = node.end
                 }
+            } else {
+                // cut through identifier
+                if (node.begin < minBegin) {
+                    minBegin = selectionBegin
+                }
+                if (node.end > maxEnd) {
+                    maxEnd = selectionEnd
+                }
             }
         }
         node = node.next
@@ -368,31 +383,22 @@ async function applySmartSelectionDeletion(editor: TextEditor) {
     })
 }
 
-async function applySmartDeletion(editor: TextEditor, direction: Direction) {
+async function applySmartCaretDeletion(
+    editor: TextEditor,
+    direction: Direction,
+) {
     const document = editor.document
     const selection = editor.selection
-    const openFile = fileManager.get(document)
+    const cursorIdx = document.offsetAt(selection.active)
+    let target = fileMan
 
-    // === CASE 1: Active Text Selection ===
-    if (!selection.isEmpty) {
-        return
+    while (target && !target.isTail && isWhitespaceToken(target)) {
+        target = direction === 'left' ? target.prev : target.next
     }
 
-    // --- CASE 2: Single Cursor Caret Deletion (Existing Logic) ---
-    const cursorOffset = document.offsetAt(selection.active)
-    let targetToken = findTokenAtOffset(openFile.head, cursorOffset, direction)
-
-    while (
-        targetToken &&
-        !targetToken.isTail &&
-        isWhitespaceToken(targetToken)
-    ) {
-        targetToken = direction === 'left' ? targetToken.prev : targetToken.next
-    }
-
-    if (targetToken && !targetToken.isTail && isKeywordOrSymbol(targetToken)) {
-        const startPos = document.positionAt(targetToken.start)
-        const endPos = document.positionAt(targetToken.end)
+    if (target && !target.isTail && isKeywordOrSymbol(target)) {
+        const startPos = document.positionAt(target.start)
+        const endPos = document.positionAt(target.end)
         const deletionRange = new Range(startPos, endPos)
 
         editor
@@ -401,7 +407,7 @@ async function applySmartDeletion(editor: TextEditor, direction: Direction) {
             })
             .then(success => {
                 if (success && direction === 'left') {
-                    const newPos = document.positionAt(targetToken.start)
+                    const newPos = document.positionAt(target.start)
                     editor.selection = new Selection(newPos, newPos)
                 }
             })
@@ -414,19 +420,20 @@ async function applySmartDeletion(editor: TextEditor, direction: Direction) {
 
 /** Runs every line-based completion for the current language. */
 async function updateCompletionStrategy(keyIn: string, editor: TextEditor) {
+    const document = editor.document
     const active = editor.selection.active
     const cursor = new Position(active.line, active.character + 1) // adjust for key-in
-    const langId = editor.document.languageId
-    const ctx = ScopedCompletionContext.withResolver(
+    const langId = document.languageId
+    const ctx = new CompletionContext(
         keyIn,
         cursor,
         editor,
-        languagesById[langId].idRule,
-        scopeResolvers[langId],
-    )
-    for (const [trigger, families] of completionRegistries[langId]) {
+        allLanguages[langId],
+    ).scoped(allScopeRegistries[langId])
+    for (const [trigger, families] of allCompletionRegistries[langId]) {
         for (const family of families) {
-            const completion = family.resolver(ctx.clone()) // clone for fresh line buffer
+            ctx.resetLineBuffer()
+            const completion = family.resolver(ctx)
             if (!completion) {
                 continue
             }

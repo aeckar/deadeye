@@ -8,10 +8,10 @@ import markdown from './md/completion_registry'
  *
  * The key is the `langId`.
  */
-const completionRegistries: Record<string, CompletionRegistry<string>> = {
+const allCompletionRegistries: Record<string, CompletionRegistry<string>> = {
     // rust,
     // typescript,
     markdown,
 }
 
-export default completionRegistries
+export default allCompletionRegistries

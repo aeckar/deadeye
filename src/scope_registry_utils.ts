@@ -170,7 +170,12 @@ export function newScopeRegistry<ScopeKind extends string>(
 // Scope Analysis API
 // =============================================================================================
 
-/** Returns all valid scopes found in the token stream. */
+/**
+ * Returns all valid scopes found in the token stream.
+ * 
+ * `begin` may be the head of a token stream. If it is not, that token is the first one
+ * checked for a match to a scope marker.
+ */
 export function extractScopes<ScopeKind extends string>(
     begin: Token,
     registry: ScopeRegistry<ScopeKind>,

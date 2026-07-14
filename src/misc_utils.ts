@@ -58,6 +58,10 @@ export class Span {
     interval(): Interval {
         return [this.begin, this.end]
     }
+
+    includes(idx: number): boolean {
+        return idx >= this.begin && idx < this.end
+    }
 }
 
 /** A valid key in a JavaScript object. */

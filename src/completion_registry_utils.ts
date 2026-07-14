@@ -4,10 +4,13 @@
 import { MarkdownString, Position, Range, TextEditor, window } from 'vscode'
 
 import { IntervalTree, itemsAt } from './interval_utils'
+import { Language } from './language_utils'
 import { rangeBefore } from './misc_utils'
+import { DocumentInfo } from './document_utils'
+import { extractScopes, ScopeRegistry } from './scope_registry_utils'
 import { Scope, ScopeSelector } from './scope_utils'
 import Tape from './tape'
-import { Brackets, IdRule, toMarkdown as md, reverse } from './text_utils'
+import { Brackets, toMarkdown as md, reverse } from './text_utils'
 
 // =============================================================================================
 // Utilities & Constants
@@ -333,181 +336,76 @@ export class Completion {
 }
 
 /**
- * Used to resolve {@link Scope scopes}.
- *
- * {@link Completion Completions} are {@link CompletionFamily.resolver resolved}
- * use the child class {@link ScopedCompletionContext}, since it contains the
- * scope tree for the current position of the cursor.
+ * Captures the local context at the point of an edit. Used by completions
+ * to determine whether a completion should be recognized.
+ * 
+ * @see {@link ScopedCompletionContext}
  */
-export class CompletionContext {
-    readonly line: Tape
+export class CompletionContext<ScopeKind extends string> {
+    private _line: Tape
+    readonly scopesAtCursor: readonly Scope<ScopeKind>[]
 
     constructor(
+        document
         protected readonly keyIn: string,
         readonly cursor: Position,
-        readonly editor: TextEditor,
-        protected readonly identifiers: IdRule,
+        readonly file: DocumentInfo<ScopeKind>,
     ) {
-        this.line = Tape.over(
-            editor.document.lineAt(cursor.line).text + keyIn,
-            undefined,
-            identifiers,
+        this._line = this.newLineBuffer()
+        const idx = this.editor.document.offsetAt(this.cursor)
+        const allScopes = 
+        const scopesAtCursor = itemsAt(allScopes, idx)
+    }
+
+    get line(): Tape {
+        return this._line
+    }
+
+    resetLineBuffer() {
+        this.newLineBuffer()
+    }
+
+    private newLineBuffer(): Tape {
+        return Tape.over(
+            file.editor.document.lineAt(this.cursor.line).text + this.keyIn,
+            0,
+            this.language.idRule,
         )
     }
 
-    toScoped<ScopeKind extends string>(resolver: ScopeResolver<ScopeKind>) {
-        return ScopedCompletionContext.withResolver(
+    /**
+     * Evaluates all scopes in the file and return a new instance of
+     * {@link ScopedCompletionContext} using the properties of this instance.
+     */
+    scoped<ScopeKind extends string>(scopeRegistry: ScopeRegistry<ScopeKind>) {
+        return new ScopedCompletionContext(
             this.keyIn,
             this.cursor,
             this.editor,
-            this.identifiers,
-            resolver,
+            this.language,
+            allScopes,
+            scopesAtCursor,
         )
     }
 
     /** Returns a tape over the current line up to the cursor. */
-    leftOfCursor(): Tape {
-        return this.line.before(this.cursor)
+    left(): Tape {
+        return this._line.before(this.cursor)
     }
 
     /** Returns a tape over the current line after the cursor. */
-    rightOfCursor(): Tape {
-        return this.line.after(this.cursor)
+    right(): Tape {
+        return this._line.after(this.cursor)
     }
 
-    seekOpenBracket(brackets: Brackets): Position | undefined {
-        return this._seekOpenBracket(brackets, this.cursor, true)
-    }
-
-    seekCloseBracket(brackets: Brackets): Position | undefined {
-        return this._seekCloseBracket(brackets, this.cursor, true)
-    }
-
-    fileUpToCursor(): Tape {
-        return Tape.over(
-            this.editor.document.getText(
-                new Range(new Position(0, 0), this.cursor),
-            ),
+    /** Performing a check using this function is faster than declaring a scope selector. */
+    isScopesAtCursor(...kinds: ScopeKind[]): boolean {
+        return kinds.some(kind =>
+            this.scopesAtCursor.find(scope => scope.kind === kind),
         )
     }
 
-    private static OTHER_BRACKETS: Record<string, string> = {
-        ')': '}]>',
-        '}': ')]>',
-        ']': ')}>',
-        '>': ')}]',
-        '(': '{[<',
-        '{': '([<',
-        '[': '({<',
-        '<': '({[',
-    }
-
-    private _seekOpenBracket(
-        brackets: Brackets,
-        start: Position,
-        recur: boolean,
-    ): Position | undefined {
-        let depth = 0
-        let lineLookbehind = 0
-        const [open, closed] = brackets
-        for (let line = start.line; line >= 0; --line, ++lineLookbehind) {
-            if (lineLookbehind > MAX_LINE_SEEK) {
-                return undefined
-            }
-            const text = this.editor.document.lineAt(line).text
-            const end = line === start.line ? start.character : text.length
-            for (let character = end - 1; character >= 0; --character) {
-                const ch = text[character]
-                if (recur) {
-                    if (CompletionContext.OTHER_BRACKETS[open].includes(ch)) {
-                        // missing closer for other type of bracket
-                        return undefined
-                    }
-                    if (CompletionContext.OTHER_BRACKETS[closed].includes(ch)) {
-                        const openPos = this._seekOpenBracket(
-                            (ch === ')'
-                                ? '('
-                                : String.fromCharCode(
-                                      ch.charCodeAt(0) - 2,
-                                  )) as Brackets,
-                            new Position(line, character),
-                            false,
-                        )
-                        if (!openPos) {
-                            return undefined
-                        }
-                        line = openPos.line
-                        character = openPos.character
-                        continue
-                    }
-                } else if (ch === open) {
-                    if (depth === 0) {
-                        return new Position(line, character + 1)
-                    }
-                    --depth
-                } else if (ch === closed) {
-                    ++depth
-                }
-            }
-        }
-        return undefined
-    }
-
-    private _seekCloseBracket(
-        brackets: Brackets,
-        start: Position,
-        recur: boolean,
-    ): Position | undefined {
-        let depth = 0
-        let lineLookbehind = 0
-        const doc = this.editor.document
-        const [open, closed] = brackets
-        for (
-            let line = start.line;
-            line < doc.lineCount;
-            ++line, ++lineLookbehind
-        ) {
-            if (lineLookbehind > MAX_LINE_SEEK) {
-                return undefined
-            }
-            const text = doc.lineAt(line).text
-            const end = line === start.line ? start.character : text.length
-            for (let character = 0; character < end; ++character) {
-                const ch = text[character]
-                if (recur) {
-                    if (CompletionContext.OTHER_BRACKETS[closed].includes(ch)) {
-                        // missing closer for other type of bracket
-                        return undefined
-                    }
-                    if (CompletionContext.OTHER_BRACKETS[open].includes(ch)) {
-                        const closedPos = this._seekCloseBracket(
-                            (ch === ')'
-                                ? '('
-                                : String.fromCharCode(
-                                      ch.charCodeAt(0) - 2,
-                                  )) as Brackets,
-                            new Position(line, character),
-                            false,
-                        )
-                        if (!closedPos) {
-                            return undefined
-                        }
-                        line = closedPos.line
-                        character = closedPos.character
-                        continue
-                    }
-                } else if (ch === closed) {
-                    if (depth === 0) {
-                        return new Position(line, character + 1)
-                    }
-                    --depth
-                } else if (ch === open) {
-                    ++depth
-                }
-            }
-        }
-        return undefined
-    }
+    // todo redo bracket matching with tokens
 }
 
 /** Created and stored after a shorthand is matched, and recalled once the trigger is pressed. */
@@ -520,85 +418,4 @@ export class CompletionStrategy {
         /** The position of the cursor the instance this object was created. */
         readonly pos: Position,
     ) {}
-}
-
-// =============================================================================================
-// Scoped Completion Context API
-// =============================================================================================
-
-/**
- * Implemented by a top-level constant for each language,
- * which is then be passed as an entry to `scopeResolvers` (`lang/scope_resolvers.ts`).
- * This then provides scope resolution for a given `langId`.
- */
-export type ScopeResolver<ScopeKind extends string> = (
-    ctx: CompletionContext,
-) => IntervalTree<Scope<ScopeKind>>
-
-/**
- * Contains the scope tree for the current cursor position.
- *
- * {@link Completion Completions} and completion prefixes are resolved
- * using instances of this class.
- *
- * # Implementation
- *
- * Must be bundled with the completion registry API to prevent a circular dependency
- * with the scope registry API.
- *
- * @see CompletionContext
- */
-export class ScopedCompletionContext<
-    ScopeKind extends string,
-> extends CompletionContext {
-    /** Users should create a {@link CompletionContext} first, then call {@link toScoped}. */
-    private constructor(
-        keyIn: string,
-        cursor: Position,
-        editor: TextEditor,
-        identifiers: IdRule,
-        readonly scopes: IntervalTree<Scope<ScopeKind>>,
-        readonly scopesAtCursor: readonly Scope<ScopeKind>[], // caller should pre-compute
-    ) {
-        super(keyIn, cursor, editor, identifiers)
-    }
-
-    static withResolver<ScopeKind extends string>(
-        keyIn: string,
-        cursor: Position,
-        editor: TextEditor,
-        identifiers: IdRule,
-        resolver: ScopeResolver<ScopeKind>,
-    ) {
-        const idx = editor.document.offsetAt(cursor)
-        const scopes = resolver(
-            new CompletionContext(keyIn, cursor, editor, identifiers),
-        )
-        return new ScopedCompletionContext(
-            keyIn,
-            cursor,
-            editor,
-            identifiers,
-            scopes,
-            itemsAt(scopes, idx),
-        )
-    }
-
-    clone(): ScopedCompletionContext<ScopeKind> {
-        return new ScopedCompletionContext(
-            this.keyIn,
-            this.cursor,
-            this.editor,
-            this.identifiers,
-            this.scopes,
-            this.scopesAtCursor,
-        )
-    }
-
-    /** Performing a check using this function is faster than declaring a scope selector. */
-    isScopesAtCursor(...kinds: ScopeKind[]): boolean {
-        return kinds.some(kind =>
-            this.scopesAtCursor.find(scope => scope.kind === kind),
-        )
-    }
 }
