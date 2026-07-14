@@ -1,5 +1,5 @@
-import { CURLIES } from '../../language'
-import { newScopeRegistry } from '../../scope_registry'
+import { CURLIES } from '../../languages'
+import { newScopeRegistry } from '../../scopes'
 
 export type RustScopeKind =
     | 'struct'
@@ -50,7 +50,7 @@ export type RustScopeKind =
 
 // struct init is also too complex to parse at scope time, defer to completions
 
-export const rust = newScopeRegistry<RustScopeKind>({
+export const rustScopes = newScopeRegistry<RustScopeKind>({
     struct: {
         markerPool: ['STRUCT', 'UNION'],
         boundariesPool: [CURLIES],
@@ -164,4 +164,4 @@ export const rust = newScopeRegistry<RustScopeKind>({
     }
 */
 
-export default rust
+export default rustScopes

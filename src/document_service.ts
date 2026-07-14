@@ -7,9 +7,9 @@ import {
 import { IntervalTree } from './interval_tree'
 import allLanguages from './lang/all_languages'
 import allScopeRegistries from './lang/all_scope_registries'
-import { Language, Token } from './language'
-import { Scope } from './scope'
-import { extractScopes, ScopeRegistry } from './scope_registry'
+import { Language, Token } from './languages'
+import { extractScopes, ScopeRegistry } from './scopes'
+import { Scope } from './scopes_base'
 
 /**
  * Organized every token in array form, organized by line.
@@ -150,3 +150,5 @@ export class DocumentService {
         return this.files.get(uri)! as DocumentInfo<ScopeKind>
     }
 }
+
+export default DocumentService

@@ -1,7 +1,7 @@
 //! Cursor data structure.
 import { Position, Range } from 'vscode'
 
-import { Flag, FlagMatch } from './completion_registry'
+import { Flag, FlagMatch } from './completions'
 import { propertiesIn } from './misc'
 import { IdRule, isLetter, isLowerLetter, isUpperLetter, reverse } from './text'
 

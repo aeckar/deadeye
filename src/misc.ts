@@ -198,3 +198,8 @@ export function rebindToMap<K extends JsKey, V>(
 export function sortBy<T>(keyMap: (entry: T) => number): Comparator<T> {
     return (cur, next) => keyMap(cur) - keyMap(next)
 }
+
+/** Returns a copy of this string when reversed. */
+export function reverse(s: string): string {
+    return s.split('').reverse().join('')
+}

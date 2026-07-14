@@ -198,6 +198,7 @@ import {
     ExtensionContext,
     Hover,
     languages,
+    MarkdownString,
     Position,
     Range,
     Selection,
@@ -211,13 +212,10 @@ import {
     Completion,
     CompletionContext,
     CompletionStrategy,
-} from './completion_registry'
-import { DocumentService } from './document_service'
+} from './completions'
+import DocumentService from './document_service'
 import allCompletionRegistries from './lang/all_completion_registries'
-import allLanguages from './lang/all_languages'
-import allScopeRegistries from './lang/all_scope_registries'
 import { Direction } from './misc'
-import { expandTabStops } from './text'
 
 let completionStrategy: CompletionStrategy | undefined
 
@@ -319,7 +317,14 @@ export function activate(context: ExtensionContext) {
             // Since there can be multiple code blocks in a preview, don't bother
             // highlighting them by turning them into fenced code blocks.
             return new Hover(
-                expandTabStops(completionStrategy.completion.preview),
+                new MarkdownString(
+                    completionStrategy.completion.preview.value
+                        .replace('$0', '/* stop here */')
+                        .replace(
+                            /\$\{?(\d)(?::.*?\})?/,
+                            '/* placeholder $1 */',
+                        ),
+                ),
             )
         },
     })
@@ -424,15 +429,10 @@ async function updateCompletionStrategy(keyIn: string, editor: TextEditor) {
     const active = editor.selection.active
     const cursor = new Position(active.line, active.character + 1) // adjust for key-in
     const langId = document.languageId
-    const ctx = new CompletionContext(
-        keyIn,
-        cursor,
-        editor,
-        allLanguages[langId],
-    ).scoped(allScopeRegistries[langId])
+    const ctx = new CompletionContext(document, keyIn, cursor)
     for (const [trigger, families] of allCompletionRegistries[langId]) {
         for (const family of families) {
-            ctx.resetLineBuffer()
+            ctx.resetLine()
             const completion = family.resolver(ctx)
             if (!completion) {
                 continue

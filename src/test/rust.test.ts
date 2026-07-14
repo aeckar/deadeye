@@ -25,11 +25,11 @@
 
 import * as assert from 'assert'
 import { IntervalTreeService, itemsAt } from '../interval_tree'
-import rust from '../lang/rust/language'
-import { rust as rustScopes } from '../lang/rust/scope_registry'
-import { Token } from '../language'
-import { Scope } from '../scope'
-import { ScopeInfo, ScopeStream } from '../scope_registry'
+import rustLanguage from '../lang/rust/language'
+import rustScopes from '../lang/rust/scope_registry'
+import { Token } from '../languages'
+import { ScopeInfo, ScopeStream } from '../scopes'
+import { Scope } from '../scopes_base'
 
 /** Collect all tokens from the stream into a plain array of kind strings. */
 function collectKinds(head: Token): string[] {
@@ -59,166 +59,170 @@ suite('Rust Tokenizer', () => {
     // === Whitespace Handling ===
 
     test('whitespace between tokens is ignored', () => {
-        const kinds = collectKinds(rust.tokenize('fn   main'))
+        const kinds = collectKinds(rustLanguage.tokenize('fn   main'))
         assert.deepStrictEqual(kinds, ['FN', 'ID'])
     })
 
     test('newlines and tabs are ignored', () => {
-        const kinds = collectKinds(rust.tokenize('let\n\tx'))
+        const kinds = collectKinds(rustLanguage.tokenize('let\n\tx'))
         assert.deepStrictEqual(kinds, ['LET', 'ID'])
     })
 
     // === Multi-Character String Tokens Take Priority ===
 
     test(':: is a single PATH_SEP token, not two COLONs', () => {
-        const kinds = collectKinds(rust.tokenize('foo::bar'))
+        const kinds = collectKinds(rustLanguage.tokenize('foo::bar'))
         assert.deepStrictEqual(kinds, ['ID', 'PATH_SEP', 'ID'])
     })
 
     test('=> is FAT_ARROW, not EQUALS + GREATER', () => {
-        const kinds = collectKinds(rust.tokenize('=>'))
+        const kinds = collectKinds(rustLanguage.tokenize('=>'))
         assert.deepStrictEqual(kinds, ['FAT_ARROW'])
     })
 
     test('-> is THIN_ARROW, not MINUS + GREATER', () => {
-        const kinds = collectKinds(rust.tokenize('->'))
+        const kinds = collectKinds(rustLanguage.tokenize('->'))
         assert.deepStrictEqual(kinds, ['THIN_ARROW'])
     })
 
     test('..= is RANGE_INCL, not RANGE + EQUALS', () => {
-        const kinds = collectKinds(rust.tokenize('..='))
+        const kinds = collectKinds(rustLanguage.tokenize('..='))
         assert.deepStrictEqual(kinds, ['RANGE_INCL'])
     })
 
     test('.. is RANGE, not two DOTs', () => {
-        const kinds = collectKinds(rust.tokenize('..'))
+        const kinds = collectKinds(rustLanguage.tokenize('..'))
         assert.deepStrictEqual(kinds, ['RANGE'])
     })
 
     test('+= is PLUS_ASSIGN, not PLUS + EQUALS', () => {
-        const kinds = collectKinds(rust.tokenize('+='))
+        const kinds = collectKinds(rustLanguage.tokenize('+='))
         assert.deepStrictEqual(kinds, ['PLUS_ASSIGN'])
     })
 
     test('<<= is SHL_ASSIGN, not SHL + EQUALS', () => {
-        const kinds = collectKinds(rust.tokenize('<<='))
+        const kinds = collectKinds(rustLanguage.tokenize('<<='))
         assert.deepStrictEqual(kinds, ['SHL_ASSIGN'])
     })
 
     // === Keyword Whole-Word Matching ===
 
     test('`fn` as a whole word produces FN token', () => {
-        const kinds = collectKinds(rust.tokenize('fn'))
+        const kinds = collectKinds(rustLanguage.tokenize('fn'))
         assert.deepStrictEqual(kinds, ['FN'])
     })
 
     test('`fn` inside an identifier does not produce FN', () => {
         // "affirm" contains "fn" but must not produce FN + ID
-        const kinds = collectKinds(rust.tokenize('affirm'))
+        const kinds = collectKinds(rustLanguage.tokenize('affirm'))
         assert.deepStrictEqual(kinds, ['ID'])
         assert.ok(!kinds.includes('FN'))
     })
 
     test('`in` inside an identifier does not produce IN', () => {
-        const kinds = collectKinds(rust.tokenize('inline'))
+        const kinds = collectKinds(rustLanguage.tokenize('inline'))
         assert.deepStrictEqual(kinds, ['ID'])
     })
 
     test('`if` followed immediately by `{` is still just IF', () => {
-        const kinds = collectKinds(rust.tokenize('if{'))
+        const kinds = collectKinds(rustLanguage.tokenize('if{'))
         assert.deepStrictEqual(kinds, ['IF', 'OPEN_CURLY'])
     })
 
     test('`Self` (capital) is a keyword; `self` (lower) is also a keyword', () => {
-        const selfKinds = collectKinds(rust.tokenize('self'))
+        const selfKinds = collectKinds(rustLanguage.tokenize('self'))
         assert.deepStrictEqual(selfKinds, ['SELF'])
-        const SelfKinds = collectKinds(rust.tokenize('Self'))
+        const SelfKinds = collectKinds(rustLanguage.tokenize('Self'))
         assert.deepStrictEqual(SelfKinds, ['SELF_TY'])
     })
 
     // === Literals ===
 
     test('decimal integer literal', () => {
-        const tokens = collectTokens(rust.tokenize('42'))
+        const tokens = collectTokens(rustLanguage.tokenize('42'))
         assert.strictEqual(tokens.length, 1)
         assert.strictEqual(tokens[0].kind, 'INTEGER')
     })
 
     test('integer with type suffix (u32)', () => {
-        const kinds = collectKinds(rust.tokenize('0u32'))
+        const kinds = collectKinds(rustLanguage.tokenize('0u32'))
         assert.deepStrictEqual(kinds, ['INTEGER'])
     })
 
     test('hex integer literal', () => {
-        const kinds = collectKinds(rust.tokenize('0xFF'))
+        const kinds = collectKinds(rustLanguage.tokenize('0xFF'))
         assert.deepStrictEqual(kinds, ['INTEGER'])
     })
 
     test('binary integer literal', () => {
-        const kinds = collectKinds(rust.tokenize('0b1010'))
+        const kinds = collectKinds(rustLanguage.tokenize('0b1010'))
         assert.deepStrictEqual(kinds, ['INTEGER'])
     })
 
     test('octal integer literal', () => {
-        const kinds = collectKinds(rust.tokenize('0o77'))
+        const kinds = collectKinds(rustLanguage.tokenize('0o77'))
         assert.deepStrictEqual(kinds, ['INTEGER'])
     })
 
     test('basic float literal', () => {
-        const kinds = collectKinds(rust.tokenize('3.14'))
+        const kinds = collectKinds(rustLanguage.tokenize('3.14'))
         assert.deepStrictEqual(kinds, ['FLOAT'])
     })
 
     test('float with exponent', () => {
-        const kinds = collectKinds(rust.tokenize('1e10'))
+        const kinds = collectKinds(rustLanguage.tokenize('1e10'))
         assert.deepStrictEqual(kinds, ['FLOAT'])
     })
 
     test('float with type suffix (f32)', () => {
-        const kinds = collectKinds(rust.tokenize('1.0f32'))
+        const kinds = collectKinds(rustLanguage.tokenize('1.0f32'))
         assert.deepStrictEqual(kinds, ['FLOAT'])
     })
 
     test('string literal', () => {
-        const kinds = collectKinds(rust.tokenize('"hello, world"'))
+        const kinds = collectKinds(rustLanguage.tokenize('"hello, world"'))
         assert.deepStrictEqual(kinds, ['STRING'])
     })
 
     test('string literal with escaped quote', () => {
-        const kinds = collectKinds(rust.tokenize('"say \\"hi\\""'))
+        const kinds = collectKinds(rustLanguage.tokenize('"say \\"hi\\""'))
         assert.deepStrictEqual(kinds, ['STRING'])
     })
 
     test('byte string literal', () => {
-        const kinds = collectKinds(rust.tokenize('b"bytes"'))
+        const kinds = collectKinds(rustLanguage.tokenize('b"bytes"'))
         assert.deepStrictEqual(kinds, ['BYTE_STRING'])
     })
 
     test('byte char literal', () => {
-        const kinds = collectKinds(rust.tokenize("b'x'"))
+        const kinds = collectKinds(rustLanguage.tokenize("b'x'"))
         assert.deepStrictEqual(kinds, ['BYTE_CHAR'])
     })
 
     test('char literal', () => {
-        const kinds = collectKinds(rust.tokenize("'a'"))
+        const kinds = collectKinds(rustLanguage.tokenize("'a'"))
         assert.deepStrictEqual(kinds, ['CHAR'])
     })
 
     test('char literal with escape sequence', () => {
-        const kinds = collectKinds(rust.tokenize("'\\n'"))
+        const kinds = collectKinds(rustLanguage.tokenize("'\\n'"))
         assert.deepStrictEqual(kinds, ['CHAR'])
     })
 
     // === Comments ===
 
     test('line comment is a single LINE_COMMENT token', () => {
-        const kinds = collectKinds(rust.tokenize('// this is a comment'))
+        const kinds = collectKinds(
+            rustLanguage.tokenize('// this is a comment'),
+        )
         assert.deepStrictEqual(kinds, ['LINE_COMMENT'])
     })
 
     test('code after line comment on same line is not tokenized', () => {
         // Everything after `//` until newline belongs to the comment
-        const kinds = collectKinds(rust.tokenize('let x; // comment\nlet y;'))
+        const kinds = collectKinds(
+            rustLanguage.tokenize('let x; // comment\nlet y;'),
+        )
         assert.ok(kinds.includes('LINE_COMMENT'))
         // After the newline, let y; is tokenized normally
         const yIdx = kinds.lastIndexOf('LET')
@@ -226,24 +230,24 @@ suite('Rust Tokenizer', () => {
     })
 
     test('block comment is a single BLOCK_COMMENT token', () => {
-        const kinds = collectKinds(rust.tokenize('/* block */'))
+        const kinds = collectKinds(rustLanguage.tokenize('/* block */'))
         assert.deepStrictEqual(kinds, ['BLOCK_COMMENT'])
     })
 
     test('multi-line block comment is still a single token', () => {
-        const kinds = collectKinds(rust.tokenize('/* line1\nline2 */'))
+        const kinds = collectKinds(rustLanguage.tokenize('/* line1\nline2 */'))
         assert.deepStrictEqual(kinds, ['BLOCK_COMMENT'])
     })
 
     // === macro_rules! ===
 
     test('macro_rules! is a single MACRO_RULES token', () => {
-        const kinds = collectKinds(rust.tokenize('macro_rules!'))
+        const kinds = collectKinds(rustLanguage.tokenize('macro_rules!'))
         assert.deepStrictEqual(kinds, ['MACRO_RULES'])
     })
 
     test('macro_rules! is not split into MACRO keyword + QMARK', () => {
-        const kinds = collectKinds(rust.tokenize('macro_rules!'))
+        const kinds = collectKinds(rustLanguage.tokenize('macro_rules!'))
         assert.ok(!kinds.includes('MACRO'))
         assert.ok(!kinds.includes('QMARK'))
     })
@@ -252,7 +256,7 @@ suite('Rust Tokenizer', () => {
 
     test('token begin/end positions are correct after whitespace skip', () => {
         // "  fn " → FN should start at index 2
-        const tokens = collectTokens(rust.tokenize('  fn '))
+        const tokens = collectTokens(rustLanguage.tokenize('  fn '))
         assert.strictEqual(tokens[0].kind, 'FN')
         assert.strictEqual(tokens[0].begin, 2)
         assert.strictEqual(tokens[0].end, 4)
@@ -260,7 +264,7 @@ suite('Rust Tokenizer', () => {
 
     test('token positions are contiguous for adjacent tokens', () => {
         // "fn{" — no whitespace, positions must be contiguous
-        const tokens = collectTokens(rust.tokenize('fn{'))
+        const tokens = collectTokens(rustLanguage.tokenize('fn{'))
         assert.strictEqual(tokens[0].begin, 0)
         assert.strictEqual(tokens[0].end, 2)
         assert.strictEqual(tokens[1].begin, 2)
@@ -272,7 +276,7 @@ suite('Rust Tokenizer', () => {
     test('unrecognised input emits UNKNOWN and continues on next line', () => {
         // `@` is not a valid Rust token; recovery should skip to next line
         // After recovery, `fn` on the next line should still be tokenized
-        const kinds = collectKinds(rust.tokenize('@\nfn'))
+        const kinds = collectKinds(rustLanguage.tokenize('@\nfn'))
         assert.ok(kinds.includes('UNKNOWN'), 'expected UNKNOWN for @')
         assert.ok(kinds.includes('FN'), 'expected FN after recovery')
     })
@@ -281,7 +285,7 @@ suite('Rust Tokenizer', () => {
 
     test('complex function signature tokenizes correctly', () => {
         const src = 'pub fn foo(x: u32) -> bool'
-        const kinds = collectKinds(rust.tokenize(src))
+        const kinds = collectKinds(rustLanguage.tokenize(src))
         assert.deepStrictEqual(kinds, [
             'PUB',
             'FN',
@@ -316,7 +320,7 @@ suite('Rust Scope Stream', () => {
      * Every iteration: try all registered scope parsers, then collect.
      */
     async function parse(src: string) {
-        const head = rust.tokenize(src)
+        const head = rustLanguage.tokenize(src)
         const stream = new ScopeStream<string>(head)
 
         while (!stream.isExhausted()) {

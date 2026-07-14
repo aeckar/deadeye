@@ -1,22 +1,22 @@
 //! Completion registry API and utilities.
 //!
 //! Also provides algorithms and data structures used to parse completion shorthands.
-import { MarkdownString, Position, Range, window } from 'vscode'
+import { MarkdownString, Position, Range, TextDocument, window } from 'vscode'
 
-import { rangeBefore } from './misc'
-import { DocumentInfo } from './document_service'
-import { ScopeRegistry } from './scope_registry'
-import { Scope, ScopeSelector } from './scope'
+import DocumentService, { DocumentInfo } from './document_service'
+import { itemsAt } from './interval_tree'
+import { rangeBefore, reverse } from './misc'
+import { Scope, ScopeSelector } from './scopes_base'
 import Tape from './tape'
-import { md as md, reverse } from './text'
-
-// =============================================================================================
-// Utilities & Constants
-// =============================================================================================
+import { md } from './text'
 
 export const MAX_TOKEN_SEEK = 50
 export const MAX_LINE_SEEK = 50
 export const MAX_CHAR_SEEK = 2500
+
+// =============================================================================================
+// Utilities & Constants: Special Characters
+// =============================================================================================
 
 export type FlagChar =
     | 'a'
@@ -78,6 +78,69 @@ export type FlagMatch = {
 export type Trigger = '' | ' ' | ';' | '.' | 'enter'
 
 // =============================================================================================
+// Utilities & Constants: Letter Case
+// =============================================================================================
+
+export const ALPHA =
+    'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ' as const
+export const DIGIT = '0123456789' as const
+
+/** Concatenates the strings and applies PascalCase. */
+export function toPascalCase(chunks: string[]): string {
+    return chunks.map(capitalize).join('')
+}
+
+/** Concatenates the strings and applies SCREAMING_SNAKE_CASE. */
+export function toScreamCase(chunks: string[]): string {
+    return chunks.map(s => s.toUpperCase()).join('_')
+}
+
+/** Concatenates the strings and applies snake_case. */
+export function toSnakeCase(chunks: string[]): string {
+    return chunks.map(s => s.toLowerCase()).join('_')
+}
+
+/** Concatenates the strings and applies camelCase. */
+export function toCamelCase(chunks: string[]): string {
+    return chunks
+        .map((s, idx) => (idx === 0 ? s.toLowerCase() : capitalize(s)))
+        .join('')
+}
+
+/** Concatenates the strings and applies kebab-case. */
+export function toKebabCase(chunks: string[]): string {
+    return chunks.map(s => s.toLowerCase()).join('-')
+}
+
+/** Returns the same string with the first character capitalized. */
+export function capitalize(s: string): string {
+    if (!s) {
+        return ''
+    }
+    return s[0].toUpperCase() + s.slice(1)
+}
+
+/** Returns true if the character is a digit. */
+export function isDigit(ch: string): boolean {
+    return ch >= '0' && ch <= '9'
+}
+
+/** Returns true if the character is an uppercase letter. */
+export function isUpperLetter(ch: string): boolean {
+    return ch >= 'A' && ch <= 'Z'
+}
+
+/** Returns true if the character is a lowercase letter. */
+export function isLowerLetter(ch: string): boolean {
+    return ch >= 'a' && ch <= 'z'
+}
+
+/** Returns true if the character is an uppercase or lowercase letter. */
+export function isLetter(ch: string): boolean {
+    return isLowerLetter(ch) || isUpperLetter(ch)
+}
+
+// =============================================================================================
 // Completion Registry API
 // =============================================================================================
 
@@ -120,7 +183,7 @@ export function substitute<ScopeKind extends string>(
         trigger: '',
         minLookbehind: length,
         resolver(ctx) {
-            const tape = ctx.leftOfCursor().reversed()
+            const tape = ctx.left().reversed()
             if (!tape.isAt(reverse(target))) {
                 return undefined
             }
@@ -134,12 +197,12 @@ export function substitute<ScopeKind extends string>(
 }
 
 /**
- * Attempts to resolve a {@link Completion} using the local {@link ScopedCompletionContext context}.
+ * Attempts to resolve a {@link Completion} using the local {@link CompletionContext context}.
  *
  * @see {@link CompletionFamily.resolver}
  */
 export type CompletionResolver<ScopeKind extends string> = (
-    ctx: ScopedCompletionContext<ScopeKind>,
+    ctx: CompletionContext<ScopeKind>,
 ) => Completion | undefined
 
 /**
@@ -336,53 +399,40 @@ export class Completion {
 /**
  * Captures the local context at the point of an edit. Used by completions
  * to determine whether a completion should be recognized.
- * 
+ *
  * @see {@link ScopedCompletionContext}
  */
 export class CompletionContext<ScopeKind extends string> {
     private _line: Tape
     readonly scopesAtCursor: readonly Scope<ScopeKind>[]
+    readonly docInfo: DocumentInfo<ScopeKind>
 
     constructor(
-        document
+        document: TextDocument,
         protected readonly keyIn: string,
         readonly cursor: Position,
-        readonly file: DocumentInfo<ScopeKind>,
     ) {
         this._line = this.newLineBuffer()
-        const idx = this.editor.document.offsetAt(this.cursor)
-        const allScopes = 
-        const scopesAtCursor = itemsAt(allScopes, idx)
+        this.docInfo = DocumentService.get(document)
+        this.scopesAtCursor = itemsAt(
+            this.docInfo.scopes,
+            document.offsetAt(this.cursor),
+        ) as readonly Scope<ScopeKind>[]
     }
 
     get line(): Tape {
         return this._line
     }
 
-    resetLineBuffer() {
+    resetLine() {
         this.newLineBuffer()
     }
 
     private newLineBuffer(): Tape {
         return Tape.over(
-            file.editor.document.lineAt(this.cursor.line).text + this.keyIn,
+            this.docInfo.document.lineAt(this.cursor.line).text + this.keyIn,
             0,
-            this.language.idRule,
-        )
-    }
-
-    /**
-     * Evaluates all scopes in the file and return a new instance of
-     * {@link ScopedCompletionContext} using the properties of this instance.
-     */
-    scoped<ScopeKind extends string>(scopeRegistry: ScopeRegistry<ScopeKind>) {
-        return new ScopedCompletionContext(
-            this.keyIn,
-            this.cursor,
-            this.editor,
-            this.language,
-            allScopes,
-            scopesAtCursor,
+            this.docInfo.language.idRule,
         )
     }
 
@@ -402,8 +452,6 @@ export class CompletionContext<ScopeKind extends string> {
             this.scopesAtCursor.find(scope => scope.kind === kind),
         )
     }
-
-    // todo redo bracket matching with tokens
 }
 
 /** Created and stored after a shorthand is matched, and recalled once the trigger is pressed. */

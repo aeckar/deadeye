@@ -1,4 +1,4 @@
-import { Language } from '../../language'
+import { Language } from '../../languages'
 import Tape from '../../tape'
 import { getCloseBracket, getOpenBracket, IdRule } from '../../text'
 

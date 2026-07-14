@@ -2,9 +2,9 @@
 //!
 //! Unlike `scope_utils.ts`, contains logic for scope analysis.
 import { IntervalTree, IntervalTreeService, itemsAt } from './interval_tree'
-import { Token, TokenKind, UnknownTokenKind } from './language'
+import { Token, TokenKind, UnknownTokenKind } from './languages'
 import { properties } from './misc'
-import { Scope, ScopeSelector } from './scope'
+import { Scope, ScopeSelector } from './scopes_base'
 
 // =============================================================================================
 // Scope Description API

@@ -1,16 +1,67 @@
 //! Algorithms and data structures for tokenizing language-specific input.
 //!
 //! For general utilities related to text manipulation, refer to `text_utils.ts`.
-import { MAX_TOKEN_SEEK } from './completion_registry'
+import { ALPHA, DIGIT, MAX_TOKEN_SEEK } from './completions'
 import { Member, rebindToMap, sortBy, Span } from './misc'
 import Tape from './tape'
-import { IdRule, IdRuleResolvable } from './text'
+
+export const CURLIES = ['OPEN_CURLY', 'CLOSE_CURLY'] as const
+
+// =============================================================================================
+// Identifier Rules
+// =============================================================================================
+
+/** Any input to {@link IdRule.resolve}. */
+export type IdRuleResolvable =
+    IdRule | Member<typeof IdRulePreset> | [string, string]
+
+/** Contains the possiblities for the first and subsequent characters in an identifier. */
+export class IdRule {
+    constructor(
+        readonly startPool: string,
+        readonly partPool: string,
+    ) {}
+
+    isStart(ch: string): boolean {
+        return this.startPool.includes(ch)
+    }
+
+    isPart(ch: string): boolean {
+        return this.partPool.includes(ch)
+    }
+
+    /**
+     * Presets:
+     * - `STRICT`: ["", ""]
+     * - `C_LIKE`: [ALPHA + "_", ALPHA + DIGIT + "_"]
+     */
+    static resolve(key: IdRuleResolvable): IdRule {
+        if (key instanceof IdRule) {
+            return key
+        }
+        return typeof key === 'string'
+            ? IdRulePreset[`__${key}`]
+            : new IdRule(key[0], key[1])
+    }
+}
+
+/**
+ * # API
+ *
+ * Members should not be accessed directly,
+ * but should instead be obtained from {@link Language.resolve}.
+ */
+export class IdRulePreset {
+    // https://stackoverflow.com/a/3609335/14178487
+    /** Ensures identifiers never occur next to any starting or partial characters. */
+    static __STRICT = new IdRule('', '')
+
+    static __C_LIKE = new IdRule(ALPHA + '_', ALPHA + DIGIT + '_')
+}
 
 // =============================================================================================
 // Token API
 // =============================================================================================
-
-export const CURLIES = ['OPEN_CURLY', 'CLOSE_CURLY'] as const
 
 /**
  * An identifier assigned to a token that is unique per language.

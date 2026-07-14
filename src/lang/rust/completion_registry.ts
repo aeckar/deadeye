@@ -2,7 +2,7 @@ import {
     Completion,
     MAX_LINE_SEEK,
     newCompletionRegistry,
-} from '../../completion_registry'
+} from '../../completions'
 import { after, rangeBefore } from '../../misc'
 import Tape from '../../tape'
 import { findWord, md, toSnakeCase } from '../../text'
@@ -277,7 +277,7 @@ grey squiggly when left of scope marker to show help
 // todo dont hassle over rule starts when collecting ID chunks, not worth it
 //todo cursor in word + tab = indent line (should alr exist but alright)
 //todo vecof id one, id two,
-const rust = newCompletionRegistry<RustScopeKind>(
+const rustCompletions = newCompletionRegistry<RustScopeKind>(
     {
         docs: md`
 type annotation
@@ -288,7 +288,7 @@ type annotation
             if (!ctx.isScopesAtCursor('fnParams')) {
                 return undefined
             }
-            const tape = ctx.leftOfCursor().reversed()
+            const tape = ctx.left().reversed()
             if (!tape.consumeAt(' ')) {
                 return undefined
             }
@@ -308,7 +308,7 @@ assignment
         minLookbehind: 1,
         trigger: '',
         resolver(ctx) {
-            const tape = ctx.leftOfCursor()
+            const tape = ctx.left()
             tape.consumeWs()
             if (!tape.consumeAtIdentifier('let')) {
                 return undefined
@@ -331,8 +331,8 @@ assignment
     //     docs: md``,
     //     minLookbehind: 1,
     //     resolver(ctx) {
-    //         const left = ctx.leftOfCursor().reversed();
-    //         const right = ctx.rightOfCursor();
+    //         const left = ctx.left().reversed();
+    //         const right = ctx.right();
     //         if (!right.consumeAt('fn')) {
     //             return undefined;
     //         }
@@ -355,11 +355,11 @@ assignment
         trigger: '',
         minLookbehind: 1,
         resolver(ctx) {
-            const tape = ctx.leftOfCursor().reversed()
+            const tape = ctx.left().reversed()
             if (tape.isExhausted()) {
                 return undefined
             }
-            const right = ctx.rightOfCursor()
+            const right = ctx.right()
             if (!right.consumeAt('fn')) {
                 return undefined
             }
@@ -416,7 +416,7 @@ assignment
     //     minLookbehind: 'f'.length,
     //     scopeSelectorPool: [[], ['...impl'], ['...mod'], ['...trait']],
     //     resolver(ctx) {
-    //         const tape = ctx.leftOfCursor().reversed();
+    //         const tape = ctx.left().reversed();
     //         if (!tape.consumeAt('f')) {
     //             return undefined;
     //         }
@@ -469,7 +469,7 @@ assignment
     //         `,
     //         minLookbehind: 'if'.length,
     //         resolver(ctx) {
-    //             const tape = ctx.leftOfCursor().reversed();
+    //             const tape = ctx.left().reversed();
     //             if (!tape.consumeAt('fi') || isLetter(tape.cur() ?? ' ')) {
     //                 return undefined;
     //             }
@@ -503,7 +503,7 @@ assignment
         scopeSelectorPool: [['fn']],
         trigger: ' ',
         resolver(ctx) {
-            const tape = ctx.leftOfCursor()
+            const tape = ctx.left()
             tape.consumeWs()
             if (!tape.consumeAt('l')) {
                 return undefined
@@ -550,14 +550,14 @@ assignment
         minLookbehind: 4,
         trigger: ' ',
         resolver(ctx) {
-            const tape = ctx.leftOfCursor().reversed()
+            const tape = ctx.left().reversed()
             const includeIf = tape.isAt('file')
             if (!includeIf && !tape.isAt('esle')) {
                 return undefined
             }
             const openPos = ctx.seekOpenBracket('{}')
-            const doc = ctx.editor.document
-            if (!openPos || findWord(doc.lineAt(openPos).text, 'if') === -1) {
+            const document = ctx.docInfo.document
+            if (!openPos || findWord(document.lineAt(openPos).text, 'if') === -1) {
                 return undefined
             }
             const closePos = ctx.seekCloseBracket('{}')
@@ -600,7 +600,7 @@ assignment
         scopeSelectorPool: [[]],
         trigger: ' ',
         resolver(ctx) {
-            const tape = ctx.leftOfCursor().reversed()
+            const tape = ctx.left().reversed()
             const type = tape.consumeMatch({
                 u: 'use',
                 s: 'struct',
@@ -654,7 +654,7 @@ assignment
         minLookbehind: '.s'.length,
         trigger: ' ',
         resolver(ctx) {
-            const tape = ctx.leftOfCursor().reversed()
+            const tape = ctx.left().reversed()
             if (!tape.consumeAt('s')) {
                 return undefined
             }
@@ -707,7 +707,7 @@ Wrap as slice type.
         scopeSelectorPool: [[]],
         trigger: ' ',
         resolver(ctx) {
-            const tape = ctx.leftOfCursor()
+            const tape = ctx.left()
             console.log(tape.raw)
             tape.consumeWs()
             if (!tape.consumeAt('x') || !tape.isExhausted()) {
@@ -735,7 +735,7 @@ Insert \`extern "\${1:C}" \`.
         minLookbehind: 'at'.length,
         trigger: ' ',
         resolver(ctx) {
-            const tape = ctx.leftOfCursor().reversed()
+            const tape = ctx.left().reversed()
             if (
                 !tape.consumeAt('ta') ||
                 (!tape.isExhausted() && !Tape.isWs(tape.cur() ?? '.'))
@@ -775,7 +775,7 @@ Insert \`#[$0]\`.
         scopeSelectorPool: [[], ['...impl']],
         trigger: ' ',
         resolver(ctx) {
-            const tape = ctx.leftOfCursor()
+            const tape = ctx.left()
             tape.consumeWs()
             if (
                 !tape.consumeEither('mu', 'mustuse', 'nodiscard') ||
@@ -816,7 +816,7 @@ Insert \`#[must_use]\`.
         scopeSelectorPool: [[], ['...impl']],
         trigger: ' ',
         resolver(ctx) {
-            const tape = ctx.leftOfCursor()
+            const tape = ctx.left()
             tape.consumeWs()
             if (!tape.consumeEither('il', 'inline') || !tape.isExhausted()) {
                 return undefined
@@ -845,7 +845,7 @@ Insert \`#[inline]\`
         scopeSelectorPool: [['...fn']],
         trigger: ' ',
         resolver(ctx) {
-            const tape = ctx.leftOfCursor()
+            const tape = ctx.left()
             tape.consumeWs()
             if (!tape.consumeAt('p') || !tape.isExhausted()) {
                 return undefined
@@ -882,7 +882,7 @@ Inserts \`println!("$0")\`.
         minLookbehind: 'p'.length,
         trigger: ' ',
         resolver(ctx) {
-            const tape = ctx.leftOfCursor().reversed()
+            const tape = ctx.left().reversed()
             if (!tape.consumeAt('p')) {
                 return undefined
             }
@@ -948,4 +948,4 @@ Inserts \`println!("$0")\`.
 
     },
 */
-export default rust
+export default rustCompletions
