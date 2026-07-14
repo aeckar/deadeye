@@ -51,9 +51,9 @@ export type ReadOnlyIntervalTree<V> = {
     forEach(visitor: (key: Interval, value: V) => void): void
 }
 
-/** Search for all scopes at a byte offset. */
-export function itemsAt<V>(tree: IntervalTree<V>, offset: number): readonly V[] {
-    return tree.search([offset, offset])
+/** Search for all items at a given index. */
+export function itemsAt<V>(tree: IntervalTree<V>, idx: number): readonly V[] {
+    return tree.search([idx, idx])
 }
 
 /**

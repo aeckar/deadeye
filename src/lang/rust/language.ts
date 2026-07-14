@@ -29,7 +29,7 @@ export function consumeRustTarget(tape: Tape): string {
         let depth = 0
         let chunk = ''
         while (!tape.isExhausted()) {
-            const ch = tape.next()
+            const ch = tape.pop()
             chunk += ch
             if (ch === open) {
                 ++depth
@@ -41,7 +41,7 @@ export function consumeRustTarget(tape: Tape): string {
             }
         }
         if (!tape.isExhausted() && tape.cur() === '.') {
-            chunk += tape.next()
+            chunk += tape.pop()
         }
         return chunk
     }
@@ -54,7 +54,7 @@ export function consumeRustTarget(tape: Tape): string {
         let depth = 0
         let chunk = ''
         while (!tape.isExhausted()) {
-            const ch = tape.next()
+            const ch = tape.pop()
             chunk = ch + chunk
             if (ch === close) {
                 ++depth
@@ -103,7 +103,7 @@ export function consumeRustTarget(tape: Tape): string {
                 }
                 continue
             }
-            result += tape.next()
+            result += tape.pop()
         }
         return result
     }
@@ -143,7 +143,7 @@ export function consumeRustTarget(tape: Tape): string {
                 }
                 continue
             }
-            result = tape.next() + result
+            result = tape.pop() + result
         }
         return result
     }

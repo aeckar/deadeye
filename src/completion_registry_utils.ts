@@ -3,9 +3,9 @@
 //! Also provides algorithms and data structures used to parse completion shorthands.
 import { MarkdownString, Position, Range, TextEditor, window } from 'vscode'
 
-import { IntervalTree } from './interval_utils'
+import { IntervalTree, itemsAt } from './interval_utils'
 import { rangeBefore } from './misc_utils'
-import { Scope, ScopeTree } from './scope_utils'
+import { Scope, ScopeSelector } from './scope_utils'
 import Tape from './tape'
 import { Brackets, IdRule, toMarkdown as md, reverse } from './text_utils'
 
@@ -132,6 +132,11 @@ export function substitute<ScopeKind extends string>(
     }
 }
 
+/**
+ * Attempts to resolve a {@link Completion} using the local {@link ScopedCompletionContext context}.
+ *
+ * @see {@link CompletionFamily.resolver}
+ */
 export type CompletionResolver<ScopeKind extends string> = (
     ctx: ScopedCompletionContext<ScopeKind>,
 ) => Completion | undefined
@@ -141,11 +146,20 @@ export type CompletionResolver<ScopeKind extends string> = (
  * @see {@link CompletionFamily.newInstance}
  */
 export type CompletionFamilyCfg<ScopeKind extends string> = {
+    /** @see {@link CompletionFamily.docs} */
     readonly docs: MarkdownString
+
+    /** @see {@link CompletionFamily.minLookbehind} */
     readonly minLookbehind: number
+
+    /** @see {@link CompletionFamily.resolver} */
     readonly resolver: CompletionResolver<ScopeKind>
+
+    /** @see {@link CompletionFamily.trigger} */
     readonly trigger: Trigger
-    readonly scoping?: readonly ScopeTree<ScopeKind>[]
+
+    /** @see {@link CompletionFamily.scopeSelectorPool} */
+    readonly scopeSelectorPool?: readonly ScopeSelector<ScopeKind>[]
 }
 
 /**
@@ -162,15 +176,17 @@ export class CompletionFamily<ScopeKind extends string> {
     private constructor(
         /**
          * A short description in Markdown, generated dynamically
-         * to explain to user exactly what the shorthand does when triggered. This documentation appears
-         * next to the cursor shortly after the shorthand is detected but before it is triggered.
+         * to explain to user exactly what the shorthand does when triggered.
+         * This documentation appears next to the cursor shortly after the
+         * shorthand is detected but before it is triggered.
          */
         readonly docs: MarkdownString,
 
         /**
          * The minimum number of previous, consecutive character insertions
-         * for a match to this shorthand to be valid. This is an optimization, often the minimum number
-         * of characters for the base case. Can be assigned `NaN` so this shorthand is always checked.
+         * for a match to this shorthand to be valid. This is an optimization,
+         * often the minimum number of characters for the base case. Can be assigned `NaN` so this
+         * shorthand is always checked.
          */
         readonly minLookbehind: number,
 
@@ -186,7 +202,7 @@ export class CompletionFamily<ScopeKind extends string> {
          *
          * If assigned an empty array, this shorthand matches in every scope.
          */
-        readonly scoping: readonly ScopeTree<ScopeKind>[],
+        readonly scopeSelectorPool: readonly ScopeSelector<ScopeKind>[],
 
         /** The logic used to match this shorthand to a dynamic, context-aware completion. */
         readonly resolver: CompletionResolver<ScopeKind>,
@@ -199,7 +215,7 @@ export class CompletionFamily<ScopeKind extends string> {
             cfg.docs,
             cfg.minLookbehind,
             cfg.trigger,
-            cfg.scoping ?? ([] as const),
+            cfg.scopeSelectorPool ?? ([] as const),
             cfg.resolver,
         )
     }
@@ -291,15 +307,13 @@ export class Completion {
             const invalid = cfg.errors.filter(e => !cfg.target.contains(e))
             if (invalid.length > 0) {
                 const strings = invalid
-                    .map(e => {
-                        return (
-                            `[${e.start.line}:${e.start.character}` +
-                            `-${e.end.line}:${e.end.character}]`
-                        )
-                    })
+                    .map(
+                        e =>
+                            `${e.start.line}:${e.start.character}..${e.end.line}:${e.end.character}`,
+                    )
                     .join(', ')
                 window.showWarningMessage(
-                    `Deadeye: Error range(s) outside of target: ${strings}`,
+                    `Deadeye: Error range(s) outside of target: [${strings}]`,
                 )
                 errors = cfg.errors.filter(e => cfg.target.contains(e))
             } else {
@@ -497,13 +511,15 @@ export class CompletionContext {
 }
 
 /** Created and stored after a shorthand is matched, and recalled once the trigger is pressed. */
-export type CompletionStrategy = {
-    readonly family: CompletionFamily<string>
-    readonly trigger: Trigger
-    readonly completion: Completion
+export class CompletionStrategy {
+    constructor(
+        readonly family: CompletionFamily<string>,
+        readonly trigger: Trigger,
+        readonly completion: Completion,
 
-    /** The position of the cursor the instance this object was created. */
-    readonly pos: Position
+        /** The position of the cursor the instance this object was created. */
+        readonly pos: Position,
+    ) {}
 }
 
 // =============================================================================================
@@ -558,14 +574,13 @@ export class ScopedCompletionContext<
         const scopes = resolver(
             new CompletionContext(keyIn, cursor, editor, identifiers),
         )
-        const scopesAtCursor = scopes.search([idx, idx])
         return new ScopedCompletionContext(
             keyIn,
             cursor,
             editor,
             identifiers,
             scopes,
-            scopesAtCursor,
+            itemsAt(scopes, idx),
         )
     }
 
@@ -580,9 +595,10 @@ export class ScopedCompletionContext<
         )
     }
 
-    isScopeAtCursor(kind: ScopeKind): boolean {
-        return this.scopesAtCursor.find(scope => scope.kind === kind)
-            ? true
-            : false
+    /** Performing a check using this function is faster than declaring a scope selector. */
+    isScopesAtCursor(...kinds: ScopeKind[]): boolean {
+        return kinds.some(kind =>
+            this.scopesAtCursor.find(scope => scope.kind === kind),
+        )
     }
 }

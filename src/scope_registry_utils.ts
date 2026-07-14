@@ -1,10 +1,10 @@
 //! Scope registry API and utilities.
 //!
 //! Unlike `scope_utils.ts`, contains logic for scope analysis.
-import { IntervalTree, IntervalTreeService } from './interval_utils'
+import { IntervalTree, IntervalTreeService, itemsAt } from './interval_utils'
 import { Token, TokenKind, UnknownTokenKind } from './language_utils'
 import { properties } from './misc_utils'
-import { Scope } from './scope_utils'
+import { Scope, ScopeSelector } from './scope_utils'
 
 // =============================================================================================
 // Scope Description API
@@ -429,4 +429,77 @@ export class ScopeStream<ScopeKind extends string> {
         }
         return modified
     }
+}
+
+// =============================================================================================
+// Scope Verification API
+// =============================================================================================
+
+/** Returns `true` if the scopes at the current index agree with any given scope selector. */
+export function verifyScopes<ScopeKind extends string>(
+    scopeSelectorPool: ScopeSelector<ScopeKind>[],
+    scopes: IntervalTree<Scope<ScopeKind>>,
+    idx: number,
+): boolean {
+    if (scopeSelectorPool.length === 0) {
+        return true
+    }
+    const local = (itemsAt(scopes, idx) as Scope<ScopeKind>[]).sort(
+        (a, b) => {
+            // Primary sort: smallest begin index comes first
+            if (a.begin !== b.begin) {
+                return a.begin - b.begin
+            }
+
+            // Secondary sort: if both start at the same index, wider scope is outer one
+            return b.end - a.end
+        },
+    )
+    for (const selector of scopeSelectorPool) {
+        if (selector.length === 0) {
+            // top-level scope
+            if (local.length === 0) {
+                return true
+            }
+            continue
+        }
+        let localIdx = 0
+        let selectorIdx = 0
+        while (selectorIdx < selector.length && localIdx < local.length) {
+            const query = selector[selectorIdx]
+            const isWildcard = query.startsWith('...')
+            const kind = isWildcard ? query.slice(3) : query
+            if (isWildcard) {
+                // advance local scope cursor until a match is found
+                while (
+                    localIdx < local.length &&
+                    local[localIdx].kind !== kind
+                ) {
+                    localIdx++
+                }
+                if (localIdx < local.length) {
+                    // match found, consume both
+                    selectorIdx++
+                    localIdx++
+                } else {
+                    // wildcard not found in remaining local scopes
+                    break
+                }
+            } else {
+                // must match the exact next local scope hierarchy level
+                if (local[localIdx].kind === kind) {
+                    selectorIdx++
+                    localIdx++
+                } else {
+                    // exact match failed for this scope level
+                    break
+                }
+            }
+        }
+        if (selectorIdx === selector.length) {
+            // entire selector path was successfully matched against local scopes
+            return true
+        }
+    }
+    return false
 }

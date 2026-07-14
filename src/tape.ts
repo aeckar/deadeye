@@ -118,13 +118,13 @@ export default class Tape {
 
     /** Advances the current position by 1 character. */
     adv(): this {
-        this.pos += 1
+        ++this.pos
         return this
     }
 
     /** Decrements the current position by 1 character. */
     dec(): this {
-        this.pos -= 1
+        --this.pos
         return this
     }
 
@@ -150,9 +150,9 @@ export default class Tape {
      *
      * If the tape is exhausted, `pos` will still be incremented.
      */
-    next(): string | undefined {
+    pop(): string | undefined {
         const ch = this.raw[this.pos]
-        this.pos += 1
+        ++this.pos
         return ch
     }
 
@@ -235,6 +235,15 @@ export default class Tape {
         return query
     }
 
+    /** Consumes the whole identifier starting at this position, or returns an empty string. */
+    consumeAtIdentifier(query: string): string {
+        if (!this.isAtIdentifier(query)) {
+            return ''
+        }
+        this.pos += query.length
+        return query
+    }
+
     /** Consumes the query starting at this position, or returns an empty string. */
     consumeEither(...queries: string[]): string {
         for (const query of queries) {
@@ -252,8 +261,10 @@ export default class Tape {
      *
      * @return the matches to each chunks, as well as any whitespace between them.
      * If a match to any chunk fails, `undefined` is returned.
+     *
+     * @see {@link consumeChunks}
      */
-    consumeChunks(chunks: string[]): string[] | undefined {
+    consumeChunked(chunks: string[]): string[] | undefined {
         const start = this.pos
         const parts = []
         for (const [idx, chunk] of chunks.entries()) {
@@ -268,6 +279,34 @@ export default class Tape {
             }
         }
         return parts
+    }
+
+    /**
+     * Consumes the next sequence of characters clusters where each character contained
+     * matches `isChunkPart`. Stops once `isAtTerminator` returns `true`
+     * or the next chunk is empty, in which case it is omitted.
+     *
+     * By default, presence of a terminator is not checked.
+     *
+     * @see {@link consumeChunked}
+     */
+    consumeChunks(
+        isChunkPart: (c: string) => boolean,
+        isAtTerminator: (self: this) => boolean = () => false,
+    ): string[] {
+        const chunks: string[] = []
+        while (!this.isExhausted() && !isAtTerminator(this)) {
+            const chunk = this.consume(isChunkPart)
+            if (!chunk) {
+                break
+            }
+            chunks.push(chunk)
+            this.consumeWs()
+        }
+        if (chunks.length > 0) {
+            this.putBackWs()
+        }
+        return chunks
     }
 
     /**
@@ -346,8 +385,7 @@ export default class Tape {
      * @return the pair whose key matched, or `undefined` if none did.
      */
     consumeMatch(pool: { [Key in string]: string }):
-        | [string, string]
-        | undefined {
+        [string, string] | undefined {
         for (const [k, v] of Object.entries(pool)) {
             if (this.isAt(k)) {
                 this.pos += k.length
@@ -359,7 +397,7 @@ export default class Tape {
 
     /**
      * Consumes the next letter cluster from the current position
-     * with clearance and a capital letter in the lowest absolute position.
+     * with a capital letter in the lowest absolute position.
      */
     consumeCapitalized(): string {
         if (this.isReversed) {
@@ -464,29 +502,6 @@ export default class Tape {
         }
         this.pos = idx
         return true
-    }
-
-    /**
-     * Advances `pos` to where `query` is found as a whole word.
-     *
-     * Assumes this tape is not reversed, or returns `false`.
-     *
-     * @return `true` if found and `pos` is left pointing at the match,
-     * or `false` and `pos` is restored to its original value.
-     */
-    seekAtIdentifier(query: string): boolean {
-        if (this.isReversed) {
-            return false
-        }
-        const start = this.pos
-        if (!this.seekAt(query)) {
-            return false
-        }
-        if (this._isAtIdentifier(query, this.pos)) {
-            return true
-        }
-        this.pos = start
-        return false
     }
 
     // =========================================================================================

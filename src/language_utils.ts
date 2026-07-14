@@ -35,11 +35,12 @@ export type UnknownTokenKind = string
  * A token, implemented as a node in a linked list (token stream).
  *
  * Tokens matching an empty query will not be emitted.
- * Token streams always contain at least two elements: the root node and the EOF node.
- *
- * Special token kinds:
- * - **Head:** `undefined`
- * - **Tail:** `''`
+ * Token streams always contain at least two elements: the head and tail.
+ * Only these tokens are allowed to be zero-length.
+ * 
+ * Special tokens:
+ * - **Head:** undefined @ 0..0
+ * - **Tail:** '' @ -1..-1
  *
  * Whether a token is special can be checked easily by using its kind as a condition itself,
  * since special token kinds are falsey.
@@ -83,15 +84,21 @@ export class Token extends Span {
      * The returned token should act as an anchor for all trailing tokens.
      * Once the token stream is complete, this node is popped from the beginning of the list.
      */
-    static head(): Token {
-        const root = new Token(0, 0)
-        root.append('' as TokenKind)
-        return root
+    static newStream(): Token {
+        const head = new Token(0, 0)
+        head._next = Token.tail(head)
+        return head
+    }
+
+    private static tail(prev: Token) {
+        return new Token(-1, -1, '' as TokenKind, prev)
     }
 
     /**
      * Appends a new token to the stream with the given properties, directly after in the input.
      * Preserves the original next token.
+     *
+     * If this is a tail node, does nothing and returns this instance.
      *
      * @returns The inserted token.
      */
@@ -100,6 +107,9 @@ export class Token extends Span {
         length: number = kind.length /* works well with EOF */,
         start: number = this.end,
     ): Token {
+        if (this.isTail) {
+            return this
+        }
         const oldNext = this._next
         const node = new Token(start, start + length, kind, this, oldNext)
         this._next = node
@@ -107,6 +117,28 @@ export class Token extends Span {
             oldNext._prev = node
         }
         return node
+    }
+
+    /**
+     * Appends the given token stream to this. Preserves the original next token.
+     *
+     * If this is a tail node, does nothing.
+     */
+    appendAll(stream: Token) {
+        if (this.isTail) {
+            return
+        }
+        const oldNext = this._next
+        stream.next._prev = this // unlink head
+        this._next = stream.next
+        while (!stream.isTail) {
+            stream = stream.next
+        }
+        stream = stream.prev
+        stream._next = oldNext // unlink tail
+        if (oldNext) {
+            oldNext._prev = stream
+        }
     }
 
     isNotKindNorTail(kind: string): boolean {
@@ -169,6 +201,41 @@ export class Token extends Span {
             node = node.next!
         }
         return node.isTail ? undefined : node
+    }
+
+    /** Deletes all nodes after this one, then appends the tail node. */
+    deleteRest() {
+        if (this.isTail) {
+            return
+        }
+        let node = this.next
+        do {
+            // unlink all nodes to free memory
+            node._prev = undefined
+            const next = node.next
+            node._next = undefined
+            node = next
+        } while (node)
+        this._next = Token.tail(this)
+    }
+
+    /**
+     * Returns an array containing every token in the stream, omitting the head and tail.
+     *
+     * For performance reasons, this function should only be used for debugging.
+     */
+    __all(): Token[] {
+        let node = this as Token
+        while (!node.isHead) {
+            node = node.prev
+        }
+        node = node.next
+        const stream: Token[] = []
+        while (!node.isTail) {
+            stream.push(node)
+            node = node.next
+        }
+        return stream
     }
 }
 
@@ -312,7 +379,7 @@ export class Language {
             typeof target === 'string'
                 ? Tape.over(target, 0, this.idRule)
                 : target
-        const root = Token.head()
+        const root = Token.newStream()
         let node = root
         this.skip(tape)
         while (!tape.isExhausted()) {
@@ -392,12 +459,12 @@ export class Language {
 /**
  * Constants must be defined as static variables in this class,
  * since declaration as plain object incurs errors due to recursive reference of `inherit`.
- * 
+ *
  * Since {@link Language.newInstance} accesses this class before it is initialized,
  * members must inherit from instances and not member keys.
  *
  * # API
- * 
+ *
  * Members should not be accessed directly,
  * but should instead be obtained from {@link Language.resolve}.
  */

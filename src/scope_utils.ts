@@ -14,9 +14,8 @@ import { Span } from './misc_utils'
  *
  * @see {@link Scope}
  */
-export type ScopeTree<ScopeKind extends string> = (
-    | ScopeKind
-    | `...${ScopeKind}`
+export type ScopeSelector<ScopeKind extends string> = (
+    ScopeKind | `...${ScopeKind}`
 )[]
 
 /**
@@ -26,7 +25,7 @@ export type ScopeTree<ScopeKind extends string> = (
  * 1. Intellisense recommends a pool of possible scopes
  * 2. Scope language is enforced at compile-time
  *
- * @see {@link ScopeTree}
+ * @see {@link ScopeSelector}
  */
 export class Scope<ScopeKind extends string> extends Span {
     constructor(

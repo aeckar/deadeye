@@ -197,6 +197,7 @@ import {
     ExtensionContext,
     Hover,
     Position,
+    Range,
     Selection,
     SnippetString,
     TextEditor,
@@ -211,13 +212,15 @@ import {
     CompletionStrategy,
     ScopedCompletionContext,
 } from './completion_registry_utils'
+import { OpenFileManager } from './open_file_manager'
 import completionRegistries from './lang/completion_registries'
 import languagesById from './lang/languages'
 import scopeResolvers from './lang/scope_registries'
+import { Direction } from './misc_utils'
 import { expandTabStops } from './text_utils'
 
-let strategy: CompletionStrategy | undefined
-// let decorationSyncTimeout: NodeJS.Timeout | undefined;
+let completionStrategy: CompletionStrategy | undefined
+let fileManager: OpenFileManager
 
 const decoration = window.createTextEditorDecorationType({
     borderColor: new ThemeColor('editorInfo.foreground'),
@@ -227,20 +230,39 @@ const decoration = window.createTextEditorDecorationType({
 })
 
 function cancelCompletion(editor: TextEditor) {
-    if (strategy && editor.selection.active.isEqual(strategy.pos)) {
+    if (
+        completionStrategy &&
+        editor.selection.active.isEqual(completionStrategy.pos)
+    ) {
         // waiting for insertion of pressed key
         return
     }
-    strategy = undefined
+    completionStrategy = undefined
     editor.setDecorations(decoration, []) // reset decorations
 }
 
 /** Extension initializer. */
 export function activate(context: ExtensionContext) {
+    fileManager = new OpenFileManager(context)
+
     const cancelCompletionOnSelectionChange =
         window.onDidChangeTextEditorSelection(event => {
             cancelCompletion(event.textEditor)
         })
+
+    const smartBackspaceKey = commands.registerTextEditorCommand(
+        'deleteLeft',
+        editor => {
+            applySmartDeletion(editor, 'left')
+        },
+    )
+
+    const smartDeleteKey = commands.registerTextEditorCommand(
+        'deleteRight',
+        editor => {
+            applySmartDeletion(editor, 'right')
+        },
+    )
 
     // Prefer low-level command to `onDidChangeActiveTextEditor` listener
     // for optimal recognition of fast keystroke combos.
@@ -254,46 +276,58 @@ export function activate(context: ExtensionContext) {
             const keyIn = (args.text as string).trim() // sometimes preceded by space
             if (!keyIn) {
                 // pressed space
-                if (!strategy) {
+                if (!completionStrategy) {
                     // fixme for hot completions, other triggers
                     editor.edit(editBuilder => {
                         editBuilder.insert(editor.selection.active, ' ')
                     })
                     return
                 }
-                applyCompletion(editor, strategy.completion)
-                strategy = undefined
+                applyCompletion(editor, completionStrategy.completion)
+                completionStrategy = undefined
                 return
             }
             commands.executeCommand('default:type', args) // manually perform insertion
-            await updateStrategy(keyIn, editor)
-            if (strategy) {
-                editor.setDecorations(decoration, [strategy.completion.target])
+            await updateCompletionStrategy(keyIn, editor)
+            if (completionStrategy) {
+                editor.setDecorations(decoration, [
+                    completionStrategy.completion.target,
+                ])
             }
         },
     )
 
     const showDocsOnHover = languages.registerHoverProvider('rust', {
         provideHover(_, position) {
-            if (!strategy || !strategy.completion.target.contains(position)) {
+            if (
+                !completionStrategy ||
+                !completionStrategy.completion.target.contains(position)
+            ) {
                 return null
             }
-            return new Hover(strategy.family.docs)
+            return new Hover(completionStrategy.family.docs)
         },
     })
 
     const showPreviewOnHover = languages.registerHoverProvider('rust', {
         provideHover(_, position) {
-            if (!strategy || !strategy.completion.target.contains(position)) {
+            if (
+                !completionStrategy ||
+                !completionStrategy.completion.target.contains(position)
+            ) {
                 return null
             }
             // Since there can be multiple code blocks in a preview, don't bother
             // highlighting them by turning them into fenced code blocks.
-            return new Hover(expandTabStops(strategy.completion.preview))
+            return new Hover(
+                expandTabStops(completionStrategy.completion.preview),
+            )
         },
     })
 
     context.subscriptions.push(
+        smartBackspaceKey,
+        smartDeleteKey,
         prepareCompletionOnKeystroke,
         cancelCompletionOnSelectionChange,
         showPreviewOnHover,
@@ -301,8 +335,85 @@ export function activate(context: ExtensionContext) {
     )
 }
 
+async function applySmartSelectionDeletion(editor: TextEditor) {
+    const document = editor.document
+    const selection = editor.selection
+    const file = fileManager.get(document)
+    const selectionBegin = document.offsetAt(selection.start)
+    const selectionEnd = document.offsetAt(selection.end)
+    let minBegin = selectionBegin
+    let maxEnd = selectionEnd
+    let node = file.head
+    while (!node.isTail) {
+        const overlaps = node.begin < selectionEnd && node.end > selectionBegin
+        if (overlaps) {
+            if (node.kind !== 'identifier') {
+                if (node.begin < minBegin) {
+                    minBegin = node.begin
+                }
+                if (node.end > maxEnd) {
+                    maxEnd = node.end
+                }
+            }
+        }
+        node = node.next
+    }
+    editor.edit(editBuilder => {
+        editBuilder.delete(
+            new Range(
+                document.positionAt(minBegin),
+                document.positionAt(maxEnd),
+            ),
+        )
+    })
+}
+
+async function applySmartDeletion(editor: TextEditor, direction: Direction) {
+    const document = editor.document
+    const selection = editor.selection
+    const openFile = fileManager.get(document)
+
+    // === CASE 1: Active Text Selection ===
+    if (!selection.isEmpty) {
+        return
+    }
+
+    // --- CASE 2: Single Cursor Caret Deletion (Existing Logic) ---
+    const cursorOffset = document.offsetAt(selection.active)
+    let targetToken = findTokenAtOffset(openFile.head, cursorOffset, direction)
+
+    while (
+        targetToken &&
+        !targetToken.isTail &&
+        isWhitespaceToken(targetToken)
+    ) {
+        targetToken = direction === 'left' ? targetToken.prev : targetToken.next
+    }
+
+    if (targetToken && !targetToken.isTail && isKeywordOrSymbol(targetToken)) {
+        const startPos = document.positionAt(targetToken.start)
+        const endPos = document.positionAt(targetToken.end)
+        const deletionRange = new Range(startPos, endPos)
+
+        editor
+            .edit(editBuilder => {
+                editBuilder.delete(deletionRange)
+            })
+            .then(success => {
+                if (success && direction === 'left') {
+                    const newPos = document.positionAt(targetToken.start)
+                    editor.selection = new Selection(newPos, newPos)
+                }
+            })
+    } else {
+        commands.executeCommand(
+            direction === 'left' ? 'default:deleteLeft' : 'default:deleteRight',
+        )
+    }
+}
+
 /** Runs every line-based completion for the current language. */
-async function updateStrategy(keyIn: string, editor: TextEditor) {
+async function updateCompletionStrategy(keyIn: string, editor: TextEditor) {
     const active = editor.selection.active
     const cursor = new Position(active.line, active.character + 1) // adjust for key-in
     const langId = editor.document.languageId
@@ -319,7 +430,12 @@ async function updateStrategy(keyIn: string, editor: TextEditor) {
             if (!completion) {
                 continue
             }
-            strategy = { family, trigger, completion, pos: cursor }
+            completionStrategy = new CompletionStrategy(
+                family,
+                trigger,
+                completion,
+                cursor,
+            )
             return
         }
     }

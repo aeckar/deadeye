@@ -16,8 +16,11 @@ getter properties must be proven to not have side effects
 
 prefer gutter testing, if not go to `testing` tab in vsc
 
+todo: ctrl-arrows to rearrange params, args
+should run locally before linter (support for global refactor + debounce?)
+
 prefer readonly arrays for DSL properties
--is booleans only make sense when referring to this/self
+-is booleans only make sense when referring to this/self (unless ambiguity)
 use `pool` naming for collections of items where any one may be matched (1 or 0 times)
 
 cfg types must be strictly object/record types

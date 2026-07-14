@@ -2,8 +2,11 @@
 import { Position, Range } from 'vscode'
 import { Interval } from './interval_utils'
 
+/** Left or right. */
+export type Direction = 'left' | 'right'
+
 /** Removes a common prefix from a string literal type. */
-type RemovePrefix<
+export type RemovePrefix<
     Prefix extends string,
     T extends string,
 > = T extends `${Prefix}${infer Suffix}` ? Suffix : T
@@ -168,11 +171,11 @@ export function match<K extends JsKey, V>(
  */
 export function rebindToMap<K extends JsKey, V>(
     o: Record<K, V>,
-    ...compareFns: Comparator<Property<K, V>>[]
+    sortBy?: Comparator<Property<K, V>>
 ): Map<K, V> {
     let props = properties(o)
-    for (const compareFn of compareFns) {
-        props = props.sort(compareFn)
+    if (sortBy) {
+        props = props.sort(sortBy)
     }
     return props.reduce((sorted, { key, value }) => {
         sorted.set(key, value)
@@ -183,9 +186,13 @@ export function rebindToMap<K extends JsKey, V>(
 /**
  * Returns a comparator that maps every entry in a collection to a weight value,
  * where higher weights are placed after lower ones when recombined into a sorted collection.
+ * 
+ * Generally, negating the closure return value causes the output to be sorted in descending order.
+ * 
+ * @see {@link rebindToMap}
  */
-export function sortBy<K extends JsKey, V>(
-    keyMap: (entry: Property<K, V>) => number,
-): Comparator<Property<K, V>> {
+export function sortBy<T>(
+    keyMap: (entry: T) => number,
+): Comparator<T> {
     return (cur, next) => keyMap(cur) - keyMap(next)
 }
