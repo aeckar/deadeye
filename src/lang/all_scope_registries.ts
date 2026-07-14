@@ -1,7 +1,7 @@
 // import scopeResolver from './rust/scope_registry'
 // import typescript from './ts/scope_registry'
 
-import { ScopeRegistry } from "../scope_registry_utils"
+import { ScopeRegistry } from '../scope_registry'
 
 /**
  * Contains scope resolver of every supported language.

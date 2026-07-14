@@ -1,16 +1,14 @@
 //! Completion registry API and utilities.
 //!
 //! Also provides algorithms and data structures used to parse completion shorthands.
-import { MarkdownString, Position, Range, TextEditor, window } from 'vscode'
+import { MarkdownString, Position, Range, window } from 'vscode'
 
-import { IntervalTree, itemsAt } from './interval_utils'
-import { Language } from './language_utils'
-import { rangeBefore } from './misc_utils'
-import { DocumentInfo } from './document_utils'
-import { extractScopes, ScopeRegistry } from './scope_registry_utils'
-import { Scope, ScopeSelector } from './scope_utils'
+import { rangeBefore } from './misc'
+import { DocumentInfo } from './document_service'
+import { ScopeRegistry } from './scope_registry'
+import { Scope, ScopeSelector } from './scope'
 import Tape from './tape'
-import { Brackets, toMarkdown as md, reverse } from './text_utils'
+import { md as md, reverse } from './text'
 
 // =============================================================================================
 // Utilities & Constants

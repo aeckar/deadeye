@@ -211,13 +211,13 @@ import {
     Completion,
     CompletionContext,
     CompletionStrategy,
-} from './completion_registry_utils'
-import { documentManager, DocumentService } from './document_utils'
+} from './completion_registry'
+import { DocumentService } from './document_service'
 import allCompletionRegistries from './lang/all_completion_registries'
 import allLanguages from './lang/all_languages'
 import allScopeRegistries from './lang/all_scope_registries'
-import { Direction } from './misc_utils'
-import { expandTabStops } from './text_utils'
+import { Direction } from './misc'
+import { expandTabStops } from './text'
 
 let completionStrategy: CompletionStrategy | undefined
 
@@ -345,7 +345,7 @@ async function applySmartDeletion(editor: TextEditor, direction: Direction) {
 async function applySmartSelectionDeletion(editor: TextEditor) {
     const document = editor.document
     const selection = editor.selection
-    const file = fileManager.get(document)
+    const file = DocumentService.get(document)
     const selectionBegin = document.offsetAt(selection.start)
     const selectionEnd = document.offsetAt(selection.end)
     let minBegin = selectionBegin

@@ -1,10 +1,10 @@
 //! Scope registry API and utilities.
 //!
 //! Unlike `scope_utils.ts`, contains logic for scope analysis.
-import { IntervalTree, IntervalTreeService, itemsAt } from './interval_utils'
-import { Token, TokenKind, UnknownTokenKind } from './language_utils'
-import { properties } from './misc_utils'
-import { Scope, ScopeSelector } from './scope_utils'
+import { IntervalTree, IntervalTreeService, itemsAt } from './interval_tree'
+import { Token, TokenKind, UnknownTokenKind } from './language'
+import { properties } from './misc'
+import { Scope, ScopeSelector } from './scope'
 
 // =============================================================================================
 // Scope Description API
@@ -172,7 +172,7 @@ export function newScopeRegistry<ScopeKind extends string>(
 
 /**
  * Returns all valid scopes found in the token stream.
- * 
+ *
  * `begin` may be the head of a token stream. If it is not, that token is the first one
  * checked for a match to a scope marker.
  */
@@ -449,17 +449,15 @@ export function verifyScopes<ScopeKind extends string>(
     if (scopeSelectorPool.length === 0) {
         return true
     }
-    const local = (itemsAt(scopes, idx) as Scope<ScopeKind>[]).sort(
-        (a, b) => {
-            // Primary sort: smallest begin index comes first
-            if (a.begin !== b.begin) {
-                return a.begin - b.begin
-            }
+    const local = (itemsAt(scopes, idx) as Scope<ScopeKind>[]).sort((a, b) => {
+        // Primary sort: smallest begin index comes first
+        if (a.begin !== b.begin) {
+            return a.begin - b.begin
+        }
 
-            // Secondary sort: if both start at the same index, wider scope is outer one
-            return b.end - a.end
-        },
-    )
+        // Secondary sort: if both start at the same index, wider scope is outer one
+        return b.end - a.end
+    })
     for (const selector of scopeSelectorPool) {
         if (selector.length === 0) {
             // top-level scope

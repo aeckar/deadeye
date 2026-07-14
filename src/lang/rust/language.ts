@@ -1,6 +1,6 @@
-import { Language } from '../../language_utils'
+import { Language } from '../../language'
 import Tape from '../../tape'
-import { getCloseBracket, getOpenBracket, IdRule } from '../../text_utils'
+import { getCloseBracket, getOpenBracket, IdRule } from '../../text'
 
 const STOP = '=,{};'
 const SIGIL = '&*!+-'

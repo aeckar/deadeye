@@ -1,4 +1,4 @@
-import { CompletionRegistry } from '../completion_registry_utils'
+import { CompletionRegistry } from '../completion_registry'
 import markdown from './md/completion_registry'
 // import rust from './rust/completion_registry'
 // import typescript from './ts/completions'

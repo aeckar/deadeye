@@ -1,5 +1,5 @@
-import { CURLIES } from '../../language_utils'
-import { newScopeRegistry } from '../../scope_registry_utils'
+import { CURLIES } from '../../language'
+import { newScopeRegistry } from '../../scope_registry'
 
 export type RustScopeKind =
     | 'struct'
@@ -135,7 +135,7 @@ export const rust = newScopeRegistry<RustScopeKind>({
     matchArm: {
         markerPool: ['FAT_ARROW'],
         boundariesPool: [CURLIES],
-        terminatorPool: ['COMMA'], 
+        terminatorPool: ['COMMA'],
         outerOpenScope: 'match', // todo no way to scope short match arms
     },
 })

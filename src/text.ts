@@ -3,7 +3,7 @@
 //! For tokenization and language-specific functionality, refer to `language_utils.ts`.
 import dedent from 'dedent-js'
 import { MarkdownString } from 'vscode'
-import { Member } from './misc_utils'
+import { Member } from './misc'
 
 // =============================================================================================
 // Letter Case
@@ -73,12 +73,13 @@ export function isLetter(ch: string): boolean {
 // =============================================================================================
 
 // ` = U+1FEF
+
 /**
  * Returns a Markdown string, which can be used for documentation.
  *
  * This function should be used as a raw string prefix (e.g. `md`text``).
  */
-export function toMarkdown(
+export function md(
     s: string | TemplateStringsArray,
     ...values: readonly unknown[]
 ): MarkdownString {
@@ -92,9 +93,7 @@ export function reverse(s: string): string {
 
 /** Any input to {@link IdRule.resolve}. */
 export type IdRuleResolvable =
-    | IdRule
-    | Member<typeof IdRulePreset>
-    | [string, string]
+    IdRule | Member<typeof IdRulePreset> | [string, string]
 
 /** Contains the possiblities for the first and subsequent characters in an identifier. */
 export class IdRule {
@@ -128,7 +127,7 @@ export class IdRule {
 
 /**
  * # API
- * 
+ *
  * Members should not be accessed directly,
  * but should instead be obtained from {@link Language.resolve}.
  */
@@ -143,45 +142,6 @@ export class IdRulePreset {
 // =============================================================================================
 // Scannerless Parsing
 // =============================================================================================
-
-export type Brackets = (typeof BRACKETS)[number]
-export type OpenBracket = (typeof OPEN_BRACKETS)[number]
-export type CloseBracket = (typeof CLOSE_BRACKETS)[number]
-
-export const BRACKETS = ['()', '{}', '[]', '<>'] as const
-
-/** Each element is analogous to that in `CLOSE_BRACKETS`. */
-export const OPEN_BRACKETS = ['(', '{', '[', '<'] as const
-
-/** Each element is analogous to that in `OPEN_BRACKETS`. */
-export const CLOSE_BRACKETS = [')', '}', ']', '>'] as const
-
-/**
- * Returns the appropriate closing bracket, or `undefined`
- * if the given character is not an opener.
- * @see getOpenBracket
- */
-export function getCloseBracket(open: string): CloseBracket | undefined {
-    const idx = OPEN_BRACKETS.indexOf(open as OpenBracket)
-    if (idx === undefined) {
-        return undefined
-    }
-    return CLOSE_BRACKETS[idx]
-}
-
-/**
- * Returns the appropriate opening bracket, or `undefined`
- * if the given character is not a closer.
- *
- * @see getCloseBracket
- */
-export function getOpenBracket(close: string): OpenBracket | undefined {
-    const idx = CLOSE_BRACKETS.indexOf(close as CloseBracket)
-    if (idx === undefined) {
-        return undefined
-    }
-    return OPEN_BRACKETS[idx]
-}
 
 /** Expands each tab stop (`$0`, `${1:C}) to a more descriptive form. */
 export function expandTabStops(s: MarkdownString): MarkdownString {

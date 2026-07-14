@@ -1,7 +1,7 @@
 //! Common scope-related utilities used by both scope registry API and completion registry API.
 //!
 //! Unlike `scope_registry_utils.ts`, focuses on scope data visible to the completion API.
-import { Span } from './misc_utils'
+import { Span } from './misc'
 
 /**
  * A possible configuration of nested scopes.

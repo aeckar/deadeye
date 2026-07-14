@@ -4,12 +4,12 @@ import {
     TextDocumentContentChangeEvent,
     workspace,
 } from 'vscode'
-import { IntervalTree } from './interval_utils'
+import { IntervalTree } from './interval_tree'
 import allLanguages from './lang/all_languages'
 import allScopeRegistries from './lang/all_scope_registries'
-import { Language, Token } from './language_utils'
-import { extractScopes, ScopeRegistry } from './scope_registry_utils'
-import { Scope } from './scope_utils'
+import { Language, Token } from './language'
+import { Scope } from './scope'
+import { extractScopes, ScopeRegistry } from './scope_registry'
 
 /**
  * Organized every token in array form, organized by line.

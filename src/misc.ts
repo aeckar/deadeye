@@ -1,6 +1,6 @@
 //! Utilities generalizable to most other projects.
 import { Position, Range } from 'vscode'
-import { Interval } from './interval_utils'
+import { Interval } from './interval_tree'
 
 /** Left or right. */
 export type Direction = 'left' | 'right'
@@ -175,7 +175,7 @@ export function match<K extends JsKey, V>(
  */
 export function rebindToMap<K extends JsKey, V>(
     o: Record<K, V>,
-    sortBy?: Comparator<Property<K, V>>
+    sortBy?: Comparator<Property<K, V>>,
 ): Map<K, V> {
     let props = properties(o)
     if (sortBy) {
@@ -190,13 +190,11 @@ export function rebindToMap<K extends JsKey, V>(
 /**
  * Returns a comparator that maps every entry in a collection to a weight value,
  * where higher weights are placed after lower ones when recombined into a sorted collection.
- * 
+ *
  * Generally, negating the closure return value causes the output to be sorted in descending order.
- * 
+ *
  * @see {@link rebindToMap}
  */
-export function sortBy<T>(
-    keyMap: (entry: T) => number,
-): Comparator<T> {
+export function sortBy<T>(keyMap: (entry: T) => number): Comparator<T> {
     return (cur, next) => keyMap(cur) - keyMap(next)
 }

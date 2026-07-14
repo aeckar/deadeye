@@ -1,10 +1,10 @@
 //! Algorithms and data structures for tokenizing language-specific input.
 //!
 //! For general utilities related to text manipulation, refer to `text_utils.ts`.
-import { MAX_TOKEN_SEEK } from './completion_registry_utils'
-import { Member, rebindToMap, sortBy, Span } from './misc_utils'
+import { MAX_TOKEN_SEEK } from './completion_registry'
+import { Member, rebindToMap, sortBy, Span } from './misc'
 import Tape from './tape'
-import { IdRule, IdRuleResolvable } from './text_utils'
+import { IdRule, IdRuleResolvable } from './text'
 
 // =============================================================================================
 // Token API
@@ -37,7 +37,7 @@ export type UnknownTokenKind = string
  * Tokens matching an empty query will not be emitted.
  * Token streams always contain at least two elements: the head and tail.
  * Only these tokens are allowed to be zero-length.
- * 
+ *
  * Special tokens:
  * - **Head:** undefined @ 0..0
  * - **Tail:** '' @ -1..-1

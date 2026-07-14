@@ -2,10 +2,10 @@ import {
     Completion,
     MAX_LINE_SEEK,
     newCompletionRegistry,
-} from '../../completion_registry_utils'
-import { after, rangeBefore } from '../../misc_utils'
+} from '../../completion_registry'
+import { after, rangeBefore } from '../../misc'
 import Tape from '../../tape'
-import { findWord, toMarkdown as md, toSnakeCase } from '../../text_utils'
+import { findWord, md, toSnakeCase } from '../../text'
 import { consumeRustTarget, rust as lang } from './language'
 import { RustScopeKind } from './scope_registry'
 

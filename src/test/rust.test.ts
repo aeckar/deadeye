@@ -24,12 +24,12 @@
  */
 
 import * as assert from 'assert'
-import { IntervalTreeService, itemsAt } from '../interval_utils'
+import { IntervalTreeService, itemsAt } from '../interval_tree'
 import rust from '../lang/rust/language'
 import { rust as rustScopes } from '../lang/rust/scope_registry'
-import { Token } from '../language_utils'
-import { ScopeInfo, ScopeStream } from '../scope_registry_utils'
-import { Scope } from '../scope_utils'
+import { Token } from '../language'
+import { Scope } from '../scope'
+import { ScopeInfo, ScopeStream } from '../scope_registry'
 
 /** Collect all tokens from the stream into a plain array of kind strings. */
 function collectKinds(head: Token): string[] {
