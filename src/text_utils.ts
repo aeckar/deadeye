@@ -90,8 +90,14 @@ export function reverse(s: string): string {
     return s.split('').reverse().join('')
 }
 
-/** Contains the possible chars for the first and subsequent characters in an identifier. */
-export class IdentifierRule {
+/** Any input to {@link IdRule.resolve}. */
+export type IdRuleResolvable =
+    | IdRule
+    | Member<typeof IdRulePreset>
+    | [string, string]
+
+/** Contains the possiblities for the first and subsequent characters in an identifier. */
+export class IdRule {
     constructor(
         readonly startPool: string,
         readonly partPool: string,
@@ -110,19 +116,27 @@ export class IdentifierRule {
      * - `STRICT`: ["", ""]
      * - `C_LIKE`: [ALPHA + "_", ALPHA + DIGIT + "_"]
      */
-    static resolve(
-        key: IdentifierRule | Member<typeof IdentifierRulePreset>,
-    ): IdentifierRule {
-        return typeof key === 'string' ? IdentifierRulePreset[key] : key
+    static resolve(key: IdRuleResolvable): IdRule {
+        if (key instanceof IdRule) {
+            return key
+        }
+        return typeof key === 'string'
+            ? IdRulePreset[`__${key}`]
+            : new IdRule(key[0], key[1])
     }
 }
 
-class IdentifierRulePreset {
+/**
+ *
+ * Members should not be accessed directly,
+ * but should instead be obtained from {@link Language.resolve}.
+ */
+export class IdRulePreset {
     // https://stackoverflow.com/a/3609335/14178487
     /** Ensures identifiers never occur next to any starting or partial characters. */
-    static STRICT = new IdentifierRule('', '')
+    static __STRICT = new IdRule('', '')
 
-    static C_LIKE = new IdentifierRule(ALPHA + '_', ALPHA + DIGIT + '_')
+    static __C_LIKE = new IdRule(ALPHA + '_', ALPHA + DIGIT + '_')
 }
 
 // =============================================================================================

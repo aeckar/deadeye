@@ -1,10 +1,6 @@
 import { Language } from '../../language_utils'
 import Tape from '../../tape'
-import {
-    getCloseBracket,
-    getOpenBracket,
-    IdentifierRule,
-} from '../../text_utils'
+import { getCloseBracket, getOpenBracket, IdRule } from '../../text_utils'
 
 const STOP = '=,{};'
 const SIGIL = '&*!+-'
@@ -158,10 +154,10 @@ export function consumeRustTarget(tape: Tape): string {
 }
 
 export const rust = Language.newInstance({
-    idRule: new IdentifierRule(
-        IdentifierRule.C_LIKE.startPool,
-        IdentifierRule.C_LIKE.partPool + '#', // `#` for raw identifiers
-    ),
+    idRule: [
+        IdRule.resolve('C_LIKE').startPool,
+        IdRule.resolve('C_LIKE').partPool + '#', // `#` for raw identifiers
+    ],
     keywords: [
         // === Strict Keywords ===
         'as',

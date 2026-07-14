@@ -7,12 +7,7 @@ import { IntervalTree } from './interval_utils'
 import { rangeBefore } from './misc_utils'
 import { Scope, ScopeTree } from './scope_utils'
 import Tape from './tape'
-import {
-    Brackets,
-    IdentifierRule,
-    toMarkdown as md,
-    reverse,
-} from './text_utils'
+import { Brackets, IdRule, toMarkdown as md, reverse } from './text_utils'
 
 // =============================================================================================
 // Utilities & Constants
@@ -141,6 +136,10 @@ export type CompletionResolver<ScopeKind extends string> = (
     ctx: ScopedCompletionContext<ScopeKind>,
 ) => Completion | undefined
 
+/**
+ * Configuration parameter for {@link CompletionFamily}.
+ * @see {@link CompletionFamily.newInstance}
+ */
 export type CompletionFamilyCfg<ScopeKind extends string> = {
     readonly docs: MarkdownString
     readonly minLookbehind: number
@@ -206,14 +205,31 @@ export class CompletionFamily<ScopeKind extends string> {
     }
 }
 
+/**
+ * Configuration parameter for {@link Completion}.
+ * @see {@link Completion.newInstance}
+ */
 export type CompletionCfg = {
-    preview: MarkdownString
-    target: Range
-    snippet: string
-    errors?: Range[]
-    warnings?: Range[]
-    insertAt?: Position
-    endCursorPos?: Position
+    /** @see {@link Completion.preview} */
+    readonly preview: MarkdownString
+
+    /** @see {@link Completion.target} */
+    readonly target: Range
+
+    /** @see {@link Completion.snippet} */
+    readonly snippet: string
+
+    /** @see {@link Completion.errors} */
+    readonly errors?: readonly Range[]
+
+    /** @see {@link Completion.warnings} */
+    readonly warnings?: readonly Range[]
+
+    /** @see {@link Completion.insertAt} */
+    readonly insertAt?: Position
+
+    /** @see {@link Completion.endCursorPos} */
+    readonly endCursorPos?: Position
 }
 
 /** The result of {@link CompletionFamily.resolver}. */
@@ -247,7 +263,7 @@ export class Completion {
          * all parts of the shorthand that are not highlighted as errors, as
          * enforced by the completion resolver.
          */
-        readonly errors?: Range[],
+        readonly errors?: readonly Range[],
 
         /**
          * The ranges in the source file within `target`
@@ -257,7 +273,7 @@ export class Completion {
          * all parts of the shorthand that are not highlighted as errors, as
          * enforced by the completion resolver.
          */
-        readonly warnings?: Range[],
+        readonly warnings?: readonly Range[],
 
         /**
          * If defined, is the position of the snippet to be inserted. Otherwise,
@@ -270,7 +286,7 @@ export class Completion {
     ) {}
 
     static newInstance(cfg: CompletionCfg) {
-        let errors: Range[] | undefined
+        let errors: readonly Range[] | undefined
         if (cfg.errors) {
             const invalid = cfg.errors.filter(e => !cfg.target.contains(e))
             if (invalid.length > 0) {
@@ -316,7 +332,7 @@ export class CompletionContext {
         protected readonly keyIn: string,
         readonly cursor: Position,
         readonly editor: TextEditor,
-        protected readonly identifiers: IdentifierRule,
+        protected readonly identifiers: IdRule,
     ) {
         this.line = Tape.over(
             editor.document.lineAt(cursor.line).text + keyIn,
@@ -524,7 +540,7 @@ export class ScopedCompletionContext<
         keyIn: string,
         cursor: Position,
         editor: TextEditor,
-        identifiers: IdentifierRule,
+        identifiers: IdRule,
         readonly scopes: IntervalTree<Scope<ScopeKind>>,
         readonly scopesAtCursor: readonly Scope<ScopeKind>[], // caller should pre-compute
     ) {
@@ -535,7 +551,7 @@ export class ScopedCompletionContext<
         keyIn: string,
         cursor: Position,
         editor: TextEditor,
-        identifiers: IdentifierRule,
+        identifiers: IdRule,
         resolver: ScopeResolver<ScopeKind>,
     ) {
         const idx = editor.document.offsetAt(cursor)

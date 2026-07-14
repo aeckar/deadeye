@@ -2,9 +2,9 @@
 //!
 //! For general utilities related to text manipulation, refer to `text_utils.ts`.
 import { MAX_TOKEN_SEEK } from './completion_registry_utils'
-import { Member, newMap, sortBy, Span } from './misc_utils'
+import { Member, rebindToMap, sortBy, Span } from './misc_utils'
 import Tape from './tape'
-import { IdentifierRule } from './text_utils'
+import { IdRule, IdRuleResolvable } from './text_utils'
 
 // =============================================================================================
 // Token API
@@ -176,15 +176,23 @@ export class Token extends Span {
 // Language (Lexer) Description API
 // =============================================================================================
 
+/**
+ * Configuration parameter for {@link Language}.
+ * @see {@link Language.newInstance}
+ */
 export type LanguageCfg = {
-    //todo
+    /** Each item supplied becomes a string or pattern token in this language. */
     readonly declare: { readonly [K in string]: string | RegExp }
 
-    //todo
-    // internally care must be taken not to inherit before intializaiton
-    // attempt was made through experimentation to make extracting constatnt static generalized,
-    // too complex--this is best
-    readonly inherit?: (Language | Member<typeof LanguagePreset>)[]
+    /**
+     * Each item supplied becomes a {@link Language} instance,
+     * then inherits all tokens from that instance.
+     *
+     * # Implementation
+     *
+     * Care must be taken not to inherit from language presets before they are initialized.
+     */
+    readonly inherit?: LanguageResolvable[]
 
     /** @see {@link Language.keywords} */
     readonly keywords?: readonly string[]
@@ -193,26 +201,20 @@ export type LanguageCfg = {
     readonly ignore?: RegExp
 
     /** @see {@link Language.idRule} */
-    readonly idRule?: IdentifierRule
+    readonly idRule?: IdRuleResolvable
 }
+
+/** Any input to {@link Language.resolve}. */
+export type LanguageResolvable = Language | Member<typeof LanguagePreset>
 
 /** Specifies a vocabulary of tokens that can be used to tokenize a source file. */
 export class Language {
-    /**
-     * Tokens matching an exact keywordose token names.
-     * This are tested such that they must be a whole word.
-     */
-    readonly keywords: Map<TokenKind, string>
-
-    /**
-     * Used to determine boundaries between keywords and other tokens.
-     *
-     * Defaults to `IdentifierBounds.EXACT`.
-     */
-    readonly idRule: IdentifierRule
-
     private constructor(
-        keywords: readonly string[],
+        /**
+         * Tokens matching an exact keywordose token names.
+         * This are tested such that they must be a whole word.
+         */
+        readonly keywords: Map<TokenKind, string>,
 
         /** Tokens matching exact strings. */
         readonly strings: Map<TokenKind, string>,
@@ -224,15 +226,15 @@ export class Language {
          * If a pattern is assigned to the property `$ignore` determines which characters are ignored
          * before the first token and after each subsequent token (e.g., whitespace).
          */
-        readonly ignore?: RegExp,
+        readonly ignore: RegExp | undefined,
 
-        identifiers?: IdentifierRule,
-    ) {
-        this.keywords = new Map(
-            keywords.map(e => [e.toUpperCase() as TokenKind, e]),
-        )
-        this.idRule = identifiers ?? IdentifierRule.resolve('STRICT')
-    }
+        /**
+         * Used to determine boundaries between keywords and other tokens.
+         *
+         * Defaults to `IdentifierBounds.EXACT`.
+         */
+        readonly idRule: IdRule,
+    ) {}
 
     /**
      * Returns a map of name-capture entries for each token.
@@ -285,19 +287,19 @@ export class Language {
             }
         }
         return new Language(
-            keywords,
-            newMap(
+            new Map(keywords.map(e => [e.toUpperCase() as TokenKind, e])),
+            rebindToMap(
                 strings,
                 sortBy(prop => -prop.value.length), // parse longer tokens first
             ),
-            newMap(patterns),
+            rebindToMap(patterns),
             cfg.ignore,
-            cfg.idRule,
+            IdRule.resolve(cfg.idRule ?? IdRule.resolve('STRICT')),
         )
     }
 
-    static resolve(key: Language | Member<typeof LanguagePreset>): Language {
-        return typeof key === 'string' ? LanguagePreset[key] : key
+    static resolve(key: LanguageResolvable): Language {
+        return typeof key === 'string' ? LanguagePreset[`__${key}`] : key
     }
 
     /**
@@ -390,9 +392,12 @@ export class Language {
 /**
  * Constants must be defined as static variables in this class,
  * since declaration as plain object incurs errors due to recursive reference of `inherit`.
+ *
+ * Members should not be accessed directly,
+ * but should instead be obtained from {@link Language.resolve}.
  */
-class LanguagePreset {
-    static BRACKETS = Language.newInstance({
+export class LanguagePreset {
+    static __BRACKETS = Language.newInstance({
         declare: {
             OPEN_PAREN: '(',
             CLOSE_PAREN: ')',
@@ -404,7 +409,7 @@ class LanguagePreset {
     })
 
     /** Handles ambiguity between slash operator and comments */
-    static C_MATH = Language.newInstance({
+    static __C_MATH = Language.newInstance({
         declare: {
             PLUS: '+',
             MINUS: '-',
@@ -413,7 +418,7 @@ class LanguagePreset {
         },
     })
 
-    static C_MATH_ASSIGN = Language.newInstance({
+    static __C_MATH_ASSIGN = Language.newInstance({
         declare: {
             PLUS_ASSIGN: '+=',
             MINUS_ASSIGN: '-=',
@@ -423,14 +428,14 @@ class LanguagePreset {
         inherit: ['C_MATH'],
     })
 
-    static REM_ASSIGN = Language.newInstance({
+    static __REM_ASSIGN = Language.newInstance({
         declare: {
             REM: '%',
             REM_ASSIGN: '%=',
         },
     })
 
-    static BIT_OPS = Language.newInstance({
+    static __BIT_OPS = Language.newInstance({
         declare: {
             AND: '&',
             OR: '|',
@@ -440,7 +445,7 @@ class LanguagePreset {
         },
     })
 
-    static BIT_OPS_ASSIGN = Language.newInstance({
+    static __BIT_OPS_ASSIGN = Language.newInstance({
         declare: {
             AND_ASSIGN: '&=',
             OR_ASSIGN: '|=',
@@ -451,7 +456,7 @@ class LanguagePreset {
         inherit: ['BIT_OPS'],
     })
 
-    static BOOL_LOGIC = Language.newInstance({
+    static __BOOL_LOGIC = Language.newInstance({
         declare: {
             AND_AND: '&&',
             OR_OR: '||',
@@ -465,14 +470,14 @@ class LanguagePreset {
         },
     })
 
-    static C_COMMENTS = Language.newInstance({
+    static __C_COMMENTS = Language.newInstance({
         declare: {
             LINE_COMMENT: /\/\/.*/y,
             BLOCK_COMMENT: /\/\*[\s\S]*?\*\//y,
         },
     })
 
-    static C_PUNCT = Language.newInstance({
+    static __C_PUNCT = Language.newInstance({
         declare: {
             EQUALS: '=',
             COLON: ':',
@@ -482,13 +487,13 @@ class LanguagePreset {
         },
     })
 
-    static C_ID = Language.newInstance({
+    static __C_ID = Language.newInstance({
         declare: {
             ID: /[a-zA-Z_][a-zA-Z_0-9]*/y,
         },
     })
 
-    static C_CHAR = Language.newInstance({
+    static __C_CHAR = Language.newInstance({
         declare: {
             CHAR: /'\\?.'/y,
         },

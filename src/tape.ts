@@ -4,7 +4,7 @@ import { Position, Range } from 'vscode'
 import { Flag, FlagMatch } from './completion_registry_utils'
 import { propertiesIn } from './misc_utils'
 import {
-    IdentifierRule,
+    IdRule,
     isLetter,
     isLowerLetter,
     isUpperLetter,
@@ -35,7 +35,7 @@ export default class Tape {
         readonly raw: string,
         public pos: number,
         readonly isReversed: boolean,
-        private readonly idRule: IdentifierRule,
+        private readonly idRule: IdRule,
     ) {}
 
     /** The length of the remaining portion of the tape. */
@@ -57,7 +57,7 @@ export default class Tape {
     }
 
     /** Returns a new instance over the original string. */
-    static over(raw: string, pos = 0, idRule = IdentifierRule.resolve('STRICT')) {
+    static over(raw: string, pos = 0, idRule = IdRule.resolve('STRICT')) {
         return new Tape(raw, pos, false, idRule)
     }
 

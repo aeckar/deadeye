@@ -2,8 +2,21 @@
 import { Position, Range } from 'vscode'
 import { Interval } from './interval_utils'
 
-/** Evaluates to a string union of all public member keys. */
-export type Member<T> = Exclude<keyof T, 'prototype'>
+/** Removes a common prefix from a string literal type. */
+type RemovePrefix<
+    Prefix extends string,
+    T extends string,
+> = T extends `${Prefix}${infer Suffix}` ? Suffix : T
+
+/**
+ * Evaluates to a string union of all public member keys.
+ *
+ * Strips "__" from members marked as internal.
+ */
+export type Member<T> = RemovePrefix<
+    '__',
+    Exclude<keyof T, 'prototype'> & string
+>
 
 /**
  * Compares two values.
@@ -153,7 +166,7 @@ export function match<K extends JsKey, V>(
  * As guaranteed by ECMA-262 Section 24.1, the order of map entries is persistent.
  * This enables preemptive sorting of entries using `compareFn`.
  */
-export function newMap<K extends JsKey, V>(
+export function rebindToMap<K extends JsKey, V>(
     o: Record<K, V>,
     ...compareFns: Comparator<Property<K, V>>[]
 ): Map<K, V> {

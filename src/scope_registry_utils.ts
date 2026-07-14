@@ -57,11 +57,22 @@ export class Boundaries {
 }
 
 export type ScopeInfoCfg<ScopeKind extends string> = {
+    /** @see {@link ScopeInfo.boundariesPool} */
     readonly boundariesPool: BoundariesPool
+
+    /** @see {@link ScopeInfo.markerPool} */
     readonly markerPool?: readonly UnknownTokenKind[]
+
+    /** @see {@link ScopeInfo.terminatorPool} */
     readonly terminatorPool?: readonly UnknownTokenKind[]
+
+    /** @see {@link ScopeInfo.flatten} */
     readonly flatten?: boolean
+
+    /** @see {@link ScopeInfo.outerOpenScope} */
     readonly outerOpenScope?: ScopeKind
+
+    /** @see {@link ScopeInfo.outerPrimedScope} */
     readonly outerPrimedScope?: ScopeKind
 }
 
@@ -74,8 +85,18 @@ export type ScopeInfoCfg<ScopeKind extends string> = {
  */
 export class ScopeInfo<ScopeKind extends string> {
     private constructor(
+        /** The scope ID. */
         readonly scopeKind: ScopeKind,
+
+        /**
+         * All possible marker tokens that may be matched
+         * to successfully parse the start of this scope.
+         */
         readonly markerPool: readonly UnknownTokenKind[],
+
+        /**
+         * A
+         */
         readonly boundariesPool: readonly Boundaries[],
         readonly terminatorPool: readonly UnknownTokenKind[],
         readonly flatten: boolean,
@@ -114,7 +135,7 @@ export class ScopeInfo<ScopeKind extends string> {
 }
 
 /**
- * Configuration DSL for {@link ScopeRegistry}.
+ * Configuration parameter for {@link ScopeRegistry}.
  * @see {@link newScopeRegistry}
  */
 export type ScopeRegistryCfg<ScopeKind extends string> = {
