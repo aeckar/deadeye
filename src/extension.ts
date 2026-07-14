@@ -350,15 +350,17 @@ async function applySmartDeletion(editor: TextEditor, direction: Direction) {
 async function applySmartSelectionDeletion(editor: TextEditor) {
     const document = editor.document
     const selection = editor.selection
-    const file = DocumentService.get(document)
+    const docInfo = DocumentService.get(document)
     const selectionBegin = document.offsetAt(selection.start)
     const selectionEnd = document.offsetAt(selection.end)
     let minBegin = selectionBegin
     let maxEnd = selectionEnd
-    let node = file.head
+    let node = docInfo.tokens[Math.max(0, selection.start.line - 1)][0]
+    let foundOverlap = false
     while (!node.isTail) {
         const overlaps = node.begin < selectionEnd && node.end > selectionBegin
         if (overlaps) {
+            foundOverlap = true
             if (node.kind !== 'identifier') {
                 if (node.begin < minBegin) {
                     minBegin = node.begin
@@ -375,6 +377,8 @@ async function applySmartSelectionDeletion(editor: TextEditor) {
                     maxEnd = selectionEnd
                 }
             }
+        } else if (foundOverlap) {
+            break
         }
         node = node.next
     }
@@ -395,10 +399,18 @@ async function applySmartCaretDeletion(
     const document = editor.document
     const selection = editor.selection
     const cursorIdx = document.offsetAt(selection.active)
-    let target = fileMan
+    let target = DocumentService.get(document).tokens[
+        selection.start.line
+    ].find(token => token.includes(cursorIdx))
 
-    while (target && !target.isTail && isWhitespaceToken(target)) {
-        target = direction === 'left' ? target.prev : target.next
+    if (direction === 'left') {
+        while (!target.isHead && isWhitespaceToken(target)) {
+            target = target.prev
+        }
+    } else {
+       while (!target.isTail && isWhitespaceToken(target)) {
+           target = target.next
+       }
     }
 
     if (target && !target.isTail && isKeywordOrSymbol(target)) {

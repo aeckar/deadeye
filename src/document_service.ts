@@ -12,11 +12,14 @@ import { extractScopes, ScopeRegistry } from './scopes'
 import { Scope } from './scopes_base'
 
 /**
- * Organized every token in array form, organized by line.
+ * Contains every token in a file, organized by line as an array.
  *
  * The size of the returned array is equal to the number of lines in the file.
- * The tokens in each line array are ordered by first appearance.
- *
+ * The tokens in each line are ordered by first appearance.
+ * 
+ * Tokens spanning multiple lines are placed in multiple buckets.
+ * For optimized iteration, take some starting token and traverse each adjacent node.
+ * 
  * @see {@link DocumentInfo}
  */
 export type TokenBuckets = readonly (readonly Token[])[]
@@ -35,6 +38,7 @@ export class DocumentInfo<ScopeKind extends string> {
         readonly scopeRegistry: ScopeRegistry<ScopeKind>,
     ) {}
 
+    /** To easily get the head token, use `this.tokens[0][0]`. */
     get tokens(): TokenBuckets {
         if (!this.isTokensDirty && this._tokens) {
             return this._tokens
