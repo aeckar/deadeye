@@ -1,7 +1,7 @@
 //! Algorithms and data structures for tokenizing language-specific input.
 //!
 //! For general utilities related to text manipulation, refer to `text_utils.ts`.
-import { ALPHA, DIGIT, MAX_TOKEN_SEEK } from './completions'
+import { ALPHA, DIGIT } from './completions'
 import { Member, rebindToMap, sortBy, Span } from './misc'
 import Tape from './tape'
 
@@ -116,10 +116,7 @@ export type UnknownTokenKind = string
  * Token streams always contain at least two elements: the head and tail.
  * Only these tokens are allowed to be zero-length.
  *
- * Special tokens:
- * - **Head:** `'<head>' @ 0..0`
- * - **Tail:** `'<tail>' @ -1..-1`
- * - **Unknown:** `'<unknown>' @ {begin}..{end}`
+ * Illegal tokens are assigned a kind of `UNKNOWN` and a tag of -1.
  */
 export class Token extends Span {
     private constructor(
@@ -127,26 +124,8 @@ export class Token extends Span {
         end: number,
         readonly tag: Tag,
         readonly kind: TokenKind,
-        private _prev?: Token,
-        private _next?: Token,
     ) {
         super(begin, end)
-    }
-
-    get prev(): Token {
-        return this._prev!
-    }
-
-    get next(): Token {
-        return this._next!
-    }
-
-    get isHead(): boolean {
-        return this.tag === Token.HEAD_TAG
-    }
-
-    get isTail(): boolean {
-        return this.tag === Token.TAIL_TAG
     }
 
     get isUnknown(): boolean {
@@ -154,181 +133,28 @@ export class Token extends Span {
     }
 
     toString(): string {
-        let kind: string
-        if (this.isHead) {
-            kind = '<head>'
-        } else if (this.isTail) {
-            kind = '<tail>'
-        } else {
-            kind = this.kind!
-        }
-        return `${kind} @ ${this.begin}..${this.end}`
+        return `${this.kind} @ ${this.begin}..${this.end}`
     }
 
-    static readonly HEAD_KIND: TokenKind = '<head>' as TokenKind
-    static readonly TAIL_KIND: TokenKind = '<tail>' as TokenKind
-    static readonly UNKNOWN_KIND: TokenKind = '<unknown>' as TokenKind
-    static readonly HEAD_TAG = -1 as Tag
-    static readonly TAIL_TAG = -2 as Tag
-    static readonly UNKNOWN_TAG = -3 as Tag
+    static readonly UNKNOWN_KIND: TokenKind = 'UNKNOWN' as TokenKind
+    static readonly UNKNOWN_TAG = -1 as Tag
 
-    /**
-     * Returns the first token in the token stream.
-     *
-     * The {@link kind} of the root token is always an empty string.
-     *
-     * The returned token should act as an anchor for all trailing tokens.
-     * Once the token stream is complete, this node is popped from the beginning of the list.
-     */
-    static newStream(): Token {
-        const head = new Token(0, 0, Token.HEAD_TAG, Token.HEAD_KIND)
-        head.appendTail()
-        return head
-    }
-
-    private appendTail() {
-        this._next = new Token(-1, -1, Token.TAIL_TAG, Token.TAIL_KIND, this)
-    }
-
-    appendUnknown(length: number, start: number): Token {
-        return this.append(Token.UNKNOWN_TAG, Token.UNKNOWN_KIND, length, start)
-    }
-
-    /**
-     * Appends a new token to the stream with the given properties, directly after in the input.
-     * Preserves the original next token.
-     *
-     * If this is a tail node, does nothing and returns this instance.
-     *
-     * @returns The inserted token.
-     */
-    append(
+    static newInstance(
+        begin: number,
+        length: number,
         tag: Tag,
         kind: TokenKind,
-        length: number = kind.length /* works well with EOF */,
-        start: number = this.end,
-    ): Token {
-        if (this.isTail) {
-            return this
-        }
-        const oldNext = this._next
-        const node = new Token(start, start + length, tag, kind, this, oldNext)
-        this._next = node
-        if (oldNext) {
-            oldNext._prev = node
-        }
-        return node
+    ) {
+        return new Token(begin, begin + length, tag, kind)
     }
 
-    /**
-     * Appends the given token stream to this. Preserves the original next token.
-     *
-     * If this is a tail node, does nothing.
-     */
-    appendAll(stream: Token) {
-        if (this.isTail) {
-            return
-        }
-        const oldNext = this._next
-        stream.next._prev = this // unlink head
-        this._next = stream.next
-        while (!stream.isTail) {
-            stream = stream.next
-        }
-        stream = stream.prev
-        stream._next = oldNext // unlink tail
-        if (oldNext) {
-            oldNext._prev = stream
-        }
-    }
-
-    isNotKindNorTail(kind: string): boolean {
-        return this.kind !== kind && !this.isTail
-    }
-
-    /**
-     * Returns the next token if the kind matches and is not `'EOF'`,
-     * or `undefined` if none exists.
-     */
-    consume(kind: string): Token | undefined {
-        if (this.isNotKindNorTail(kind)) {
-            return undefined
-        }
-        return this.next! // safe, since not EOF
-    }
-
-    /**
-     * Returns the next token if the kind matches any and is not `'EOF'`,
-     * or `undefined` if none exists.
-     */
-    consumeEither(...kinds: string[]): Token | undefined {
-        if (this.isTail) {
-            return undefined
-        }
-        for (const kind of kinds) {
-            if (this.kind === kind) {
-                return this.next! // safe, since not EOF
-            }
-        }
-        return undefined
-    }
-
-    /**
-     * Returns the next token matching the kind,
-     * or `undefined` if none is found within the next `n` nodes.
-     *
-     * If `n` is not assigned, it is given the value of {@link MAX_TOKEN_SEEK}.
-     * A value of `null` implies the lack of a limit.
-     */
-    seek(kind: string, n: number | null = MAX_TOKEN_SEEK): Token | undefined {
-        let node: Token = this as Token
-        if (n !== null) {
-            let count = 0
-            while (count < n && node.isNotKindNorTail(kind)) {
-                node = node.next!
-                count += 1
-            }
-            return node.kind === kind ? node : undefined
-        }
-        while (node.isNotKindNorTail(kind)) {
-            node = node.next!
-        }
-        return node.isTail ? undefined : node
-    }
-
-    /** Deletes all nodes after this one, then appends the tail node. */
-    deleteRest() {
-        if (this.isTail) {
-            return
-        }
-        let node = this.next
-        do {
-            // unlink all nodes to free memory
-            node._prev = undefined
-            const next = node.next
-            node._next = undefined
-            node = next
-        } while (node)
-        this.appendTail()
-    }
-
-    /**
-     * Returns an array containing every token in the stream, omitting the head and tail.
-     *
-     * For performance reasons, this function should only be used for debugging.
-     */
-    __all(): Token[] {
-        let node = this as Token
-        while (!node.isHead) {
-            node = node.prev
-        }
-        node = node.next
-        const stream: Token[] = []
-        while (!node.isTail) {
-            stream.push(node)
-            node = node.next
-        }
-        return stream
+    static unknown(begin: number, length: number): Token {
+        return new Token(
+            begin,
+            begin + length,
+            Token.UNKNOWN_TAG,
+            Token.UNKNOWN_KIND,
+        )
     }
 }
 
@@ -412,18 +238,14 @@ export class Language {
             ...[...patterns].map(
                 ([kind, pattern]) => [kind, pattern.tag] as const,
             ),
-            [Token.HEAD_KIND, Token.HEAD_TAG],
-            [Token.TAIL_KIND, Token.TAIL_TAG],
             [Token.UNKNOWN_KIND, Token.UNKNOWN_TAG],
         ])
 
         this.kindsForTags = new Map<Tag, TokenKind>([
-            [Token.HEAD_TAG, Token.HEAD_KIND],
-            [Token.TAIL_TAG, Token.TAIL_KIND],
-            [Token.UNKNOWN_TAG, Token.UNKNOWN_KIND],
             ...[...this.tagsForKinds].map(
                 ([kind, tag]) => [tag, kind] as const,
             ),
+            [Token.UNKNOWN_TAG, Token.UNKNOWN_KIND],
         ])
         this.matchingCloseTags = new Map()
         this.matchingOpenTags = new Map()
@@ -532,17 +354,15 @@ export class Language {
     }
 
     /**
-     * Returns the token stream found within the given source code.
+     * Tokenizes the input, and returns the buffer.
      *
      * If `target` is a string, it is converted to a `Tape` with the `idRule` of the given language.
      */
-    tokenize(target: string | Tape): Token {
+    tokenize(target: string | Tape, buf: Token[] = []): Token[] {
         const tape =
             typeof target === 'string'
                 ? Tape.over(target, 0, this.idRule)
                 : target
-        const root = Token.newStream()
-        let node = root
         this.skip(tape)
         while (!tape.isExhausted()) {
             const start = tape.pos
@@ -553,7 +373,9 @@ export class Language {
                 if (tape.isAtIdentifier(value)) {
                     // Execute check for letter on both ends,
                     // as some keywords contain leading/trailing symbols
-                    node = node.append(tag, kind, value.length, tape.pos)
+                    buf.push(
+                        Token.newInstance(tape.pos, value.length, tag, kind),
+                    )
                     tape.pos += value.length
                     break
                 }
@@ -567,7 +389,9 @@ export class Language {
             for (const [kind, text] of this.strings.entries()) {
                 const { tag, value } = text
                 if (tape.isAt(value)) {
-                    node = node.append(tag, kind, value.length, tape.pos)
+                    buf.push(
+                        Token.newInstance(tape.pos, value.length, tag, kind),
+                    )
                     tape.pos += value.length
                 }
             }
@@ -582,7 +406,14 @@ export class Language {
                 value.lastIndex = tape.pos
                 if (value.test(tape.raw)) {
                     const length = value.lastIndex - tape.pos
-                    node = node.append(tag, kind as TokenKind, length, tape.pos)
+                    buf.push(
+                        Token.newInstance(
+                            tape.pos,
+                            length,
+                            tag,
+                            kind as TokenKind,
+                        ),
+                    )
                     tape.pos += length
                     break
                 }
@@ -597,11 +428,13 @@ export class Language {
                 const { tag, value } = resolver
                 const match = value(tape)
                 if (match.length !== 0) {
-                    node = node.append(
-                        tag,
-                        kind as TokenKind,
-                        match.length,
-                        tape.pos,
+                    buf.push(
+                        Token.newInstance(
+                            tape.pos,
+                            match.length,
+                            tag,
+                            kind as TokenKind,
+                        ),
                     )
                     break
                 }
@@ -623,9 +456,9 @@ export class Language {
                 // Stuck on newline itself; skip it so we always make progress
                 tape.pos += 1
             }
-            node = node.appendUnknown(tape.pos - start, start)
+            buf.push(Token.unknown(start, tape.pos - start))
         }
-        return root
+        return buf
     }
 
     private skip(tape: Tape) {

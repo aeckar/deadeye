@@ -32,27 +32,8 @@ import { ScopeInfo, ScopeStream } from '../scopes'
 import { Scope } from '../scopes_base'
 
 /** Collect all tokens from the stream into a plain array of kind strings. */
-function collectKinds(head: Token): string[] {
-    const kinds: string[] = []
-    let t = head.next // skip the root (kind === undefined)
-    while (!t.isTail) {
-        kinds.push(t.kind as string)
-        t = t.next
-    }
-    return kinds
-}
-
-/** Collect all tokens including their begin/end positions. */
-function collectTokens(
-    head: Token,
-): Array<{ kind: string; begin: number; end: number }> {
-    const tokens: Array<{ kind: string; begin: number; end: number }> = []
-    let t = head.next
-    while (!t.isTail) {
-        tokens.push({ kind: t.kind as string, begin: t.begin, end: t.end })
-        t = t.next
-    }
-    return tokens
+function collectKinds(tokens: readonly Token[]): string[] {
+    return tokens.map(e => e.kind)
 }
 
 suite('Rust Tokenizer', () => {
@@ -139,7 +120,7 @@ suite('Rust Tokenizer', () => {
     // === Literals ===
 
     test('decimal integer literal', () => {
-        const tokens = collectTokens(rustLanguage.tokenize('42'))
+        const tokens = rustLanguage.tokenize('42')
         assert.strictEqual(tokens.length, 1)
         assert.strictEqual(tokens[0].kind, 'INTEGER')
     })
@@ -256,7 +237,7 @@ suite('Rust Tokenizer', () => {
 
     test('token begin/end positions are correct after whitespace skip', () => {
         // "  fn " → FN should start at index 2
-        const tokens = collectTokens(rustLanguage.tokenize('  fn '))
+        const tokens = rustLanguage.tokenize('  fn ')
         assert.strictEqual(tokens[0].kind, 'FN')
         assert.strictEqual(tokens[0].begin, 2)
         assert.strictEqual(tokens[0].end, 4)
@@ -264,7 +245,7 @@ suite('Rust Tokenizer', () => {
 
     test('token positions are contiguous for adjacent tokens', () => {
         // "fn{" — no whitespace, positions must be contiguous
-        const tokens = collectTokens(rustLanguage.tokenize('fn{'))
+        const tokens = rustLanguage.tokenize('fn{')
         assert.strictEqual(tokens[0].begin, 0)
         assert.strictEqual(tokens[0].end, 2)
         assert.strictEqual(tokens[1].begin, 2)

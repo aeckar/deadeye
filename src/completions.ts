@@ -7,9 +7,8 @@ import { md } from './diagnostics'
 import DocumentService, { DocumentInfo } from './document_service'
 import { itemsAt } from './interval_tree'
 import { rangeBefore, reverse } from './misc'
-import { Scope, ScopeSelector } from './scopes_base'
+import { Scope } from './scopes_base'
 import Tape from './tape'
-import { Token } from './languages'
 
 export const MAX_TOKEN_SEEK = 50
 export const MAX_LINE_SEEK = 50
@@ -222,9 +221,6 @@ export type CompletionFamilyCfg<ScopeKind extends string> = {
 
     /** @see {@link CompletionFamily.trigger} */
     readonly trigger: Trigger
-
-    /** @see {@link CompletionFamily.scopeSelectorPool} */
-    readonly scopeSelectorPool?: readonly ScopeSelector<ScopeKind>[]
 }
 
 /**
@@ -262,13 +258,6 @@ export class CompletionFamily<ScopeKind extends string> {
          */
         readonly trigger: Trigger,
 
-        /**
-         * The possible scope trees required for this shorthand to match.
-         *
-         * If assigned an empty array, this shorthand matches in every scope.
-         */
-        readonly scopeSelectorPool: readonly ScopeSelector<ScopeKind>[],
-
         /** The logic used to match this shorthand to a dynamic, context-aware completion. */
         readonly resolver: CompletionResolver<ScopeKind>,
     ) {}
@@ -280,7 +269,6 @@ export class CompletionFamily<ScopeKind extends string> {
             cfg.docs,
             cfg.minLookbehind,
             cfg.trigger,
-            cfg.scopeSelectorPool ?? ([] as const),
             cfg.resolver,
         )
     }
@@ -405,9 +393,12 @@ export class Completion {
  */
 export class CompletionContext<ScopeKind extends string> {
     private _line: Tape
-    readonly scopesAtCursor: readonly Scope<ScopeKind>[]
+
+    /** All scopes found at the cursor, ordered from farthest to nearest. */
+    private readonly scopesAtCursor: readonly Scope<ScopeKind>[]
+
     readonly docInfo: DocumentInfo<ScopeKind>
-    readonly anchor: Token
+    readonly tokenPos: number
 
     constructor(
         document: TextDocument,
@@ -417,17 +408,18 @@ export class CompletionContext<ScopeKind extends string> {
         const idx = document.offsetAt(this.cursor)
         this._line = this.newLineBuffer()
         this.docInfo = DocumentService.get(document)
-        this.scopesAtCursor = itemsAt(
-            this.docInfo.scopes,
-            idx,
-        ) as readonly Scope<ScopeKind>[]
-        this.anchor = this.docInfo.tokens[cursor.line].find(e =>
-            e.includes(idx),
-        )!
+        this.scopesAtCursor = (
+            itemsAt(this.docInfo.scopes, idx) as Scope<ScopeKind>[]
+        ).sort((a, b) => a.begin - b.begin)
+        this.tokenPos = this.docInfo.tokens.findIndex(e => e.includes(idx))
     }
 
     get line(): Tape {
         return this._line
+    }
+
+    get nearestScope(): Scope<ScopeKind> | undefined {
+        return this.scopesAtCursor.at(-1)
     }
 
     resetLine() {
@@ -452,11 +444,30 @@ export class CompletionContext<ScopeKind extends string> {
         return this._line.after(this.cursor)
     }
 
-    /** Performing a check using this function is faster than declaring a scope selector. */
-    inScope(kind: ScopeKind): boolean {
+    /**
+     * Performing a check using this function is faster than declaring a scope selector.
+     *
+     * Pass an array to check if any pass the test.
+     */
+    inScope(kind: ScopeKind | readonly ScopeKind[]): boolean {
+        if (typeof kind !== 'string') {
+            return kind.some(this.inScope)
+        }
         return (
             this.scopesAtCursor.find(scope => scope.kind === kind) !== undefined
         )
+    }
+
+    /**
+     * Returns true if `kind` is the scope whose starting index is nearest to the cursor.
+     *
+     * Pass an array to check if any pass the test.
+     */
+    isNearestScope(kind: ScopeKind | readonly ScopeKind[]): boolean {
+        if (typeof kind !== 'string') {
+            return kind.some(this.isNearestScope)
+        }
+        return this.scopesAtCursor.at(-1)?.kind === kind
     }
 }
 

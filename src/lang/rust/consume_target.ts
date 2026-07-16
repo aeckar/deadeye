@@ -8,46 +8,44 @@ const SIGIL = ['AND', 'ASTERISK', 'BANG', 'PLUS', 'MINUS'].map(e =>
     rustLanguage.tagForKind(e)!,
 )
 
-function skipBalanced(begin: Token, open: Tag, close: Tag): [Token, number] {
-    let node = begin
+function skipBalanced(
+    tokens: readonly Token[],
+    begin: number,
+    open: Tag,
+    close: Tag,
+): number {
     let depth = 0
-    let length = 0
-    while (!node.isTail) {
-        length += node.length
-        if (node.tag === open) {
+    for (let idx = begin; idx < tokens.length; ++idx) {
+        if (tokens[idx].tag === open) {
             depth += 1
-        } else if (node.tag === close) {
+        } else if (tokens[idx].tag === close) {
             depth -= 1
             if (depth === 0) {
-                break
+                return idx
             }
         }
-        node = node.next
     }
-    return [node, length]
+    return tokens.length - 1
 }
 
 function skipBalancedReverse(
-    begin: Token,
+    tokens: readonly Token[],
+    begin: number,
     open: Tag,
     close: Tag,
-): [Token, number] {
-    let node = begin
+): number {
     let depth = 0
-    let length = 0
-    while (!node.isHead) {
-        length += node.length
-        if (node.tag === close) {
+    for (let idx = begin; idx >= 0; --idx) {
+        if (tokens[idx].tag === close) {
             depth += 1
-        } else if (node.tag === open) {
+        } else if (tokens[idx].tag === open) {
             depth -= 1
             if (depth === 0) {
-                break
+                return idx
             }
         }
-        node = node.prev
     }
-    return [node, length]
+    return 0
 }
 
 /**
@@ -66,53 +64,50 @@ function skipBalancedReverse(
  *
  * @todo Check for edge cases: `->` in fn pointers, lifetimes (`'a`), `impl`/`dyn` bounds
  */
-export function extractRustTarget(docText: string, begin: Token): string {
-    let node = begin.next
-    let length = 0
-    while (!node.isTail) {
-        const tag = node.tag
+export function extractRustTarget(
+    docText: string,
+    tokens: readonly Token[],
+    begin: number,
+): string {
+    let idx = begin
+    for (; idx < tokens.length; ++idx) {
+        const tag = tokens[idx].tag
         if (STOP.includes(tag) || SIGIL.includes(tag)) {
             break
         }
         const close = rustLanguage.matchingCloseTag(tag)
-        if (close !== undefined) {
-            const [next, n] = skipBalanced(node, tag, close)
-            length += n
-            node = next.isTail ? next : next.next
+        if (close) {
+            idx = skipBalanced(tokens, idx, tag, close)
             continue
         }
-        if (rustLanguage.matchingOpenTag(tag) !== undefined) {
+        if (rustLanguage.matchingOpenTag(tag)) {
             // past the end of the target
             break
         }
-        length += node.length
-        node = node.next
     }
-    
-    return docText.slice(begin.end, begin.end + length)
+    return docText.slice(tokens[begin].begin, tokens[idx].begin)
 }
 
-export function extractRustTargetReversed(docText: string, begin: Token): string {
-    let node = begin.prev
-    let length = 0
-    while (!node.isHead) {
-        const tag = node.tag
+export function extractRustTargetReversed(
+    docText: string,
+    tokens: readonly Token[],
+    begin: number,
+): string {
+    let idx = begin
+    for (; idx >= 0; --idx) {
+        const tag = tokens[idx].tag
         if (STOP.includes(tag) || SIGIL.includes(tag)) {
             break
         }
         const open = rustLanguage.matchingOpenTag(tag)
         if (open !== undefined) {
-            const [prev, n] = skipBalancedReverse(node, open, tag)
-            length += n
-            node = prev.isHead ? prev : prev.prev
+            idx = skipBalancedReverse(tokens, idx, open, tag)
             continue
         }
         if (rustLanguage.matchingCloseTag(tag) !== undefined) {
             // past the start of the target
             break
         }
-        length += node.length
-        node = node.prev
     }
-    return docText.slice(begin.begin - length, begin.begin)
+    return docText.slice(tokens[idx].end, tokens[begin].end)
 }

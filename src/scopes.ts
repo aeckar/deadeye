@@ -1,10 +1,10 @@
 //! Scope registry API and utilities.
 //!
 //! Unlike `scope_utils.ts`, contains logic for scope analysis.
-import { IntervalTree, IntervalTreeService, itemsAt } from './interval_tree'
+import { IntervalTree, IntervalTreeService } from './interval_tree'
 import { Language, Tag, Token, UnknownTokenKind } from './languages'
 import { properties } from './misc'
-import { Scope, ScopeSelector } from './scopes_base'
+import { Scope } from './scopes_base'
 
 // =============================================================================================
 // Scope Description API
@@ -42,7 +42,7 @@ export class Boundaries {
             const [open, close] = boundaries
             boundaryMarkers.push(
                 new Boundaries(
-                    lang.tagForKind(open ?? Token.HEAD_KIND),
+                    open ? lang.tagForKind(open) : undefined,
                     lang.tagForKind(close)!,
                 ),
             )
@@ -176,10 +176,10 @@ export function newScopeRegistry<ScopeKind extends string>(
  * checked for a match to a scope marker.
  */
 export function extractScopes<ScopeKind extends string>(
-    begin: Token,
+    tokens: readonly Token[],
     registry: ScopeRegistry<ScopeKind>,
 ): IntervalTree<Scope<ScopeKind>> {
-    const stream = new ScopeStream<ScopeKind>(begin)
+    const stream = new ScopeStream<ScopeKind>(tokens)
     while (!stream.isExhausted()) {
         for (const query of registry.values()) {
             if (stream.parse(query)) break
@@ -200,6 +200,7 @@ export class UnclosedScope<ScopeKind extends string> {
     private constructor(
         readonly kind: ScopeKind,
         readonly markerPos: number,
+        readonly markerTokenPos: number,
         readonly boundariesPool: readonly Boundaries[],
         readonly terminatorPool: readonly Tag[],
         readonly flatten: boolean,
@@ -208,11 +209,13 @@ export class UnclosedScope<ScopeKind extends string> {
     static newInstance<ScopeKind extends string>(
         query: ScopeInfo<ScopeKind>,
         marker: Token,
+        markerTokenPos: number,
     ): UnclosedScope<ScopeKind> {
         const { scopeKind, boundariesPool, terminatorPool, flatten } = query
         const scope = new UnclosedScope(
             scopeKind,
             marker.begin,
+            markerTokenPos,
             boundariesPool,
             terminatorPool,
             flatten,
@@ -255,41 +258,64 @@ export class UnclosedScope<ScopeKind extends string> {
 
     close(end: number): Scope<ScopeKind> {
         if (this.begin !== undefined) {
-            return new Scope(this.kind, this.markerPos, this.begin!, end)
+            return new Scope(
+                this.kind,
+                this.markerPos,
+                this.markerTokenPos,
+                this.begin!,
+                end,
+            )
         }
-        return new Scope(this.kind, this.markerPos, this.markerPos, end)
+        return new Scope(
+            this.kind,
+            this.markerPos,
+            this.markerTokenPos,
+            this.markerPos,
+            end,
+        )
     }
 }
 
 //todo
 //Any token or boundary that exists after the cursor cannot possibly affect the scope nesting
 
-/** A cursor over a token stream to extract scope information. */
+/**
+ * A cursor over a token stream to extract scope information.
+ *
+ * Unlike a `Tape`, the position always starts at 0 and can only be incremented.
+ */
 export class ScopeStream<ScopeKind extends string> {
     readonly closed: IntervalTree<Scope<ScopeKind>>
     private readonly unclosed: UnclosedScope<ScopeKind>[]
+    private _pos = 0
 
-    private _cur: Token
-
-    constructor(begin: Token) {
-        this._cur = begin.isHead ? begin.next : begin
+    constructor(readonly tokens: readonly Token[]) {
         this.closed = IntervalTreeService.newInstance<Scope<ScopeKind>>()
         this.unclosed = []
     }
 
     toString(): string {
         const closed = this.closed.items.map(({ key: _, value }) => value)
-        return `[${this._cur}]: [${this.unclosed}] -> [${closed}]`
+        return `[${this.cur()}]: [${this.unclosed}] -> [${closed}]`
+    }
+
+    get pos(): number {
+        return this._pos
     }
 
     /** The token currently being pointed to. */
-    cur(): Token {
-        return this._cur
+    cur(): Token | undefined {
+        return this.isExhausted() ? this.tokens[this._pos] : undefined
+    }
+
+    /** Advances the current position by 1. */
+    adv() {
+        this._pos += 1
     }
 
     /** Returns true if the current token is the tail. */
     isExhausted(): boolean {
-        return this._cur.tag === Token.TAIL_TAG
+        return this._pos >= this.tokens.length
     }
 
     /**
@@ -306,11 +332,13 @@ export class ScopeStream<ScopeKind extends string> {
      * @returns `true` if the scope signature was matched.
      */
     parse(query: ScopeInfo<ScopeKind>): boolean {
+        if (this.isExhausted()) {
+            return false
+        }
         const { markerPool, outerOpenScope, outerPrimedScope } = query
         const { unclosed } = this
-        const cur = this._cur
+        const cur = this.tokens[this.pos]
         if (
-            cur.isHead ||
             !markerPool.includes(cur.tag) ||
             (outerPrimedScope !== undefined &&
                 !unclosed.find(
@@ -323,7 +351,7 @@ export class ScopeStream<ScopeKind extends string> {
         ) {
             return false
         }
-        const scope = UnclosedScope.newInstance(query, cur)
+        const scope = UnclosedScope.newInstance(query, cur, this.pos)
         this.unclosed.push(scope)
         return true
     }
@@ -344,19 +372,12 @@ export class ScopeStream<ScopeKind extends string> {
         do {
             continue
         } while (this._collect())
-        this._cur = this._cur.next
+        this.adv()
     }
 
-    /**
-     * Closes all opened scopes and discards all primed scopes.
-     *
-     * Does nothing if the current token is not the tail.
-     */
+    /**  Closes all opened scopes and discards all primed scopes. */
     finish() {
-        if (!this._cur.isTail) {
-            return
-        }
-        const end = this._cur.prev.end
+        const end = this.tokens[this.pos - 1].end
         for (const scope of this.unclosed) {
             if (scope.isOpen) {
                 const s = scope.close(end)
@@ -368,10 +389,9 @@ export class ScopeStream<ScopeKind extends string> {
 
     /** Returns `true` if any element in `unclosed` was modified. */
     private _collect(): boolean {
-        const start = this._cur
+        const start = this.tokens[this.pos]
         const { unclosed, closed } = this
-        if (start.isHead || unclosed.length === 0) {
-            // if `start.isHead`, then `start.kind === undefined`
+        if (unclosed.length === 0) {
             return false
         }
         const tag = start.tag
@@ -460,75 +480,4 @@ export class ScopeStream<ScopeKind extends string> {
         }
         return modified
     }
-}
-
-// =============================================================================================
-// Scope Verification API
-// =============================================================================================
-
-/** Returns `true` if the scopes at the current index agree with any given scope selector. */
-export function verifyScopes<ScopeKind extends string>(
-    scopeSelectorPool: ScopeSelector<ScopeKind>[],
-    scopes: IntervalTree<Scope<ScopeKind>>,
-    idx: number,
-): boolean {
-    if (scopeSelectorPool.length === 0) {
-        return true
-    }
-    const local = (itemsAt(scopes, idx) as Scope<ScopeKind>[]).sort((a, b) => {
-        // Primary sort: smallest begin index comes first
-        if (a.begin !== b.begin) {
-            return a.begin - b.begin
-        }
-
-        // Secondary sort: if both start at the same index, wider scope is outer one
-        return b.end - a.end
-    })
-    for (const selector of scopeSelectorPool) {
-        if (selector.length === 0) {
-            // top-level scope
-            if (local.length === 0) {
-                return true
-            }
-            continue
-        }
-        let localIdx = 0
-        let selectorIdx = 0
-        while (selectorIdx < selector.length && localIdx < local.length) {
-            const query = selector[selectorIdx]
-            const isWildcard = query.startsWith('...')
-            const kind = isWildcard ? query.slice(3) : query
-            if (isWildcard) {
-                // advance local scope cursor until a match is found
-                while (
-                    localIdx < local.length &&
-                    local[localIdx].kind !== kind
-                ) {
-                    localIdx += 1
-                }
-                if (localIdx < local.length) {
-                    // match found, consume both
-                    selectorIdx += 1
-                    localIdx += 1
-                } else {
-                    // wildcard not found in remaining local scopes
-                    break
-                }
-            } else {
-                // must match the exact next local scope hierarchy level
-                if (local[localIdx].kind === kind) {
-                    selectorIdx += 1
-                    localIdx += 1
-                } else {
-                    // exact match failed for this scope level
-                    break
-                }
-            }
-        }
-        if (selectorIdx === selector.length) {
-            // entire selector path was successfully matched against local scopes
-            return true
-        }
-    }
-    return false
 }

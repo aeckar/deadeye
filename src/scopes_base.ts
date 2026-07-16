@@ -4,28 +4,11 @@
 import { Span } from './misc'
 
 /**
- * A possible configuration of nested scopes.
- *
- * Scope kinds may be prefixed by `...` to indicate any sequence of scopes leading to that one.
- *
- * Nested scopes are not required to be adjacent; they must simply be present in the same order.
- * If not provided as an argument, the completion is matched in all scopes.
- * Passing an empty array is considered to be the top-level scope.
- *
- * @see {@link Scope}
- */
-export type ScopeSelector<ScopeKind extends string> = (
-    ScopeKind | `...${ScopeKind}`
-)[]
-
-/**
  * A member in the scope tree at a particular position in a file.
  *
  * Usage of type parameter `ScopeKind` ensures both:
  * 1. Intellisense recommends a pool of possible scopes
  * 2. Scope language is enforced at compile-time
- *
- * @see {@link ScopeSelector}
  */
 export class Scope<ScopeKind extends string> extends Span {
     constructor(
@@ -36,8 +19,18 @@ export class Scope<ScopeKind extends string> extends Span {
          * The position of the first character of the scope marker
          * (`if`, `fn`, `impl`, `mod`, etc.), which is primarily useful to hot completions
          * that modify the scope signature.
+         * 
+         * @see {@link markerTokenPos}
          */
         readonly markerPos: number,
+
+        /**
+         * The index of the marker token in the token stream.
+         * 
+         * @see {@link markerPos}
+         */
+        readonly markerTokenPos: number,
+
         begin: number,
         end: number,
     ) {

@@ -10,25 +10,11 @@ import allScopeRegistries from './lang/all_scope_registries'
 import { Language, Token } from './languages'
 import { extractScopes, ScopeRegistry } from './scopes'
 import { Scope } from './scopes_base'
-
-/**
- * Contains every token in a file, organized by line as an array.
- *
- * The size of the returned array is equal to the number of lines in the file.
- * The tokens in each line are ordered by first appearance.
- * 
- * Tokens spanning multiple lines are placed in multiple buckets.
- * For optimized iteration, take some starting token and traverse each adjacent node.
- * 
- * @see {@link DocumentInfo}
- */
-export type TokenBuckets = readonly (readonly Token[])[]
+import Tape from './tape'
 
 /** Contains a cache of useful information for a given text document. */
 export class DocumentInfo<ScopeKind extends string> {
-    private isTokensDirty = false
-    private _head?: Token
-    private _tokens?: TokenBuckets
+    private _tokens?: Token[]
     private _scopes?: IntervalTree<Scope<ScopeKind>>
     private _text?: string
 
@@ -37,34 +23,7 @@ export class DocumentInfo<ScopeKind extends string> {
         readonly language: Language,
         readonly scopeRegistry: ScopeRegistry<ScopeKind>,
     ) {}
-
-    /** To easily get the head token, use `this.tokens[0][0]`. */
-    get tokens(): TokenBuckets {
-        if (!this.isTokensDirty && this._tokens) {
-            return this._tokens
-        }
-        const tokens: Token[][] = []
-        let node = this.head.next
-        while (!node.isTail) {
-            const lineBegin = this.document.lineAt(node.begin).lineNumber
-            const lineEnd = this.document.lineAt(node.end).lineNumber
-            for (let line = lineBegin; line < lineEnd; ++line) {
-                tokens[line].push(node)
-            }
-            node = node.next
-        }
-        this._tokens = tokens
-        return this._tokens
-    }
-
-    /** Returns an interval tree of every found scope in this file. */
-    get scopes(): IntervalTree<Scope<ScopeKind>> {
-        if (!this._scopes) {
-            this._scopes = extractScopes(this.tokens[0][0], this.scopeRegistry)
-        }
-        return this._scopes!
-    }
-
+    
     /** Returns the entire source code as a string */
     get text(): string {
         if (!this._text) {
@@ -73,33 +32,41 @@ export class DocumentInfo<ScopeKind extends string> {
         return this._text!
     }
 
-    private get head(): Token {
-        if (!this._head) {
-            this._head = this.language.tokenize(this.text)
+    /** To easily get the head token, use `this.tokens[0][0]`. */
+    get tokens(): Token[] {
+        if (!this._tokens) {
+            this._tokens = this.language.tokenize(this.text)
         }
-        return this._head!
+        return this._tokens!
     }
 
-    registerChanges(changes: readonly TextDocumentContentChangeEvent[]) {
-        let minEditStart = this.text.length
+    /** Returns an interval tree of every found scope in this file. */
+    get scopes(): IntervalTree<Scope<ScopeKind>> {
+        if (!this._scopes) {
+            this._scopes = extractScopes(this.tokens, this.scopeRegistry)
+        }
+        return this._scopes!
+    }
+
+    retokenize(changes: readonly TextDocumentContentChangeEvent[]) {
+        const text = this.text // resolve
+        let minEditStart = text.length
         for (const change of changes) {
             if (change.rangeOffset < minEditStart) {
                 minEditStart = change.rangeOffset
             }
         }
         let resumeIdx = 0
-        let node = this.head
-        while (!node.isTail) {
-            if (node.end >= minEditStart) {
-                node = node.prev
-                node.deleteRest()
-                resumeIdx = node.end
+        const tokens = this.tokens // resolve
+        for (let idx = 0; idx < tokens.length; ++idx) {
+            if (tokens[idx].end >= minEditStart) {
+                tokens.length = idx
+                resumeIdx = idx
                 break
             }
-            node = node.next
         }
-        node.appendAll(this.language.tokenize(this.text.slice(resumeIdx)))
-        this.isTokensDirty = true
+        const lang = this.language
+        lang.tokenize(Tape.over(text, resumeIdx, lang.idRule), tokens)
     }
 }
 
@@ -119,7 +86,7 @@ export class DocumentService {
                 ) {
                     return
                 }
-                this.get(document).registerChanges(event.contentChanges)
+                this.get(document).retokenize(event.contentChanges)
             }),
         )
 

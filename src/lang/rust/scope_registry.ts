@@ -124,7 +124,7 @@ export const rustScopes = newScopeRegistry<RustScopeKind>(rustLanguage, {
         boundariesPool: [CURLIES],
     },
     assignment: {
-        markerPool: ['EQUALS'],
+        markerPool: ['LET', 'CONST', 'STATIC'],
         boundariesPool: [[null, 'SEMICOLON']],
     },
     typeAnno: {

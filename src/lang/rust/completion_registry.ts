@@ -2,6 +2,7 @@ import {
     Completion,
     MAX_LINE_SEEK,
     newCompletionRegistry,
+    toScreamCase,
     toSnakeCase,
 } from '../../completions'
 import { md } from '../../diagnostics'
@@ -268,34 +269,61 @@ grey squiggly when left of scope marker to show help
 const rustCompletions = newCompletionRegistry<RustScopeKind>(
     {
         docs: md`
-Concatenates identifier chunks and inserts a type annotation.
+            Concatenates identifier chunks and begins a type annotation.
+
+            \`let this my var \` → \` let this_my_var: \`
+
+            **Constraints:**
+
+            - Nearest scope is one of the following
+                - \`fnParams\`, \`closureParams\`, \`struct\`, \`assignment\`
         `,
         minLookbehind: 1,
         trigger: ' ',
         resolver(ctx) {
-            if (!ctx.inScope('fnParams') && !ctx.inScope('closureParams')) {
+            if (!ctx.isNearestScope(['fnParams', 'closureParams', 'struct', 'assignment'])) {
                 return undefined
             }
             const tape = ctx.left().reversed()
             if (!tape.consumeAt(' ')) {
                 return undefined
             }
-            const chunks = tape.consumeChunks(ctx.docInfo.language.idRule.isPart)
+            const { language, tokens } = ctx.docInfo
+            const chunks = tape.consumeChunks(language.idRule.isPart)
             if (chunks.length === 0) {
                 return undefined
             }
-            const id = toSnakeCase(chunks)
 
-            tape.com
+            let id: string
+            const marker = tokens[ctx.nearestScope!.markerTokenPos].tag
+            if (marker === language.tagForKind('CONST') || marker === language.tagForKind('STATIC')) {
+                id = toScreamCase(chunks)
+            } else {
+                id = toSnakeCase(chunks)
+            }
+            return Completion.newInstance({
+                preview: md`Insert \`${id}: \`.`,
+                target: rangeBefore(ctx.cursor, id.length + ' '.length),
+                snippet: id + ': ',
+            })
         },
     },
     {
         docs: md`
-assignment
+            Concatenates identifier chunks and begins an assignment.
+
+            \`let this my var is\` → \`let this_my_var = \`
+
+            **Constraints:**
+
+            - Nearest scope is \`assignment\`
         `,
         minLookbehind: 1,
         trigger: '',
         resolver(ctx) {
+            if (!ctx.isNearestScope('assignment')) {
+                return undefined
+            }
             const tape = ctx.left()
             tape.consumeWs()
             if (!tape.consumeAtIdentifier('let')) {
@@ -326,49 +354,51 @@ assignment
     //         }
     //     },
     // },
-    {
-        // be lax with scoping rules to allow for move to before `fn` while still typing signature
-        docs: md`
-            Adds a modifier to a function.
+    // {
+    //     // be lax with scoping rules to allow for move to before `fn` while still typing signature
+    //     docs: md`
+    //         Adds a modifier to a function.
 
-            \`c/* start here */f\` → \`const /* stop here */fn \`
+    //         \`c/* start here */f\` → \`const /* stop here */fn \`
 
-            Enforces canonical modifier order
-            (\`pub\` → \`const\`/\`async\` → \`unsafe\` → \`extern\`).
+    //         Enforces canonical modifier order
+    //         (\`pub\` → \`const\`/\`async\` → \`unsafe\` → \`extern\`).
 
-            **Errors:**
+    //         **Errors:**
 
-            - \`c\` and \`a\` flags are both passed (\`const async fn\` is not valid Rust)
-        `,
-        trigger: '',
-        minLookbehind: 1,
-        resolver(ctx) {
-            const tape = ctx.left().reversed()
-            if (tape.isExhausted()) {
-                return undefined
-            }
-            const right = ctx.right()
-            if (!right.consumeAt('fn')) {
-                return undefined
-            }
-            const expansion = tape.consumeMatch({
-                p: 'pub',
-                c: 'const',
-                a: 'async',
-                u: 'unsafe',
-                x: 'extern "$0"',
-            })
-            if (!expansion) {
-                return undefined
-            }
-            let [_, kword] = expansion
-            return Completion.newInstance({
-                preview: md`Insert \`${kword} \` before \`fn\`.`,
-                target: rangeBefore(ctx.cursor, 1),
-                snippet: kword + ' ',
-            })
-        },
-    },
+    //         - \`c\` and \`a\` flags are both passed (\`const async fn\` is not valid Rust)
+    //     `,
+    //     trigger: '',
+    //     minLookbehind: 1,
+    //     resolver(ctx) {
+    //         const tape = ctx.left().reversed()
+    //         if (tape.isExhausted()) {
+    //             return undefined
+    //         }
+    //         const right = ctx.right()
+    //         if (!right.consumeAt('fn')) {//fixme
+    //             return undefined
+    //         }
+    //         const expansion = tape.consumeMatch({
+    //             p: 'pub',
+    //             c: 'const',
+    //             a: 'async',
+    //             u: 'unsafe',
+    //             x: 'extern "$0"',
+    //         })
+    //         if (!expansion) {
+    //             return undefined
+    //         }
+            
+    //         let [_, kword] = expansion
+    //         return Completion.newInstance({
+    //             preview: md`Insert \`${kword} \` before \`fn\`.`,
+    //             target: rangeBefore(ctx.cursor, 1),
+    //             snippet: kword + ' ',
+    //             errors: 
+    //         })
+    //     },
+    // },
     // {
     //     docs: md`
     //         Declares a function.
@@ -472,9 +502,12 @@ assignment
     //     },
     {
         docs: md`
-            Declares a local variable.
+            Declares a variable.
 
             \`lm \` → \`let mut \`
+
+            When in the top-level scope, declares a \`static\` variable.
+            Else, declares a variable using \`let\`.
 
             **Basic form:** \`l\`
 
@@ -484,13 +517,15 @@ assignment
 
             **Constraints:**
 
-            - Function scope
+            - Nearest scope is \`fn\` or in top-level scope
             - Only word in line
         `,
         minLookbehind: 'l'.length,
-        scopeSelectorPool: [['fn']],
         trigger: ' ',
         resolver(ctx) {
+            if (!ctx.isNearestScope('fn') && ctx.nearestScope) {
+                return undefined
+            }
             const tape = ctx.left()
             tape.consumeWs()
             if (!tape.consumeAt('l')) {
@@ -510,7 +545,6 @@ assignment
         },
     },
     {
-        //fixme false positive match if doing `if if {}...`, good enough for now
         docs: md`
             Inserts an \`else\` block or \`else if\` block after the enclosing \`if\` statement.
 
@@ -543,15 +577,7 @@ assignment
             if (!includeIf && !tape.isAt('esle')) {
                 return undefined
             }
-            const openPos = ctx.seekOpenBracket('{}')
-            const document = ctx.docInfo.document
-            if (!openPos || findWord(document.lineAt(openPos).text, 'if') === -1) {
-                return undefined
-            }
-            const closePos = ctx.seekCloseBracket('{}')
-            if (!closePos) {
-                return undefined
-            }
+            //todo
             return Completion.newInstance({
                 preview: md`
                     Insert \`else\` block after current \`if\` block, then move there.
@@ -585,9 +611,11 @@ assignment
             - Only word in line
         `,
         minLookbehind: 1,
-        scopeSelectorPool: [[]],
         trigger: ' ',
         resolver(ctx) {
+            if (ctx.nearestScope) {
+                return undefined
+            }
             const tape = ctx.left().reversed()
             const type = tape.consumeMatch({
                 u: 'use',
@@ -634,12 +662,14 @@ assignment
 
             **Constraints:**
 
-            - Function scope
+            - \`fn\` scope
         `,
-        scopeSelectorPool: [['...fn']],
         minLookbehind: '.s'.length,
         trigger: ' ',
         resolver(ctx) {
+            if (!ctx.inScope('fn')) {
+                return undefined
+            }
             const tape = ctx.left().reversed()
             if (!tape.consumeAt('s')) {
                 return undefined
@@ -652,7 +682,8 @@ assignment
             if (!flags || !tape.consumeAt('.')) {
                 return undefined
             }
-            const target = extractRustTargetReversed(ctx.docInfo.text, ctx.anchor.prev)
+            const { text, tokens } =ctx.docInfo
+            const target = extractRustTargetReversed(text, tokens, ctx.tokenPos)
             if (target.length === 0) {
                 return undefined
             }
@@ -687,9 +718,11 @@ Wrap as slice type.
             - Only word in line
         `,
         minLookbehind: 'x'.length,
-        scopeSelectorPool: [[]],
         trigger: '',
         resolver(ctx) {
+            if (ctx.nearestScope) {
+                return undefined
+            }
             const tape = ctx.left()
             tape.consumeWs()
             if (!tape.consumeAt('x') || !tape.isExhausted()) {
@@ -750,15 +783,17 @@ Insert \`#[$0]\`.
 
             **Constraints:**
 
-            - Top-level or \`impl\` scope
+            - Nearest scope is \`impl\`, or in top-level scope
             - Only word in line
 
-            **Forms:** \`mu \`, \`mustuse\`
+            **Variants:** \`mu \`, \`mustuse\`
         `,
         minLookbehind: 'mustuse'.length,
-        scopeSelectorPool: [[], ['...impl']],
         trigger: ' ',
         resolver(ctx) {
+            if (!ctx.isNearestScope('impl') && ctx.nearestScope) {
+                return undefined
+            }
             const tape = ctx.left()
             tape.consumeWs()
             if (
@@ -793,15 +828,17 @@ Insert \`#[must_use]\`.
 
             **Constraints:**
 
-            - Top-level or \`impl\` scope
+            - Nearest scope is \`impl\`, or in top-level scope
             - Only word in line
 
-            **Forms:** \`il \`, \`inline \` 
+            **Variants:** \`il \`, \`inline \` 
         `,
         minLookbehind: 'il'.length,
-        scopeSelectorPool: [[], ['...impl']],
         trigger: ' ',
         resolver(ctx) {
+            if (!ctx.isNearestScope('impl') && ctx.nearestScope) {
+                return undefined
+            }
             const tape = ctx.left()
             tape.consumeWs()
             if (!tape.consumeEither('il', 'inline') || !tape.isExhausted()) {
@@ -824,13 +861,15 @@ Insert \`#[inline]\`
 
             **Constraints:**
 
-            - Function scope
+            - Nearest scope is \`fn\`
             - Only word in line
         `,
         minLookbehind: 'p'.length,
-        scopeSelectorPool: [['...fn']],
         trigger: ' ',
         resolver(ctx) {
+            if (!ctx.isNearestScope('fn')) {
+                return undefined
+            }
             const tape = ctx.left()
             tape.consumeWs()
             if (!tape.consumeAt('p') || !tape.isExhausted()) {
@@ -866,9 +905,11 @@ Inserts \`println!("$0")\`.
             - Inside function parameter bounds \`(\` \`)\`
         `,
         minLookbehind: 'p'.length,
-        scopeSelectorPool: [['...fnParams']],
         trigger: ' ',
         resolver(ctx) {
+            if (!ctx.isNearestScope('fnParams')) {
+                return undefined
+            }
             const tape = ctx.left().reversed()
             if (!tape.consumeAt('p')) {
                 return undefined
