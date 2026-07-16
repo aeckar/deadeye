@@ -1,6 +1,14 @@
-//! Utilities generalizable to most other projects.
+//! Miscellaneous utilities.
 import { Position, Range } from 'vscode'
 import { Interval } from './interval_tree'
+
+/**
+ * An immutable record whose key values are not exhaustive of type `K`.
+ * 
+ * For example, if `K` is a string union, instances of this type do not need to account
+ * for all possible entries.
+ */
+export type RecordSubset<K extends JsKey, V> = { readonly [Key in K]?: V }
 
 /** Left or right. */
 export type Direction = 'left' | 'right'
@@ -119,9 +127,9 @@ export function after(cursor: Position, skip: number = 0): Position {
  *
  * Most often used for indexed iteration.
  */
-export function propertiesIn<K extends number | string | symbol, V>(o: {
-    [T in K]?: V
-}): [number, Property<K, V>][] {
+export function propertiesIn<K extends number | string | symbol, V>(
+    o: RecordSubset<K, V>,
+): [number, Property<K, V>][] {
     // Object.entries returns [string, unknown][], so cast to the expected types
     const entries = Object.entries(o) as unknown as [K, V][]
     return entries.map(

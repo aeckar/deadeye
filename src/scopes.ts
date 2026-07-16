@@ -187,6 +187,7 @@ export function extractScopes<ScopeKind extends string>(
         }
         stream.collect()
     }
+    stream.finish()
     return stream.closed
 }
 
@@ -342,6 +343,25 @@ export class ScopeStream<ScopeKind extends string> {
             continue
         } while (this._collect())
         this._cur = this._cur.next
+    }
+
+    /**
+     * Closes all opened scopes and discards all primed scopes.
+     *
+     * Does nothing if the current token is not the tail.
+     */
+    finish() {
+        if (!this._cur.isTail) {
+            return
+        }
+        const end = this._cur.prev.end
+        for (const scope of this.unclosed) {
+            if (scope.isOpen) {
+                const s = scope.close(end)
+                this.closed.insert(s.interval(), s)
+            }
+        }
+        this.unclosed.length = 0
     }
 
     /** Returns `true` if any element in `unclosed` was modified. */

@@ -300,7 +300,7 @@ export class Token extends Span {
  */
 export type LanguageCfg = {
     /** Each item supplied becomes a string or pattern token in this language. */
-    readonly declare: { readonly [K in string]: string | RegExp }
+    readonly declare: Record<string, string | RegExp>
 
     /**
      * Each item supplied becomes a {@link Language} instance,
@@ -583,7 +583,7 @@ export class LanguagePreset {
         declare: {
             AND_AND: '&&',
             OR_OR: '||',
-            NOT: '!',
+            BANG: '!',
             LESS: '<',
             GREATER: '>',
             EQ_EQ: '==',

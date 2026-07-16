@@ -3,10 +3,9 @@ import {
     MAX_LINE_SEEK,
     newCompletionRegistry,
 } from '../../completions'
+import { md } from '../../diagnostics'
 import { after, rangeBefore } from '../../misc'
 import Tape from '../../tape'
-import { findWord, md, toSnakeCase } from '../../text'
-import { consumeRustTarget, rustLanguage as lang } from './language'
 import { RustScopeKind } from './scope_registry'
 
 // optimizing docs should add proper punctation, capitalization
@@ -159,21 +158,6 @@ const builtins = /str|bool|char|[ui]([8136][624][8]?|size)|f[36][24]/g
 //     );
 // },
 
-//rust
-// ts
-// javaScript
-// c
-// cpp
-// java
-// kotlin
-// dart
-// html
-// css
-// yaml
-// toml
-// json
-// md
-
 // pcrate psuper pself
 // defer (pub in ..)
 
@@ -248,6 +232,7 @@ const builtins = /str|bool|char|[ui]([8136][624][8]?|size)|f[36][24]/g
 // `efn` -> extern fm   // check is modification of valid fn signature
 // gfn -> add <> after fn id
 
+//todo dont use insta completions in impl blocks, allow for intellisense
 /*
 ␣ ;
 
@@ -285,14 +270,14 @@ type annotation
         minLookbehind: 1,
         trigger: ' ',
         resolver(ctx) {
-            if (!ctx.isScopesAtCursor('fnParams')) {
+            if (!ctx.inScope('fnParams')) {
                 return undefined
             }
             const tape = ctx.left().reversed()
             if (!tape.consumeAt(' ')) {
                 return undefined
             }
-            const chunks = tape.consumeChunks(lang.idRule.isPart)
+            const chunks = tape.consumeChunks(ctx.docInfo.language.idRule.isPart)
             if (chunks.length === 0) {
                 return undefined
             }
@@ -314,7 +299,7 @@ assignment
                 return undefined
             }
             tape.consumeWs()
-            const chunks = tape.consumeChunks(lang.idRule.isPart)
+            const chunks = tape.consumeChunks(ctx.docInfo.language.idRule.isPart)
             if (chunks.length === 0 || tape.pop() !== ' ' || !tape.isExhausted()) {
                 return undefined
             }
@@ -611,8 +596,6 @@ assignment
                 return undefined
             }
             let pub = tape.consumeAt('p') ? 'pub ' : ''
-
-            console.log(tape.pos, tape.raw, 1, tape.consumeWs(), 1)
             if (!tape.isExhausted()) {
                 // ensure first in line
                 return undefined
@@ -634,7 +617,7 @@ assignment
         docs: md`
             Wraps the preceding element as a slice type, or a reference to one.
 
-            \`u8.amrs \` → \`&'a mut [u8]\`
+            \`u8.amrs \` → \`&'a mut [u8]\`  
 
             | Flag  | Mnemonic                 | Expansion |
             | :---- | :----------------------- | :-------- |
@@ -666,10 +649,7 @@ assignment
             if (!flags || !tape.consumeAt('.')) {
                 return undefined
             }
-
-            console.log('tape=', tape)
-            const target = consumeRustTarget(tape)
-
+            const target = consumeRustTarget(ctx.anchor)
             if (!target) {
                 return undefined
             }
@@ -705,10 +685,9 @@ Wrap as slice type.
         `,
         minLookbehind: 'x'.length,
         scopeSelectorPool: [[]],
-        trigger: ' ',
+        trigger: '',
         resolver(ctx) {
             const tape = ctx.left()
-            console.log(tape.raw)
             tape.consumeWs()
             if (!tape.consumeAt('x') || !tape.isExhausted()) {
                 return undefined
@@ -726,7 +705,7 @@ Insert \`extern "\${1:C}" \`.
         docs: md`
             Inserts an attribute/proc-macro.
 
-            \`at \` → \`#[/* stop here */]\`
+            \`prm \` → \`#[/* stop here */]\`
 
             **Constraints:**
 
@@ -737,7 +716,7 @@ Insert \`extern "\${1:C}" \`.
         resolver(ctx) {
             const tape = ctx.left().reversed()
             if (
-                !tape.consumeAt('ta') ||
+                !tape.consumeAt('mrp') ||
                 (!tape.isExhausted() && !Tape.isWs(tape.cur() ?? '.'))
             ) {
                 return undefined
@@ -755,7 +734,7 @@ Insert \`#[$0]\`.
         docs: md`
             Inserts a \`#[must_use]\` attribute.
 
-            \`mustuse \` → \`#[must_use]\`
+            \`mu \` → \`#[must_use]\`
 
             This attribute marks a function such that discarding the return value
             causes the compiler to issue a warning. This is useful in library development
@@ -770,6 +749,8 @@ Insert \`#[$0]\`.
 
             - Top-level or \`impl\` scope
             - Only word in line
+
+            **Forms:** \`mu \`, \`mustuse\`
         `,
         minLookbehind: 'mustuse'.length,
         scopeSelectorPool: [[], ['...impl']],
@@ -778,7 +759,7 @@ Insert \`#[$0]\`.
             const tape = ctx.left()
             tape.consumeWs()
             if (
-                !tape.consumeEither('mu', 'mustuse', 'nodiscard') ||
+                !tape.consumeEither('mu', 'mustuse') ||
                 !tape.isExhausted()
             ) {
                 return undefined
@@ -811,6 +792,8 @@ Insert \`#[must_use]\`.
 
             - Top-level or \`impl\` scope
             - Only word in line
+
+            **Forms:** \`il \`, \`inline \` 
         `,
         minLookbehind: 'il'.length,
         scopeSelectorPool: [[], ['...impl']],
@@ -880,6 +863,7 @@ Inserts \`println!("$0")\`.
             - Inside function parameter bounds \`(\` \`)\`
         `,
         minLookbehind: 'p'.length,
+        scopeSelectorPool: [['...fnParams']],
         trigger: ' ',
         resolver(ctx) {
             const tape = ctx.left().reversed()
@@ -916,7 +900,7 @@ Inserts \`println!("$0")\`.
             if (flags.has('s')) {
                 expansion += flags.get('s')
             } else {
-                // Generic parameter placeholder fallback
+                // generic parameter placeholder fallback
                 if (flags.has('v') && !flags.has('r')) {
                     expansion = flags.get('v') + expansion
                 }
@@ -929,23 +913,6 @@ Inserts \`println!("$0")\`.
             })
         },
     },
-
-    // {
-    //     docs: md`
-
-    //     `,
-    //     minLookbehind: ' '.length,
-    //     scope: [['fn']],
-    //     resolver(ctx) {
-
-    //     },
-    // },
 )
 
-/*
-    },  perhaps on \n after auto-{}?
-    {
-
-    },
-*/
 export default rustCompletions

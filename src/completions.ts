@@ -3,12 +3,13 @@
 //! Also provides algorithms and data structures used to parse completion shorthands.
 import { MarkdownString, Position, Range, TextDocument, window } from 'vscode'
 
+import { md } from './diagnostics'
 import DocumentService, { DocumentInfo } from './document_service'
 import { itemsAt } from './interval_tree'
 import { rangeBefore, reverse } from './misc'
 import { Scope, ScopeSelector } from './scopes_base'
 import Tape from './tape'
-import { md } from './text'
+import { Token } from './languages'
 
 export const MAX_TOKEN_SEEK = 50
 export const MAX_LINE_SEEK = 50
@@ -406,18 +407,23 @@ export class CompletionContext<ScopeKind extends string> {
     private _line: Tape
     readonly scopesAtCursor: readonly Scope<ScopeKind>[]
     readonly docInfo: DocumentInfo<ScopeKind>
+    readonly anchor: Token
 
     constructor(
-        document: TextDocument,
+    document: TextDocument,
         protected readonly keyIn: string,
         readonly cursor: Position,
     ) {
+        const idx = document.offsetAt(this.cursor)
         this._line = this.newLineBuffer()
         this.docInfo = DocumentService.get(document)
         this.scopesAtCursor = itemsAt(
             this.docInfo.scopes,
-            document.offsetAt(this.cursor),
+            idx,
         ) as readonly Scope<ScopeKind>[]
+        this.anchor = this.docInfo.tokens[cursor.line].find(e =>
+            e.includes(idx),
+        )!
     }
 
     get line(): Tape {
@@ -447,9 +453,9 @@ export class CompletionContext<ScopeKind extends string> {
     }
 
     /** Performing a check using this function is faster than declaring a scope selector. */
-    isScopesAtCursor(...kinds: ScopeKind[]): boolean {
-        return kinds.some(kind =>
-            this.scopesAtCursor.find(scope => scope.kind === kind),
+    inScope(kind: ScopeKind): boolean {
+        return (
+            this.scopesAtCursor.find(scope => scope.kind === kind) !== undefined
         )
     }
 }

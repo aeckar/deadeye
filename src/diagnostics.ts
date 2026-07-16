@@ -4,19 +4,12 @@
 import dedent from 'dedent-js'
 import { MarkdownString } from 'vscode'
 
-
-
-// =============================================================================================
-// Miscellaneous
-// =============================================================================================
-
-// ` = U+1FEF
-
 /**
  * Returns a Markdown string, which can be used for documentation.
- *
- * This function should be used as a raw string prefix (e.g. `md`text``).
- */
+*
+* This function should be used as a raw string prefix (e.g. `md`text``).
+*/
+// ` = U+1FEF
 export function md(
     s: string | TemplateStringsArray,
     ...values: readonly unknown[]

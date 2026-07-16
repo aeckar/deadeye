@@ -101,7 +101,7 @@ export const rustScopes = newScopeRegistry<RustScopeKind>({
         markerPool: ['OPEN_PAREN'],
         boundariesPool: [[null, 'CLOSE_PAREN']],
         outerPrimedScope: 'fn',
-    }, // todo lambdas use lookbehind
+    },
     impl: {
         boundariesPool: [CURLIES],
     },

@@ -1,9 +1,15 @@
 //! Cursor data structure.
 import { Position, Range } from 'vscode'
 
-import { Flag, FlagMatch } from './completions'
-import { propertiesIn } from './misc'
-import { IdRule, isLetter, isLowerLetter, isUpperLetter, reverse } from './text'
+import {
+    Flag,
+    FlagMatch,
+    isLetter,
+    isLowerLetter,
+    isUpperLetter,
+} from './completions'
+import { propertiesIn, RecordSubset, reverse } from './misc'
+import { IdRule } from './languages'
 
 /**
  * A lightweight cursor over a string for non-linear parsing.
@@ -321,7 +327,7 @@ export default class Tape {
      */
     consumeFlags(
         cursor: Position,
-        flagPool: { [Key in Flag]?: string },
+        flagPool: RecordSubset<Flag, string>,
     ): Map<Flag, FlagMatch> | undefined {
         const expansions: [number, string, Range][] = []
         while (!this.isExhausted()) {
@@ -378,8 +384,7 @@ export default class Tape {
      *
      * @return the pair whose key matched, or `undefined` if none did.
      */
-    consumeMatch(pool: { [Key in string]: string }):
-        [string, string] | undefined {
+    consumeMatch(pool: Record<string, string>): [string, string] | undefined {
         for (const [k, v] of Object.entries(pool)) {
             if (this.isAt(k)) {
                 this.pos += k.length
