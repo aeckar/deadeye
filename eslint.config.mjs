@@ -16,12 +16,16 @@ export default [
             sourceType: 'module',
         },
         rules: {
-            "@typescript-eslint/no-unused-vars": [
-                "error",
-                { 
-                    "argsIgnorePattern": "^(?:_+|_[a-zA-Z0-9]+)$",
-                    "varsIgnorePattern": "^(?:_+|_[a-zA-Z0-9]+)$" 
-                }
+            'no-implicit-coercion': 'off',
+            'no-extra-boolean-cast': 'off',
+            '@typescript-eslint/strict-boolean-expressions': 'off',
+            'no-plusplus': ['error', { allowForLoopAfterthoughts: true }],
+            '@typescript-eslint/no-unused-vars': [
+                'error',
+                {
+                    argsIgnorePattern: '^(?:_+|_[a-zA-Z0-9]+)$',
+                    varsIgnorePattern: '^(?:_+|_[a-zA-Z0-9]+)$',
+                },
             ],
             '@typescript-eslint/naming-convention': [
                 'warn',

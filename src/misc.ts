@@ -4,7 +4,7 @@ import { Interval } from './interval_tree'
 
 /**
  * An immutable record whose key values are not exhaustive of type `K`.
- * 
+ *
  * For example, if `K` is a string union, instances of this type do not need to account
  * for all possible entries.
  */
@@ -42,17 +42,33 @@ export type Member<T> = RemovePrefix<
  */
 export type Comparator<T> = (cur: T, next: T) => number
 
+/** Concatenates all values to a string in the same order they were inserted. */
+export function joinValues<K, V>(map: Map<K, V>): string {
+    return [...map].map(([_, sub]) => sub).join('')
+}
+
 /** A range of indices. */
 export class Span {
     /** The index of the first element. */
-    begin: number
+    readonly begin: number
 
     /** The index of the last element (exclusive). */
-    end: number
+    readonly end: number
+
+    /**
+     * The interval between the indices of the first and last elements (exclusive).
+     *
+     * # Implementation
+     *
+     * This property is implemented as a field instead of a getter to
+     * avoid allocating a new array each time.
+     */
+    readonly interval: Interval
 
     constructor(begin: number, end: number) {
         this.begin = begin
         this.end = end
+        this.interval = [this.begin, this.end]
     }
 
     get length() {
@@ -61,10 +77,6 @@ export class Span {
 
     toString(): string {
         return `${this.begin}..${this.end}`
-    }
-
-    interval(): Interval {
-        return [this.begin, this.end]
     }
 
     includes(idx: number): boolean {

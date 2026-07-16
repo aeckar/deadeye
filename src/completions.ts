@@ -410,7 +410,7 @@ export class CompletionContext<ScopeKind extends string> {
     readonly anchor: Token
 
     constructor(
-    document: TextDocument,
+        document: TextDocument,
         protected readonly keyIn: string,
         readonly cursor: Position,
     ) {

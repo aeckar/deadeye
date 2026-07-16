@@ -51,7 +51,9 @@ export default class Tape {
                 if (pos >= raw.length) {
                     return { value: undefined, done: true }
                 }
-                return { value: raw[++pos], done: false }
+                const cur = pos
+                pos += 1
+                return { value: raw[cur], done: false }
             },
         }
     }
@@ -118,13 +120,13 @@ export default class Tape {
 
     /** Advances the current position by 1 character. */
     adv(): this {
-        ++this.pos
+        this.pos += 1
         return this
     }
 
     /** Decrements the current position by 1 character. */
     dec(): this {
-        --this.pos
+        this.pos -= 1
         return this
     }
 
@@ -152,7 +154,7 @@ export default class Tape {
      */
     pop(): string | undefined {
         const ch = this.raw[this.pos]
-        ++this.pos
+        this.pos += 1
         return ch
     }
 

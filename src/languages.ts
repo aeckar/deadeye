@@ -5,7 +5,9 @@ import { ALPHA, DIGIT, MAX_TOKEN_SEEK } from './completions'
 import { Member, rebindToMap, sortBy, Span } from './misc'
 import Tape from './tape'
 
+// These are stored outside of `Language` for easy access by configurations
 export const CURLIES = ['OPEN_CURLY', 'CLOSE_CURLY'] as const
+export const PARENS = ['OPEN_PAREN', 'CLOSE_PAREN'] as const
 
 // =============================================================================================
 // Identifier Rules
@@ -63,6 +65,28 @@ export class IdRulePreset {
 // Token API
 // =============================================================================================
 
+/** A unique numerical identifier. */
+export type Tag = number & { __brand: 'Tag' }
+
+/** Wraps each object with a tag, according to a counter held by this instance. */
+export class Tagger {
+    private count = 0
+
+    tag<T>(value: T): Tagged<T> {
+        const next = new Tagged(this.count as Tag, value)
+        this.count += 1
+        return next
+    }
+}
+
+/** An object assigned tag. */
+export class Tagged<T> {
+    constructor(
+        readonly tag: Tag,
+        readonly value: T,
+    ) {}
+}
+
 /**
  * An identifier assigned to a token that is unique per language.
  *
@@ -79,6 +103,9 @@ export type TokenKind = string & { __brand: 'TokenName' }
  * Support for propogating {@link TokenKind} types was considered.
  * However, after much experimentation, it was deemed too complex to implement
  * without creating many foot-guns with the type system.
+ *
+ * This type is not branded so users do not need to perform a cast just
+ * to provide these values to a configuration object
  */
 export type UnknownTokenKind = string
 
@@ -90,17 +117,16 @@ export type UnknownTokenKind = string
  * Only these tokens are allowed to be zero-length.
  *
  * Special tokens:
- * - **Head:** undefined @ 0..0
- * - **Tail:** '' @ -1..-1
- *
- * Whether a token is special can be checked easily by using its kind as a condition itself,
- * since special token kinds are falsey.
+ * - **Head:** `'<head>' @ 0..0`
+ * - **Tail:** `'<tail>' @ -1..-1`
+ * - **Unknown:** `'<unknown>' @ {begin}..{end}`
  */
 export class Token extends Span {
     private constructor(
         begin: number,
         end: number,
-        readonly kind?: TokenKind,
+        readonly tag: Tag,
+        readonly kind: TokenKind,
         private _prev?: Token,
         private _next?: Token,
     ) {
@@ -115,6 +141,18 @@ export class Token extends Span {
         return this._next!
     }
 
+    get isHead(): boolean {
+        return this.tag === Token.HEAD_TAG
+    }
+
+    get isTail(): boolean {
+        return this.tag === Token.TAIL_TAG
+    }
+
+    get isUnknown(): boolean {
+        return this.tag === Token.UNKNOWN_TAG
+    }
+
     toString(): string {
         let kind: string
         if (this.isHead) {
@@ -127,6 +165,13 @@ export class Token extends Span {
         return `${kind} @ ${this.begin}..${this.end}`
     }
 
+    static readonly HEAD_KIND: TokenKind = '<head>' as TokenKind
+    static readonly TAIL_KIND: TokenKind = '<tail>' as TokenKind
+    static readonly UNKNOWN_KIND: TokenKind = '<unknown>' as TokenKind
+    static readonly HEAD_TAG = -1 as Tag
+    static readonly TAIL_TAG = -2 as Tag
+    static readonly UNKNOWN_TAG = -3 as Tag
+
     /**
      * Returns the first token in the token stream.
      *
@@ -136,13 +181,17 @@ export class Token extends Span {
      * Once the token stream is complete, this node is popped from the beginning of the list.
      */
     static newStream(): Token {
-        const head = new Token(0, 0)
-        head._next = Token.tail(head)
+        const head = new Token(0, 0, Token.HEAD_TAG, Token.HEAD_KIND)
+        head.appendTail()
         return head
     }
 
-    private static tail(prev: Token) {
-        return new Token(-1, -1, '' as TokenKind, prev)
+    private appendTail() {
+        this._next = new Token(-1, -1, Token.TAIL_TAG, Token.TAIL_KIND, this)
+    }
+
+    appendUnknown(length: number, start: number): Token {
+        return this.append(Token.UNKNOWN_TAG, Token.UNKNOWN_KIND, length, start)
     }
 
     /**
@@ -154,6 +203,7 @@ export class Token extends Span {
      * @returns The inserted token.
      */
     append(
+        tag: Tag,
         kind: TokenKind,
         length: number = kind.length /* works well with EOF */,
         start: number = this.end,
@@ -162,7 +212,7 @@ export class Token extends Span {
             return this
         }
         const oldNext = this._next
-        const node = new Token(start, start + length, kind, this, oldNext)
+        const node = new Token(start, start + length, tag, kind, this, oldNext)
         this._next = node
         if (oldNext) {
             oldNext._prev = node
@@ -194,14 +244,6 @@ export class Token extends Span {
 
     isNotKindNorTail(kind: string): boolean {
         return this.kind !== kind && !this.isTail
-    }
-
-    get isHead(): boolean {
-        return this.kind === undefined
-    }
-
-    get isTail(): boolean {
-        return this.kind === ''
     }
 
     /**
@@ -244,7 +286,7 @@ export class Token extends Span {
             let count = 0
             while (count < n && node.isNotKindNorTail(kind)) {
                 node = node.next!
-                ++count
+                count += 1
             }
             return node.kind === kind ? node : undefined
         }
@@ -267,7 +309,7 @@ export class Token extends Span {
             node._next = undefined
             node = next
         } while (node)
-        this._next = Token.tail(this)
+        this.appendTail()
     }
 
     /**
@@ -294,13 +336,16 @@ export class Token extends Span {
 // Language (Lexer) Description API
 // =============================================================================================
 
+/** Parses tokens manually as a last resort when strings and regexes will not suffice. */
+export type TokenResolver = (tape: Tape) => string
+
 /**
  * Configuration parameter for {@link Language}.
  * @see {@link Language.newInstance}
  */
 export type LanguageCfg = {
     /** Each item supplied becomes a string or pattern token in this language. */
-    readonly declare: Record<string, string | RegExp>
+    readonly declare: Record<string, string | RegExp | TokenResolver>
 
     /**
      * Each item supplied becomes a {@link Language} instance,
@@ -316,10 +361,10 @@ export type LanguageCfg = {
     readonly keywords?: readonly string[]
 
     /** @see {@link Language.ignore} */
-    readonly ignore?: RegExp
+    readonly $ignore?: RegExp
 
     /** @see {@link Language.idRule} */
-    readonly idRule?: IdRuleResolvable
+    readonly $idRule?: IdRuleResolvable
 }
 
 /** Any input to {@link Language.resolve}. */
@@ -327,18 +372,26 @@ export type LanguageResolvable = Language | Member<typeof LanguagePreset>
 
 /** Specifies a vocabulary of tokens that can be used to tokenize a source file. */
 export class Language {
+    private readonly tagsForKinds: Map<TokenKind, Tag>
+    private readonly kindsForTags: Map<Tag, TokenKind>
+    private readonly matchingCloseTags: Map<Tag, Tag>
+    private readonly matchingOpenTags: Map<Tag, Tag>
+
     private constructor(
         /**
          * Tokens matching an exact keywordose token names.
          * This are tested such that they must be a whole word.
          */
-        readonly keywords: Map<TokenKind, string>,
+        private readonly keywords: Map<TokenKind, Tagged<string>>,
 
         /** Tokens matching exact strings. */
-        readonly strings: Map<TokenKind, string>,
+        private readonly strings: Map<TokenKind, Tagged<string>>,
 
         /** Tokens matching regular expressions. */
-        readonly patterns: Map<TokenKind, RegExp>,
+        private readonly patterns: Map<TokenKind, Tagged<RegExp>>,
+
+        /** Tokens matched by manipulating a tape. */
+        private readonly resolvers: Map<TokenKind, Tagged<TokenResolver>>,
 
         /**
          * If a pattern is assigned to the property `$ignore` determines which characters are ignored
@@ -352,7 +405,55 @@ export class Language {
          * Defaults to `IdentifierBounds.EXACT`.
          */
         readonly idRule: IdRule,
-    ) {}
+    ) {
+        this.tagsForKinds = new Map<TokenKind, Tag>([
+            ...[...keywords].map(([kind, kword]) => [kind, kword.tag] as const),
+            ...[...strings].map(([kind, text]) => [kind, text.tag] as const),
+            ...[...patterns].map(
+                ([kind, pattern]) => [kind, pattern.tag] as const,
+            ),
+            [Token.HEAD_KIND, Token.HEAD_TAG],
+            [Token.TAIL_KIND, Token.TAIL_TAG],
+            [Token.UNKNOWN_KIND, Token.UNKNOWN_TAG],
+        ])
+
+        this.kindsForTags = new Map<Tag, TokenKind>([
+            [Token.HEAD_TAG, Token.HEAD_KIND],
+            [Token.TAIL_TAG, Token.TAIL_KIND],
+            [Token.UNKNOWN_TAG, Token.UNKNOWN_KIND],
+            ...[...this.tagsForKinds].map(
+                ([kind, tag]) => [tag, kind] as const,
+            ),
+        ])
+        this.matchingCloseTags = new Map()
+        this.matchingOpenTags = new Map()
+        for (const [kind, tag] of this.tagsForKinds) {
+            if (kind.includes('OPEN')) {
+                const closeKind = kind.replace('OPEN', 'CLOSE') as TokenKind
+                const closeTag = this.tagsForKinds.get(closeKind)
+                if (closeTag !== undefined) {
+                    this.matchingCloseTags.set(tag, closeTag)
+                    this.matchingOpenTags.set(closeTag, tag)
+                }
+            }
+        }
+    }
+
+    tagForKind(kind: UnknownTokenKind): Tag | undefined {
+        return this.tagsForKinds.get(kind as TokenKind)
+    }
+
+    kindForTag(tag: Tag): TokenKind | undefined {
+        return this.kindsForTags.get(tag)
+    }
+
+    matchingOpenTag(close: Tag): Tag | undefined {
+        return this.matchingOpenTags.get(close)
+    }
+
+    matchingCloseTag(open: Tag): Tag | undefined {
+        return this.matchingCloseTags.get(open)
+    }
 
     /**
      * Returns a map of name-capture entries for each token.
@@ -379,40 +480,50 @@ export class Language {
      * `declare` combines both string and pattern tokens to discourage clashing token names.
      */
     static newInstance(cfg: LanguageCfg): Language {
-        const keywords = [...(cfg.keywords ?? [])]
-        const strings: Record<TokenKind, string> = {}
-        const patterns: Record<TokenKind, RegExp> = {}
+        const tagger = new Tagger()
+        const kwords = [...(cfg.keywords ?? [])].map(kword => tagger.tag(kword))
+        const strings: Record<TokenKind, Tagged<string>> = {}
+        const patterns: Record<TokenKind, Tagged<RegExp>> = {}
+        const resolvers: Record<TokenKind, Tagged<TokenResolver>> = {}
         for (const kind in cfg.declare) {
-            if (typeof cfg.declare[kind] === 'string') {
-                strings[kind as TokenKind] = cfg.declare[kind]
+            const tokenKind = kind as TokenKind
+            const matcher = cfg.declare[kind]
+            if (typeof matcher === 'string') {
+                strings[tokenKind] = tagger.tag(matcher)
+            } else if (matcher instanceof RegExp) {
+                patterns[tokenKind] = tagger.tag(matcher)
             } else {
-                patterns[kind as TokenKind] = cfg.declare[kind]
+                resolvers[tokenKind] = tagger.tag(matcher)
             }
         }
         for (const parent of cfg.inherit ?? []) {
             const lang = Language.resolve(parent)
-            for (const [kind, query] of lang.strings.entries()) {
-                strings[kind] = query
+            for (const [kind, text] of lang.strings.entries()) {
+                strings[kind] = tagger.tag(text.value)
             }
 
             // For keywords and patterns, collect from parent as last step to ensure
             // locally defined tokens are parsed first.
-            for (const [kind, query] of lang.patterns.entries()) {
-                patterns[kind] = query
+            for (const [kind, pattern] of lang.patterns.entries()) {
+                patterns[kind] = tagger.tag(pattern.value)
+            }
+            for (const [kind, resolver] of lang.resolvers.entries()) {
+                resolvers[kind] = tagger.tag(resolver.value)
             }
             for (const [_, kword] of lang.keywords) {
-                keywords.push(kword)
+                kwords.push(tagger.tag(kword.value))
             }
         }
         return new Language(
-            new Map(keywords.map(e => [e.toUpperCase() as TokenKind, e])),
+            new Map(kwords.map(e => [e.value.toUpperCase() as TokenKind, e])),
             rebindToMap(
                 strings,
-                sortBy(prop => -prop.value.length), // parse longer tokens first
+                sortBy(prop => -prop.value.value.length), // parse longer tokens first
             ),
             rebindToMap(patterns),
-            cfg.ignore,
-            IdRule.resolve(cfg.idRule ?? IdRule.resolve('STRICT')),
+            rebindToMap(resolvers),
+            cfg.$ignore,
+            IdRule.resolve(cfg.$idRule ?? IdRule.resolve('STRICT')),
         )
     }
 
@@ -437,12 +548,13 @@ export class Language {
             const start = tape.pos
 
             // === 1. Test Keywords ===
-            for (const [name, kword] of this.keywords) {
-                if (tape.isAtIdentifier(kword)) {
+            for (const [kind, kword] of this.keywords) {
+                const { tag, value } = kword
+                if (tape.isAtIdentifier(value)) {
                     // Execute check for letter on both ends,
                     // as some keywords contain leading/trailing symbols
-                    node = node.append(name, kword.length, tape.pos)
-                    tape.pos += kword.length
+                    node = node.append(tag, kind, value.length, tape.pos)
+                    tape.pos += value.length
                     break
                 }
             }
@@ -452,10 +564,11 @@ export class Language {
             }
 
             // === 2. Test Strings ===
-            for (const [name, query] of this.strings.entries()) {
-                if (tape.isAt(query)) {
-                    node = node.append(name, query.length, tape.pos)
-                    tape.pos += query.length
+            for (const [kind, text] of this.strings.entries()) {
+                const { tag, value } = text
+                if (tape.isAt(value)) {
+                    node = node.append(tag, kind, value.length, tape.pos)
+                    tape.pos += value.length
                 }
             }
             if (tape.pos !== start) {
@@ -464,12 +577,32 @@ export class Language {
             }
 
             // === 3. Test Patterns ===
-            for (const [name, query] of this.patterns.entries()) {
-                query.lastIndex = tape.pos
-                if (query.test(tape.raw)) {
-                    const length = query.lastIndex - tape.pos
-                    node = node.append(name as TokenKind, length, tape.pos)
+            for (const [kind, pattern] of this.patterns.entries()) {
+                const { tag, value } = pattern
+                value.lastIndex = tape.pos
+                if (value.test(tape.raw)) {
+                    const length = value.lastIndex - tape.pos
+                    node = node.append(tag, kind as TokenKind, length, tape.pos)
                     tape.pos += length
+                    break
+                }
+            }
+            if (tape.pos !== start) {
+                this.skip(tape)
+                continue
+            }
+
+            // === 4. Test Resolvers ===
+            for (const [kind, resolver] of this.resolvers.entries()) {
+                const { tag, value } = resolver
+                const match = value(tape)
+                if (match.length !== 0) {
+                    node = node.append(
+                        tag,
+                        kind as TokenKind,
+                        match.length,
+                        tape.pos,
+                    )
                     break
                 }
             }
@@ -490,7 +623,7 @@ export class Language {
                 // Stuck on newline itself; skip it so we always make progress
                 tape.pos += 1
             }
-            node = node.append('UNKNOWN' as TokenKind, tape.pos - start, start)
+            node = node.appendUnknown(tape.pos - start, start)
         }
         return root
     }
@@ -584,8 +717,8 @@ export class LanguagePreset {
             AND_AND: '&&',
             OR_OR: '||',
             BANG: '!',
-            LESS: '<',
-            GREATER: '>',
+            OPEN_ANGLE: '<',
+            CLOSE_ANGLE: '>',
             EQ_EQ: '==',
             NOT_EQ: '!=',
             LE: '<=',

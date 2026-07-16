@@ -1,9 +1,11 @@
-import { CURLIES } from '../../languages'
+import { CURLIES, PARENS } from '../../languages'
 import { newScopeRegistry } from '../../scopes'
+import rustLanguage from './language'
 
 export type RustScopeKind =
     | 'struct'
-    | 'fn' // does not apply to short-form closures
+    | 'fn'
+    | 'closure'
     | 'enum'
     | 'trait'
     | 'mod'
@@ -14,6 +16,7 @@ export type RustScopeKind =
     | 'macroArm'
     | 'macroArmParams'
     | 'fnParams'
+    | 'closureParams'
     | 'impl'
     | 'assignment'
     | 'typeAnno'
@@ -50,7 +53,7 @@ export type RustScopeKind =
 
 // struct init is also too complex to parse at scope time, defer to completions
 
-export const rustScopes = newScopeRegistry<RustScopeKind>({
+export const rustScopes = newScopeRegistry<RustScopeKind>(rustLanguage, {
     struct: {
         markerPool: ['STRUCT', 'UNION'],
         boundariesPool: [CURLIES],
@@ -58,6 +61,17 @@ export const rustScopes = newScopeRegistry<RustScopeKind>({
     fn: {
         boundariesPool: [CURLIES],
         terminatorPool: ['SEMICOLON'],
+    },
+    closure: {
+        markerPool: ['CLOSE_CLOSURE_PARAMS'],
+        boundariesPool: [CURLIES],
+        terminatorPool: [
+            'SEMICOLON',
+            'COMMA',
+            'CLOSE_CURLY',
+            'CLOSE_PAREN',
+            'CLOSE_BRAC',
+        ],
     },
     enum: {
         boundariesPool: [CURLIES],
@@ -98,9 +112,13 @@ export const rustScopes = newScopeRegistry<RustScopeKind>({
         outerOpenScope: 'macro',
     },
     fnParams: {
-        markerPool: ['OPEN_PAREN'],
-        boundariesPool: [[null, 'CLOSE_PAREN']],
+        markerPool: ['IDENTIFIER'],
+        boundariesPool: [PARENS],
         outerPrimedScope: 'fn',
+    },
+    closureParams: {
+        markerPool: ['OPEN_CLOSURE_PARAMS'],
+        boundariesPool: [[null, 'CLOSE_CLOSURE_PARAMS']],
     },
     impl: {
         boundariesPool: [CURLIES],
@@ -136,7 +154,7 @@ export const rustScopes = newScopeRegistry<RustScopeKind>({
         markerPool: ['FAT_ARROW'],
         boundariesPool: [CURLIES],
         terminatorPool: ['COMMA'],
-        outerOpenScope: 'match', // todo no way to scope short match arms
+        outerOpenScope: 'match',
     },
 })
 

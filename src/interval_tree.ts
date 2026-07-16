@@ -4,7 +4,7 @@ import type IntervalTreeClass from '@flatten-js/interval-tree' with {
 }
 
 /**
- * A numeric interval.
+ * A numeric interval (exclusive).
  *
  * Can be passed to methods in {@link IntervalTree}.
  *
@@ -15,7 +15,7 @@ import type IntervalTreeClass from '@flatten-js/interval-tree' with {
  *
  * @see {@link ReadOnlyIntervalTree}
  */
-export type Interval = [number, number]
+export type Interval = readonly [number, number]
 
 /**
  * Mutable facade over `IntervalTree` from

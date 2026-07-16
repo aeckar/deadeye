@@ -2,7 +2,7 @@
 //!
 //! Unlike `scope_utils.ts`, contains logic for scope analysis.
 import { IntervalTree, IntervalTreeService, itemsAt } from './interval_tree'
-import { Token, TokenKind, UnknownTokenKind } from './languages'
+import { Language, Tag, Token, UnknownTokenKind } from './languages'
 import { properties } from './misc'
 import { Scope, ScopeSelector } from './scopes_base'
 
@@ -28,31 +28,26 @@ export type BoundariesPool = (readonly [
 export class Boundaries {
     // explicit passing of `undefined` allowable here, since it is also a declaration
     constructor(
-        readonly open: TokenKind | undefined,
-        readonly close: TokenKind,
+        readonly open: Tag | undefined,
+        readonly close: Tag,
     ) {}
 
     toString(): string {
         return `[${this.open}, ${this.close}]`
     }
 
-    static newInstancePool(pool: BoundariesPool): Boundaries[] {
+    static newInstancePool(lang: Language, pool: BoundariesPool): Boundaries[] {
         const boundaryMarkers: Boundaries[] = []
         for (const boundaries of pool) {
             const [open, close] = boundaries
-            boundaryMarkers.push(Boundaries.unchecked(open, close))
+            boundaryMarkers.push(
+                new Boundaries(
+                    lang.tagForKind(open ?? Token.HEAD_KIND),
+                    lang.tagForKind(close)!,
+                ),
+            )
         }
         return boundaryMarkers
-    }
-
-    static unchecked(
-        open: UnknownTokenKind | null,
-        close: UnknownTokenKind,
-    ): Boundaries {
-        return new Boundaries(
-            (open ?? undefined) as TokenKind,
-            close as TokenKind,
-        )
     }
 }
 
@@ -92,19 +87,19 @@ export class ScopeInfo<ScopeKind extends string> {
          * All possible marker tokens that may be matched
          * to successfully parse the start of this scope.
          */
-        readonly markerPool: readonly UnknownTokenKind[],
+        readonly markerPool: readonly Tag[],
 
         /**
          * A
          */
         readonly boundariesPool: readonly Boundaries[],
-        readonly terminatorPool: readonly UnknownTokenKind[],
+        readonly terminatorPool: readonly Tag[],
         readonly flatten: boolean,
         readonly outerOpenScope?: ScopeKind,
         readonly outerPrimedScope?: ScopeKind,
 
         /** Closing token kinds, cached for easy access if open by default. */
-        readonly closeKinds?: readonly TokenKind[],
+        readonly closeKinds?: readonly Tag[],
     ) {}
 
     get isOpenByDefault(): boolean {
@@ -116,16 +111,19 @@ export class ScopeInfo<ScopeKind extends string> {
     }
 
     static newInstance<ScopeKind extends string>(
+        lang: Language,
         scopeKind: ScopeKind,
         cfg: ScopeInfoCfg<ScopeKind>,
     ): ScopeInfo<ScopeKind> {
-        const boundaries = Boundaries.newInstancePool(cfg.boundariesPool)
+        const boundaries = Boundaries.newInstancePool(lang, cfg.boundariesPool)
         const isOpenByDefault = boundaries.find(e => e.open === undefined)
         return new ScopeInfo(
             scopeKind,
-            cfg.markerPool ?? [scopeKind.toUpperCase()],
+            cfg.markerPool?.map(e => lang.tagForKind(e)!) ?? [
+                lang.tagForKind(scopeKind.toUpperCase())!,
+            ],
             boundaries,
-            cfg.terminatorPool ?? [],
+            cfg.terminatorPool?.map(e => lang.tagForKind(e)!) ?? [],
             cfg.flatten ?? false,
             cfg.outerOpenScope,
             cfg.outerPrimedScope,
@@ -157,11 +155,12 @@ export type ScopeRegistry<ScopeKind extends string> = Map<
 > & { __brand: 'CompletionRegistry' }
 
 export function newScopeRegistry<ScopeKind extends string>(
+    lang: Language,
     cfg: ScopeRegistryCfg<ScopeKind>,
 ): ScopeRegistry<ScopeKind> {
     const registry = new Map<ScopeKind, ScopeInfo<ScopeKind>>()
     for (const { key, value } of properties(cfg)) {
-        registry.set(key, ScopeInfo.newInstance(key, value))
+        registry.set(key, ScopeInfo.newInstance(lang, key, value))
     }
     return registry as ScopeRegistry<ScopeKind>
 }
@@ -194,7 +193,7 @@ export function extractScopes<ScopeKind extends string>(
 /** A scope in the `unclosed` stack of {@link ScopeStream} */
 export class UnclosedScope<ScopeKind extends string> {
     private _begin?: number
-    private _expectedClose?: readonly TokenKind[]
+    private _expectedClose?: readonly Tag[]
     private _isOpen: boolean = false
     private _isReopened: boolean = false
 
@@ -202,7 +201,7 @@ export class UnclosedScope<ScopeKind extends string> {
         readonly kind: ScopeKind,
         readonly markerPos: number,
         readonly boundariesPool: readonly Boundaries[],
-        readonly terminatorPool: readonly UnknownTokenKind[],
+        readonly terminatorPool: readonly Tag[],
         readonly flatten: boolean,
     ) {}
 
@@ -228,7 +227,7 @@ export class UnclosedScope<ScopeKind extends string> {
         return this._begin
     }
 
-    get expectedClose(): readonly TokenKind[] | undefined {
+    get expectedClose(): readonly Tag[] | undefined {
         return this._expectedClose
     }
 
@@ -245,7 +244,7 @@ export class UnclosedScope<ScopeKind extends string> {
     }
 
     /** Can be called a second time to declare a scope to be open at a later token. */
-    open(begin: number, expectedClose: readonly TokenKind[]) {
+    open(begin: number, expectedClose: readonly Tag[]) {
         if (this._isOpen) {
             this._isReopened = true
         }
@@ -261,6 +260,9 @@ export class UnclosedScope<ScopeKind extends string> {
         return new Scope(this.kind, this.markerPos, this.markerPos, end)
     }
 }
+
+//todo
+//Any token or boundary that exists after the cursor cannot possibly affect the scope nesting
 
 /** A cursor over a token stream to extract scope information. */
 export class ScopeStream<ScopeKind extends string> {
@@ -287,7 +289,7 @@ export class ScopeStream<ScopeKind extends string> {
 
     /** Returns true if the current token is the tail. */
     isExhausted(): boolean {
-        return this._cur.kind === ''
+        return this._cur.tag === Token.TAIL_TAG
     }
 
     /**
@@ -309,7 +311,7 @@ export class ScopeStream<ScopeKind extends string> {
         const cur = this._cur
         if (
             cur.isHead ||
-            !markerPool.includes(cur.kind!) ||
+            !markerPool.includes(cur.tag) ||
             (outerPrimedScope !== undefined &&
                 !unclosed.find(
                     scope => !scope.isOpen && scope.kind === outerPrimedScope,
@@ -358,7 +360,7 @@ export class ScopeStream<ScopeKind extends string> {
         for (const scope of this.unclosed) {
             if (scope.isOpen) {
                 const s = scope.close(end)
-                this.closed.insert(s.interval(), s)
+                this.closed.insert(s.interval, s)
             }
         }
         this.unclosed.length = 0
@@ -372,13 +374,13 @@ export class ScopeStream<ScopeKind extends string> {
             // if `start.isHead`, then `start.kind === undefined`
             return false
         }
-        const token = start.kind
+        const tag = start.tag
         const top = unclosed.at(-1)!
 
         // Attempt to close top scope by matching to any expected closer
         // Top scope was opened by previous call
         if (top.isOpen) {
-            if (top.expectedClose?.includes(token!)) {
+            if (top.expectedClose?.includes(tag!)) {
                 const s = unclosed.pop()!.close(start.begin)
                 closed.insert([s.begin, s.end], s)
                 while (unclosed.at(-1)?.flatten) {
@@ -400,11 +402,11 @@ export class ScopeStream<ScopeKind extends string> {
             for (const boundaries of scope.boundariesPool) {
                 // Attempt to open scope by matching to opener
                 if (
-                    token === boundaries.open &&
+                    tag === boundaries.open &&
                     (!scope.isOpen || !scope.isReopened)
                 ) {
                     scope.open(start.end, [boundaries.close])
-                    for (--idx; idx >= 0 && unclosed[idx]?.flatten; --idx) {
+                    for (idx -= 1; idx >= 0 && unclosed[idx]?.flatten; --idx) {
                         unclosed[idx].open(start.end, [boundaries.close])
                     }
                     modified = true
@@ -414,14 +416,18 @@ export class ScopeStream<ScopeKind extends string> {
                 // Attempt to close scope by matching to any closer
                 // Scope is always-open or always-primed
                 if (
-                    token === boundaries.close &&
+                    tag === boundaries.close &&
                     (scope.isOpen || boundaries.open === undefined)
                 ) {
                     const s = unclosed.pop()!.close(start.begin)
-                    closed.insert(s.interval(), s)
-                    for (--idx; idx >= 0 && unclosed.at(-1)?.flatten; --idx) {
+                    closed.insert(s.interval, s)
+                    for (
+                        idx -= 1;
+                        idx >= 0 && unclosed.at(-1)?.flatten;
+                        --idx
+                    ) {
                         const fs = unclosed.pop()!.close(start.begin)
-                        closed.insert(fs.interval(), fs)
+                        closed.insert(fs.interval, fs)
                     }
                     discardCount = unclosed.length - idx - 1
                     modified = true
@@ -430,16 +436,16 @@ export class ScopeStream<ScopeKind extends string> {
             }
             if (!modified && !scope.isOpen) {
                 for (const terminator of scope.terminatorPool) {
-                    if (token === terminator) {
+                    if (tag === terminator) {
                         const s = scope.close(start.begin)
-                        closed.insert(s.interval(), s)
+                        closed.insert(s.interval, s)
                         for (
-                            --idx;
+                            idx -= 1;
                             idx >= 0 && unclosed.at(-1)?.flatten;
                             --idx
                         ) {
                             const fs = unclosed.pop()!.close(start.begin)
-                            closed.insert(fs.interval(), fs)
+                            closed.insert(fs.interval, fs)
                         }
                         discardCount = unclosed.length - idx - 1
                         modified = true
@@ -447,7 +453,7 @@ export class ScopeStream<ScopeKind extends string> {
                     }
                 }
             }
-            --idx
+            idx -= 1
         }
         if (discardCount > 0) {
             unclosed.length = unclosed.length - discardCount
@@ -498,12 +504,12 @@ export function verifyScopes<ScopeKind extends string>(
                     localIdx < local.length &&
                     local[localIdx].kind !== kind
                 ) {
-                    localIdx++
+                    localIdx += 1
                 }
                 if (localIdx < local.length) {
                     // match found, consume both
-                    selectorIdx++
-                    localIdx++
+                    selectorIdx += 1
+                    localIdx += 1
                 } else {
                     // wildcard not found in remaining local scopes
                     break
@@ -511,8 +517,8 @@ export function verifyScopes<ScopeKind extends string>(
             } else {
                 // must match the exact next local scope hierarchy level
                 if (local[localIdx].kind === kind) {
-                    selectorIdx++
-                    localIdx++
+                    selectorIdx += 1
+                    localIdx += 1
                 } else {
                     // exact match failed for this scope level
                     break

@@ -2,10 +2,13 @@ import {
     Completion,
     MAX_LINE_SEEK,
     newCompletionRegistry,
+    toSnakeCase,
 } from '../../completions'
 import { md } from '../../diagnostics'
-import { after, rangeBefore } from '../../misc'
+import DocumentService from '../../document_service'
+import { after, joinValues, rangeBefore } from '../../misc'
 import Tape from '../../tape'
+import { extractRustTargetReversed } from './consume_target'
 import { RustScopeKind } from './scope_registry'
 
 // optimizing docs should add proper punctation, capitalization
@@ -265,12 +268,12 @@ grey squiggly when left of scope marker to show help
 const rustCompletions = newCompletionRegistry<RustScopeKind>(
     {
         docs: md`
-type annotation
+Concatenates identifier chunks and inserts a type annotation.
         `,
         minLookbehind: 1,
         trigger: ' ',
         resolver(ctx) {
-            if (!ctx.inScope('fnParams')) {
+            if (!ctx.inScope('fnParams') && !ctx.inScope('closureParams')) {
                 return undefined
             }
             const tape = ctx.left().reversed()
@@ -649,13 +652,13 @@ assignment
             if (!flags || !tape.consumeAt('.')) {
                 return undefined
             }
-            const target = consumeRustTarget(ctx.anchor)
-            if (!target) {
+            const target = extractRustTargetReversed(ctx.docInfo.text, ctx.anchor.prev)
+            if (target.length === 0) {
                 return undefined
             }
-            let pre = [...flags].map(([_, sub]) => sub).join('')
+            let pre = joinValues(flags)
             if (pre && pre[0] !== '&') {
-                // missing `r` flag, but reference modifier --givenassume reference
+                // missing `r` flag, but reference modifier given; assume reference
                 pre = '&' + pre
             }
             return Completion.newInstance({

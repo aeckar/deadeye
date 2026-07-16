@@ -1,4 +1,54 @@
-import { Token } from '../../languages'
+import { Tag, Token } from '../../languages'
+import rustLanguage from './language'
+
+const STOP = ['EQUALS', 'COMMA', 'OPEN_CURLY', 'CLOSE_CURLY', 'SEMICOLON'].map(
+    e => rustLanguage.tagForKind(e)!,
+)
+const SIGIL = ['AND', 'ASTERISK', 'BANG', 'PLUS', 'MINUS'].map(e =>
+    rustLanguage.tagForKind(e)!,
+)
+
+function skipBalanced(begin: Token, open: Tag, close: Tag): [Token, number] {
+    let node = begin
+    let depth = 0
+    let length = 0
+    while (!node.isTail) {
+        length += node.length
+        if (node.tag === open) {
+            depth += 1
+        } else if (node.tag === close) {
+            depth -= 1
+            if (depth === 0) {
+                break
+            }
+        }
+        node = node.next
+    }
+    return [node, length]
+}
+
+function skipBalancedReverse(
+    begin: Token,
+    open: Tag,
+    close: Tag,
+): [Token, number] {
+    let node = begin
+    let depth = 0
+    let length = 0
+    while (!node.isHead) {
+        length += node.length
+        if (node.tag === close) {
+            depth += 1
+        } else if (node.tag === open) {
+            depth -= 1
+            if (depth === 0) {
+                break
+            }
+        }
+        node = node.prev
+    }
+    return [node, length]
+}
 
 /**
  * Consumes a Rust type/path target from the current tape position.
@@ -16,125 +66,53 @@ import { Token } from '../../languages'
  *
  * @todo Check for edge cases: `->` in fn pointers, lifetimes (`'a`), `impl`/`dyn` bounds
  */
-function skipBalanced(tape: Tape, open: string, close: string): string {
-    let depth = 0
-    let chunk = ''
-    while (!tape.isExhausted()) {
-        const ch = tape.next()
-        chunk += ch
-        if (ch === open) {
-            depth++
-        } else if (ch === close) {
-            depth--
-            if (depth === 0) {
-                break
-            }
-        }
-    }
-    if (!tape.isExhausted() && tape.cur() === '.') {
-        chunk += tape.next()
-    }
-    return chunk
-}
-
-const STOP = ['EQUALS', 'COMMA', 'OPEN_CURLY', 'CLOSE_CURLY', 'SEMICOLON']
-const SIGIL = ['AND', 'TIMES', 'BANG', 'PLUS', 'MINUS']
-
-function skipBalancedReverse(tape: Tape, close: string, open: string): string {
-    let depth = 0
-    let chunk = ''
-    while (!tape.isExhausted()) {
-        const ch = tape.next()
-        chunk = ch + chunk
-        if (ch === close) {
-            depth++
-        } else if (ch === open) {
-            depth--
-            if (depth === 0) {
-                break
-            }
-        }
-    }
-    return chunk
-}
-
-export function extractRustTarget(begin: Token): number {
-    let node = begin.isHead ? begin.next : begin
-    let result = ''
+export function extractRustTarget(docText: string, begin: Token): string {
+    let node = begin.next
+    let length = 0
     while (!node.isTail) {
-        const kind = node.kind!
-        if (STOP.includes(kind) || SIGIL.includes(kind)) {
+        const tag = node.tag
+        if (STOP.includes(tag) || SIGIL.includes(tag)) {
             break
         }
-        const close = getCloseBracket(ch)
-        if (close) {
-            result += skipBalanced(tape, ch, close)
+        const close = rustLanguage.matchingCloseTag(tag)
+        if (close !== undefined) {
+            const [next, n] = skipBalanced(node, tag, close)
+            length += n
+            node = next.isTail ? next : next.next
             continue
         }
-        if (getOpenBracket(ch)) {
+        if (rustLanguage.matchingOpenTag(tag) !== undefined) {
+            // past the end of the target
             break
         }
-        if (Tape.isWs(ch)) {
-            const ws = tape.consumeWs()
-            const next = tape.cur()
-            if (next !== ':' && next !== '<') {
-                tape.pos -= ws.length // faster than `putBackWs`
-                break
-            } else if (next === '<') {
-                tape.adv() // skip `<`
-                result += ws + '<'
-            } else {
-                tape.adv() // skip first `:`
-                if (tape.cur() !== ':') {
-                    tape.pos -= ws.length + 1
-                    break
-                }
-                tape.adv() // skip second `:`
-                result += ws + '::'
-            }
-            continue
-        }
-        result += tape.next()
+        length += node.length
+        node = node.next
     }
-    return result
+    
+    return docText.slice(begin.end, begin.end + length)
 }
 
-function consumeReversed(tape: Tape): string {
-    let result = ''
-    while (!tape.isExhausted()) {
-        const ch = tape.cur()!
-        if (STOP.includes(ch) || SIGIL.includes(ch)) {
+export function extractRustTargetReversed(docText: string, begin: Token): string {
+    let node = begin.prev
+    let length = 0
+    while (!node.isHead) {
+        const tag = node.tag
+        if (STOP.includes(tag) || SIGIL.includes(tag)) {
             break
         }
-        const open = getOpenBracket(ch)
-        if (open) {
-            result = skipBalancedReverse(tape, ch, open) + result
+        const open = rustLanguage.matchingOpenTag(tag)
+        if (open !== undefined) {
+            const [prev, n] = skipBalancedReverse(node, open, tag)
+            length += n
+            node = prev.isHead ? prev : prev.prev
             continue
         }
-        if (getCloseBracket(ch)) {
+        if (rustLanguage.matchingCloseTag(tag) !== undefined) {
+            // past the start of the target
             break
         }
-        if (Tape.isWs(ch)) {
-            const ws = tape.consumeWs()
-            const next = tape.cur()
-            if (next !== ':' && next !== '>') {
-                tape.pos -= ws.length // faster than `putBackWs`
-                break
-            } else if (next === '>') {
-                tape.adv() // skip `>`
-                result = '>' + ws + result
-            } else {
-                tape.adv() // skip first `:`
-                if (tape.cur() !== ':') {
-                    tape.pos -= ws.length + 1
-                    break
-                }
-                tape.adv() // skip second `:`
-                result = '::' + ws + result
-            }
-            continue
-        }
-        result = tape.next() + result
+        length += node.length
+        node = node.prev
     }
-    return result
+    return docText.slice(begin.begin - length, begin.begin)
 }
