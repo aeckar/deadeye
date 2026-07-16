@@ -139,7 +139,7 @@ export function after(cursor: Position, skip: number = 0): Position {
  *
  * Most often used for indexed iteration.
  */
-export function propertiesIn<K extends number | string | symbol, V>(
+export function scanIndexed<K extends number | string | symbol, V>(
     o: RecordSubset<K, V>,
 ): [number, Property<K, V>][] {
     // Object.entries returns [string, unknown][], so cast to the expected types
@@ -155,9 +155,7 @@ export function propertiesIn<K extends number | string | symbol, V>(
  *
  * Unlike {@link Object.entries}, encourages type safety and allows for type inference.
  */
-export function properties<K extends JsKey, V>(
-    o: Record<K, V>,
-): Property<K, V>[] {
+export function scan<K extends JsKey, V>(o: Record<K, V>): Property<K, V>[] {
     return (Object.entries(o) as [K, V][]).map(([k, v]) => {
         return new Property(k, v)
     })
@@ -179,7 +177,7 @@ export function match<K extends JsKey, V>(
     query: K,
     pool: Record<K, V>,
 ): Property<K, V> | undefined {
-    for (const prop of properties(pool)) {
+    for (const prop of scan(pool)) {
         if (query === prop.key) {
             return prop
         }
@@ -197,7 +195,7 @@ export function rebindToMap<K extends JsKey, V>(
     o: Record<K, V>,
     sortBy?: Comparator<Property<K, V>>,
 ): Map<K, V> {
-    let props = properties(o)
+    let props = scan(o)
     if (sortBy) {
         props = props.sort(sortBy)
     }

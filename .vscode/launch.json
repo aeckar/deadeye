@@ -10,7 +10,8 @@
             "type": "extensionHost",
             "request": "launch",
             "args": [
-                "--extensionDevelopmentPath=${workspaceFolder}"
+                "--extensionDevelopmentPath=${workspaceFolder}",
+                "--disable-extensions"
             ],
             "outFiles": [
                 "${workspaceFolder}/dist/**/*.js"
@@ -23,7 +24,8 @@
             "request": "launch",
             "args": [
                 "--extensionDevelopmentPath=${workspaceFolder}",
-                "--extensionTestsPath=${workspaceFolder}/out/test"
+                "--extensionTestsPath=${workspaceFolder}/out/test",
+                "--disable-extensions"
             ],
             "outFiles": [
                 "${workspaceFolder}/out/**/*.js"
@@ -32,14 +34,14 @@
             "preLaunchTask": "npm: compile-tests"
         },
         {
-
             "name": "Debug Tests (Mocha)",
             "type": "extensionHost",
             "request": "launch",
             "runtimeExecutable": "${execPath}",
             "args": [
                 "--extensionDevelopmentPath=${workspaceFolder}",
-                "--extensionTestsPath=${workspaceFolder}/out/test"
+                "--extensionTestsPath=${workspaceFolder}/out/test",
+                "--disable-extensions"
             ],
             "outFiles": [
                 "${workspaceFolder}/out/**/*.js"

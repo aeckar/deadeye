@@ -47,12 +47,12 @@ export type ReadOnlyIntervalTree<V> = {
 
     isEmpty(): boolean
     exist(key: Interval, value?: V): boolean
-    search(interval: Interval): readonly V[]
+    search(interval: Interval): V[]
     forEach(visitor: (key: Interval, value: V) => void): void
 }
 
 /** Search for all items at a given index. */
-export function itemsAt<V>(tree: IntervalTree<V>, idx: number): readonly V[] {
+export function itemsAt<V>(tree: IntervalTree<V>, idx: number): V[] {
     return tree.search([idx, idx])
 }
 

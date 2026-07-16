@@ -305,7 +305,7 @@ suite('Rust Scope Stream', () => {
         const stream = new ScopeStream<string>(head)
 
         while (!stream.isExhausted()) {
-            for (const info of rustScopes.values()) {
+            for (const info of rustScopes.entries) {
                 if (stream.parse(info as ScopeInfo<string>)) {
                     break
                 }

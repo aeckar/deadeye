@@ -4,7 +4,7 @@ import {
     TextDocumentContentChangeEvent,
     workspace,
 } from 'vscode'
-import { IntervalTree } from './interval_tree'
+import { IntervalTree, itemsAt } from './interval_tree'
 import allLanguages from './lang/all_languages'
 import allScopeRegistries from './lang/all_scope_registries'
 import { Language, Token } from './languages'
@@ -23,7 +23,7 @@ export class DocumentInfo<ScopeKind extends string> {
         readonly language: Language,
         readonly scopeRegistry: ScopeRegistry<ScopeKind>,
     ) {}
-    
+
     /** Returns the entire source code as a string */
     get text(): string {
         if (!this._text) {
@@ -48,7 +48,7 @@ export class DocumentInfo<ScopeKind extends string> {
         return this._scopes!
     }
 
-    retokenize(changes: readonly TextDocumentContentChangeEvent[]) {
+    registerChanges(changes: readonly TextDocumentContentChangeEvent[]) {
         const text = this.text // resolve
         let minEditStart = text.length
         for (const change of changes) {
@@ -67,10 +67,18 @@ export class DocumentInfo<ScopeKind extends string> {
         }
         const lang = this.language
         lang.tokenize(Tape.over(text, resumeIdx, lang.idRule), tokens)
+        this._text = undefined
+        this._scopes = undefined
+    }
+
+    getBreadcrumbs(offset: number): string[] {
+        const activeScopes = itemsAt(this.scopes, offset)
+        activeScopes.sort((a, b) => a.begin - b.begin)
+        return activeScopes.map(scope => scope.kind)
     }
 }
 
-export class DocumentService {
+export class DocumentInfoService {
     private static files = new Map<string, DocumentInfo<string>>()
 
     private constructor() {}
@@ -86,7 +94,7 @@ export class DocumentService {
                 ) {
                     return
                 }
-                this.get(document).retokenize(event.contentChanges)
+                this.get(document).registerChanges(event.contentChanges)
             }),
         )
 
@@ -122,4 +130,4 @@ export class DocumentService {
     }
 }
 
-export default DocumentService
+export default DocumentInfoService

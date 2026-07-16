@@ -6,7 +6,18 @@
         {
             "type": "npm",
             "script": "watch",
-            "problemMatcher": "$ts-webpack-watch",
+            "problemMatcher": {
+                "owner": "typescript",
+                "pattern": {
+                    "regexp": "^$"
+                },
+                "background": {
+                    // do not ask if we want to wait for pre-launch task `watch`
+                    "activeOnStart": true,
+                    "beginsPattern": "^.*$",
+                    "endsPattern": "^.*$"
+                }
+            },
             "isBackground": true,
             "presentation": {
                 "reveal": "never",
@@ -15,7 +26,7 @@
             "group": {
                 "kind": "build",
                 "isDefault": true
-            }
+            },
         },
         {
             "type": "npm",
@@ -30,7 +41,10 @@
         },
         {
             "label": "tasks: watch-tests",
-            "dependsOn": ["npm: watch", "npm: watch-tests"],
+            "dependsOn": [
+                "npm: watch",
+                "npm: watch-tests"
+            ],
             "problemMatcher": []
         },
         {

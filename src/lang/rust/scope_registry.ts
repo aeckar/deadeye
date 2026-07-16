@@ -1,4 +1,4 @@
-import { CURLIES, PARENS } from '../../languages'
+import { CURLIES } from '../../constants'
 import { newScopeRegistry } from '../../scopes'
 import rustLanguage from './language'
 
@@ -53,7 +53,7 @@ export type RustScopeKind =
 
 // struct init is also too complex to parse at scope time, defer to completions
 
-export const rustScopes = newScopeRegistry<RustScopeKind>(rustLanguage, {
+export const rustScopes = newScopeRegistry<RustScopeKind>(() => rustLanguage, {
     struct: {
         markerPool: ['STRUCT', 'UNION'],
         boundariesPool: [CURLIES],
@@ -112,8 +112,8 @@ export const rustScopes = newScopeRegistry<RustScopeKind>(rustLanguage, {
         outerOpenScope: 'macro',
     },
     fnParams: {
-        markerPool: ['IDENTIFIER'],
-        boundariesPool: [PARENS],
+        markerPool: ['OPEN_PAREN'],
+        boundariesPool: [[null, 'CLOSE_PAREN']],
         outerPrimedScope: 'fn',
     },
     closureParams: {

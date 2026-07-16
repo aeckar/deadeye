@@ -1,13 +1,9 @@
 //! Algorithms and data structures for tokenizing language-specific input.
 //!
 //! For general utilities related to text manipulation, refer to `text_utils.ts`.
-import { ALPHA, DIGIT } from './completions'
-import { Member, rebindToMap, sortBy, Span } from './misc'
+import { ALPHA, DIGIT } from './constants'
+import { Direction, Member, rebindToMap, sortBy, Span } from './misc'
 import Tape from './tape'
-
-// These are stored outside of `Language` for easy access by configurations
-export const CURLIES = ['OPEN_CURLY', 'CLOSE_CURLY'] as const
-export const PARENS = ['OPEN_PAREN', 'CLOSE_PAREN'] as const
 
 // =============================================================================================
 // Identifier Rules
@@ -156,6 +152,69 @@ export class Token extends Span {
             Token.UNKNOWN_KIND,
         )
     }
+}
+
+/**
+ * Returns the index of the closest token for a given cursor offset, resolving whitespace gaps.
+ *
+ * @param tokens Flat array of tokens, strictly sorted by token.begin.
+ * @param offset The active numeric cursor position.
+ * @param bias Directional preference when cursor sits in a whitespace gap or between tokens.
+ */
+export function findNearest(
+    tokens: Token[],
+    offset: number,
+    bias: Direction,
+): number {
+    if (tokens.length === 0) {
+        return -1
+    }
+    let low = 0
+    let high = tokens.length - 1
+
+    // 1. Binary search to find exact overlap or the tightest containing bounds
+    while (low <= high) {
+        const mid = (low + high) >> 1 // fast floor division
+        const token = tokens[mid]
+        if (offset >= token.begin && offset <= token.end) {
+            // cursor is at boundary between tokens
+            if (
+                offset === token.end &&
+                mid < tokens.length - 1 &&
+                tokens[mid + 1].begin === offset
+            ) {
+                return bias === 'left' ? mid : mid + 1
+            }
+            if (
+                offset === token.begin &&
+                mid > 0 &&
+                tokens[mid - 1].end === offset
+            ) {
+                return bias === 'left' ? mid - 1 : mid
+            }
+            return mid // internal hit
+        }
+        if (offset < token.begin) {
+            high = mid - 1
+        } else {
+            low = mid + 1
+        }
+    }
+
+    // 2. Fallback: The cursor is in a whitespace gap between two tokens.
+    // At this point, 'high' points to the token immediately before the gap,
+    // and 'low' points to the token immediately after the gap.
+
+    // Out of bounds checks
+    if (high < 0) {
+        return 0
+    }
+    if (low >= tokens.length) {
+        return tokens.length - 1
+    }
+
+    // Resolve the gap ambiguity using the bias flag
+    return bias === 'left' ? high : low
 }
 
 // =============================================================================================

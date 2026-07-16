@@ -1,13 +1,12 @@
 import {
     Completion,
-    MAX_LINE_SEEK,
     newCompletionRegistry,
     toScreamCase,
     toSnakeCase,
 } from '../../completions'
+import { MAX_LINE_SEEK } from '../../constants'
 import { md } from '../../diagnostics'
-import DocumentService from '../../document_service'
-import { after, joinValues, rangeBefore } from '../../misc'
+import { after, joinValues, rangeBefore, reverse } from '../../misc'
 import Tape from '../../tape'
 import { extractRustTargetReversed } from './consume_target'
 import { RustScopeKind } from './scope_registry'
@@ -20,6 +19,7 @@ import { RustScopeKind } from './scope_registry'
 // language idea: imports with clashing names is ok as long as signature is different
 // language idea over ts/s: unique keys :)
 
+//todo do not format!
 const builtins = /str|bool|char|[ui]([8136][624][8]?|size)|f[36][24]/g
 
 // .inz = is not zero
@@ -269,9 +269,9 @@ grey squiggly when left of scope marker to show help
 const rustCompletions = newCompletionRegistry<RustScopeKind>(
     {
         docs: md`
-            Concatenates identifier chunks and begins a type annotation.
+            Concatenates, formats identifier chunks and begins a type annotation.
 
-            \`let this my var \` → \` let this_my_var: \`
+            \`let this my var \` → \`let this_my_var:\`
 
             **Constraints:**
 
@@ -281,7 +281,14 @@ const rustCompletions = newCompletionRegistry<RustScopeKind>(
         minLookbehind: 1,
         trigger: ' ',
         resolver(ctx) {
-            if (!ctx.isNearestScope(['fnParams', 'closureParams', 'struct', 'assignment'])) {
+            if (
+                !ctx.isNearestScope([
+                    'fnParams',
+                    'closureParams',
+                    'struct',
+                    'assignment',
+                ])
+            ) {
                 return undefined
             }
             const tape = ctx.left().reversed()
@@ -289,14 +296,18 @@ const rustCompletions = newCompletionRegistry<RustScopeKind>(
                 return undefined
             }
             const { language, tokens } = ctx.docInfo
-            const chunks = tape.consumeChunks(language.idRule.isPart)
+            const chunks = tape
+                .consumeChunks(language.idRule.isPart)
+                .map(reverse)
             if (chunks.length === 0) {
                 return undefined
             }
-
             let id: string
             const marker = tokens[ctx.nearestScope!.markerTokenPos].tag
-            if (marker === language.tagForKind('CONST') || marker === language.tagForKind('STATIC')) {
+            if (
+                marker === language.tagForKind('CONST') ||
+                marker === language.tagForKind('STATIC')
+            ) {
                 id = toScreamCase(chunks)
             } else {
                 id = toSnakeCase(chunks)
@@ -310,9 +321,9 @@ const rustCompletions = newCompletionRegistry<RustScopeKind>(
     },
     {
         docs: md`
-            Concatenates identifier chunks and begins an assignment.
+            Concatenates, formats identifier chunks and begins an assignment.
 
-            \`let this my var is\` → \`let this_my_var = \`
+            \`const this my var is\` → \`let THIS_IS_MY_VAR = \`
 
             **Constraints:**
 
@@ -324,17 +335,27 @@ const rustCompletions = newCompletionRegistry<RustScopeKind>(
             if (!ctx.isNearestScope('assignment')) {
                 return undefined
             }
-            const tape = ctx.left()
-            tape.consumeWs()
-            if (!tape.consumeAtIdentifier('let')) {
+            const tape = ctx.left().reversed()
+            const { language, tokens } = ctx.docInfo
+            const chunks = tape
+                .consumeChunks(language.idRule.isPart)
+                .map(reverse)
+            if (chunks.length === 0 || chunks.at(-1)!.toLowerCase() !== 'is') {
                 return undefined
             }
-            tape.consumeWs()
-            const chunks = tape.consumeChunks(ctx.docInfo.language.idRule.isPart)
-            if (chunks.length === 0 || tape.pop() !== ' ' || !tape.isExhausted()) {
-                return undefined
+            chunks.length -= 1 // remove `is`
+            let id: string
+            const marker = tokens[ctx.nearestScope!.markerTokenPos].tag
+            if (marker === language.tagForKind('CONST')) {
+                id = toScreamCase(chunks)
+            } else {
+                id = toSnakeCase(chunks)
             }
-            const 
+            return Completion.newInstance({
+                preview: md`Insert \`${id} = \`.`,
+                target: rangeBefore(ctx.cursor, tape.pos),
+                snippet: id + ' = ',
+            })
         },
     },
     // {
@@ -389,13 +410,13 @@ const rustCompletions = newCompletionRegistry<RustScopeKind>(
     //         if (!expansion) {
     //             return undefined
     //         }
-            
+
     //         let [_, kword] = expansion
     //         return Completion.newInstance({
     //             preview: md`Insert \`${kword} \` before \`fn\`.`,
     //             target: rangeBefore(ctx.cursor, 1),
     //             snippet: kword + ' ',
-    //             errors: 
+    //             errors:
     //         })
     //     },
     // },
@@ -648,7 +669,7 @@ const rustCompletions = newCompletionRegistry<RustScopeKind>(
         docs: md`
             Wraps the preceding element as a slice type, or a reference to one.
 
-            \`u8.amrs \` → \`&'a mut [u8]\`  
+            \`u8.amrs \` → \`&'a mut [u8]\`
 
             | Flag  | Mnemonic                 | Expansion |
             | :---- | :----------------------- | :-------- |
@@ -682,7 +703,7 @@ const rustCompletions = newCompletionRegistry<RustScopeKind>(
             if (!flags || !tape.consumeAt('.')) {
                 return undefined
             }
-            const { text, tokens } =ctx.docInfo
+            const { text, tokens } = ctx.docInfo
             const target = extractRustTargetReversed(text, tokens, ctx.tokenPos)
             if (target.length === 0) {
                 return undefined
@@ -796,10 +817,7 @@ Insert \`#[$0]\`.
             }
             const tape = ctx.left()
             tape.consumeWs()
-            if (
-                !tape.consumeEither('mu', 'mustuse') ||
-                !tape.isExhausted()
-            ) {
+            if (!tape.consumeEither('mu', 'mustuse') || !tape.isExhausted()) {
                 return undefined
             }
             return Completion.newInstance({
@@ -831,7 +849,7 @@ Insert \`#[must_use]\`.
             - Nearest scope is \`impl\`, or in top-level scope
             - Only word in line
 
-            **Variants:** \`il \`, \`inline \` 
+            **Variants:** \`il \`, \`inline \`
         `,
         minLookbehind: 'il'.length,
         trigger: ' ',

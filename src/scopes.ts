@@ -3,7 +3,7 @@
 //! Unlike `scope_utils.ts`, contains logic for scope analysis.
 import { IntervalTree, IntervalTreeService } from './interval_tree'
 import { Language, Tag, Token, UnknownTokenKind } from './languages'
-import { properties } from './misc'
+import { scan } from './misc'
 import { Scope } from './scopes_base'
 
 // =============================================================================================
@@ -38,8 +38,7 @@ export class Boundaries {
 
     static newInstancePool(lang: Language, pool: BoundariesPool): Boundaries[] {
         const boundaryMarkers: Boundaries[] = []
-        for (const boundaries of pool) {
-            const [open, close] = boundaries
+        for (const [open, close] of pool) {
             boundaryMarkers.push(
                 new Boundaries(
                     open ? lang.tagForKind(open) : undefined,
@@ -142,27 +141,40 @@ export type ScopeRegistryCfg<ScopeKind extends string> = {
 
 /**
  * Top-level data structure mapping every unique scope for a given language
- * to its {@link ScopeInfo details}.
- *
- * This type is a branded {@link Map}.
+ * to its details.
  *
  * @see {@link newScopeRegistry}
  * @see {@link extractScopes}
  */
-export type ScopeRegistry<ScopeKind extends string> = Map<
-    ScopeKind,
-    ScopeInfo<ScopeKind>
-> & { __brand: 'CompletionRegistry' }
+export class ScopeRegistry<ScopeKind extends string> {
+    private _entries?: ScopeInfo<ScopeKind>[]
 
+    constructor(
+        private readonly langCallback: () => Language,
+        private readonly cfg: ScopeRegistryCfg<ScopeKind>,
+    ) {}
+
+    get entries(): readonly ScopeInfo<ScopeKind>[] {
+        if (!this._entries) {
+            this._entries = []
+            const lang = this.langCallback()
+            for (const { key, value } of scan(this.cfg)) {
+                this._entries.push(ScopeInfo.newInstance(lang, key, value))
+            }
+        }
+        return this._entries
+    }
+}
+
+/**
+ * The corresponding `Language` is passed as a callback to circumvent JavaScript module loading
+ * order issues.
+ */
 export function newScopeRegistry<ScopeKind extends string>(
-    lang: Language,
+    langCallback: () => Language,
     cfg: ScopeRegistryCfg<ScopeKind>,
 ): ScopeRegistry<ScopeKind> {
-    const registry = new Map<ScopeKind, ScopeInfo<ScopeKind>>()
-    for (const { key, value } of properties(cfg)) {
-        registry.set(key, ScopeInfo.newInstance(lang, key, value))
-    }
-    return registry as ScopeRegistry<ScopeKind>
+    return new ScopeRegistry(langCallback, cfg)
 }
 
 // =============================================================================================
@@ -175,13 +187,14 @@ export function newScopeRegistry<ScopeKind extends string>(
  * `begin` may be the head of a token stream. If it is not, that token is the first one
  * checked for a match to a scope marker.
  */
+//todo implement stop
 export function extractScopes<ScopeKind extends string>(
     tokens: readonly Token[],
     registry: ScopeRegistry<ScopeKind>,
 ): IntervalTree<Scope<ScopeKind>> {
     const stream = new ScopeStream<ScopeKind>(tokens)
     while (!stream.isExhausted()) {
-        for (const query of registry.values()) {
+        for (const query of registry.entries) {
             if (stream.parse(query)) break
         }
         stream.collect()
@@ -275,9 +288,6 @@ export class UnclosedScope<ScopeKind extends string> {
         )
     }
 }
-
-//todo
-//Any token or boundary that exists after the cursor cannot possibly affect the scope nesting
 
 /**
  * A cursor over a token stream to extract scope information.

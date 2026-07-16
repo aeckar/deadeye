@@ -16,6 +16,7 @@ getter properties must be proven to not have side effects
 
 prefer gutter testing, if not go to `testing` tab in vsc
 
+>take readonly arrays (when not modifying a buf), return mutable arrays (when not returning a prop)
 todo: ctrl-arrows to rearrange params, args
 should run locally before linter (support for global refactor + debounce?)
 

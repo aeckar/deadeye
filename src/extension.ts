@@ -213,9 +213,11 @@ import {
     CompletionContext,
     CompletionStrategy,
 } from './completions'
-import DocumentService from './document_service'
+import DocumentInfoService from './document_info_service'
 import allCompletionRegistries from './lang/all_completion_registries'
 import { Direction } from './misc'
+import { IntervalTreeService } from './interval_tree'
+import { Token } from './languages'
 
 let completionStrategy: CompletionStrategy | undefined
 
@@ -240,7 +242,8 @@ function cancelCompletion(editor: TextEditor) {
 
 /** Extension initializer. */
 export function activate(context: ExtensionContext) {
-    DocumentService.start(context)
+    DocumentInfoService.start(context)
+    IntervalTreeService.start()
 
     const cancelCompletionOnSelectionChange =
         window.onDidChangeTextEditorSelection(event => {
@@ -270,7 +273,7 @@ export function activate(context: ExtensionContext) {
             if (!editor) {
                 return
             }
-            const keyIn = (args.text as string).trim() // sometimes preceded by space
+            const keyIn = (args.text as string).replace(/^ +$/g, '') // sometimes preceded by space
             if (!keyIn) {
                 // pressed space
                 if (!completionStrategy) {
@@ -348,39 +351,39 @@ async function applySmartDeletion(editor: TextEditor, direction: Direction) {
 }
 
 async function applySmartSelectionDeletion(editor: TextEditor) {
-    const document = editor.document
-    const selection = editor.selection
-    const docInfo = DocumentService.get(document)
+    const { document, selection } = editor
+    const { tokens } = DocumentInfoService.get(document)
     const selectionBegin = document.offsetAt(selection.start)
     const selectionEnd = document.offsetAt(selection.end)
     let minBegin = selectionBegin
     let maxEnd = selectionEnd
-    let node = docInfo.tokens[Math.max(0, selection.start.line - 1)][0]
+    const begin = tokens.findIndex(e => e.includes(selectionBegin))
     let foundOverlap = false
-    while (!node.isTail) {
-        const overlaps = node.begin < selectionEnd && node.end > selectionBegin
+    for (let idx = begin; idx < tokens.length; ++idx) {
+        const token = tokens[idx]
+        const overlaps =
+            token.begin < selectionEnd && token.end > selectionBegin
         if (overlaps) {
             foundOverlap = true
-            if (node.kind !== 'identifier') {
-                if (node.begin < minBegin) {
-                    minBegin = node.begin
+            if (token.kind !== 'ID') {
+                if (token.begin < minBegin) {
+                    minBegin = token.begin
                 }
-                if (node.end > maxEnd) {
-                    maxEnd = node.end
+                if (token.end > maxEnd) {
+                    maxEnd = token.end
                 }
             } else {
                 // cut through identifier
-                if (node.begin < minBegin) {
+                if (token.begin < minBegin) {
                     minBegin = selectionBegin
                 }
-                if (node.end > maxEnd) {
+                if (token.end > maxEnd) {
                     maxEnd = selectionEnd
                 }
             }
         } else if (foundOverlap) {
             break
         }
-        node = node.next
     }
     editor.edit(editBuilder => {
         editBuilder.delete(
@@ -396,43 +399,82 @@ async function applySmartCaretDeletion(
     editor: TextEditor,
     direction: Direction,
 ) {
-    const document = editor.document
-    const selection = editor.selection
-    const cursorIdx = document.offsetAt(selection.active)
-    let target = DocumentService.get(document).tokens[
-        selection.start.line
-    ].find(token => token.includes(cursorIdx))
-
+    const { document, selection } = editor
+    const active = selection.active
+    const idx = document.offsetAt(active)
+    const { tokens, text } = DocumentInfoService.get(document)
+    const tokenIdx = tokens.findIndex(e => e.includes(idx))
+    let token: Token
     if (direction === 'left') {
-        while (!target.isHead && isWhitespaceToken(target)) {
-            target = target.prev
+        if (tokenIdx === 0) {
+            if (idx === 0) {
+                // left of first token
+                return
+            }
+            token = tokens[tokenIdx]
+        } else {
+            token = tokens[tokenIdx - 1] // cursor precedes character at offset
         }
     } else {
-       while (!target.isTail && isWhitespaceToken(target)) {
-           target = target.next
-       }
+        if (tokenIdx === tokens.length - 1) {
+            if (idx === text.length - 1) {
+                // right of last token
+                return
+            }
+            token = tokens[tokenIdx]
+        } else {
+            token = tokens[tokenIdx + 1]
+        }
     }
-
-    if (target && !target.isTail && isKeywordOrSymbol(target)) {
-        const startPos = document.positionAt(target.start)
-        const endPos = document.positionAt(target.end)
-        const deletionRange = new Range(startPos, endPos)
-
-        editor
-            .edit(editBuilder => {
-                editBuilder.delete(deletionRange)
-            })
-            .then(success => {
-                if (success && direction === 'left') {
-                    const newPos = document.positionAt(target.start)
-                    editor.selection = new Selection(newPos, newPos)
+    if (token.kind === 'ID') {
+        // perform manual text deletion
+        editor.edit(editBuilder => {
+            if (direction === 'left') {
+                if (active.character > 0) {
+                    // delete one character behind the cursor
+                    editBuilder.delete(
+                        new Range(active.translate(0, -1), active),
+                    )
+                } else if (active.line > 0) {
+                    // line wrap delete: join with previous line
+                    const prevLineLength = document.lineAt(active.line - 1).text
+                        .length
+                    const endOfPrevLine = new Position(
+                        active.line - 1,
+                        prevLineLength,
+                    )
+                    editBuilder.delete(new Range(endOfPrevLine, active))
                 }
-            })
-    } else {
-        commands.executeCommand(
-            direction === 'left' ? 'default:deleteLeft' : 'default:deleteRight',
-        )
+            } else {
+                const currentLineLength = document.lineAt(active.line).text
+                    .length
+                if (active.character < currentLineLength) {
+                    // delete one character ahead of the cursor
+                    editBuilder.delete(
+                        new Range(active, active.translate(0, 1)),
+                    )
+                } else if (active.line < document.lineCount - 1) {
+                    // line wrap delete: join with next line
+                    const startOfNextLine = new Position(active.line + 1, 0)
+                    editBuilder.delete(new Range(active, startOfNextLine))
+                }
+            }
+        })
+        return
     }
+    const begin = document.positionAt(token.begin)
+    const end = document.positionAt(token.end)
+    const range = new Range(begin, end)
+    editor
+        .edit(editBuilder => {
+            editBuilder.delete(range)
+        })
+        .then(success => {
+            if (success && direction === 'left') {
+                const newPos = document.positionAt(token.begin)
+                editor.selection = new Selection(newPos, newPos)
+            }
+        })//fixme
 }
 
 /** Runs every line-based completion for the current language. */

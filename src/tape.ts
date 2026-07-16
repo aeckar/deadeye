@@ -8,8 +8,8 @@ import {
     isLowerLetter,
     isUpperLetter,
 } from './completions'
-import { propertiesIn, RecordSubset, reverse } from './misc'
 import { IdRule } from './languages'
+import { RecordSubset, reverse, scanIndexed } from './misc'
 
 /**
  * A lightweight cursor over a string for non-linear parsing.
@@ -297,17 +297,17 @@ export default class Tape {
         isAtTerminator: (self: this) => boolean = () => false,
     ): string[] {
         const chunks: string[] = []
+        let preWsPos = this.pos
         while (!this.isExhausted() && !isAtTerminator(this)) {
             const chunk = this.consume(isChunkPart)
             if (!chunk) {
                 break
             }
             chunks.push(chunk)
+            preWsPos = this.pos
             this.consumeWs()
         }
-        if (chunks.length > 0) {
-            this.putBackWs()
-        }
+        this.pos = preWsPos // faster than `putBackWs`
         return chunks
     }
 
@@ -334,7 +334,7 @@ export default class Tape {
         const expansions: [number, string, Range][] = []
         while (!this.isExhausted()) {
             let found = false
-            for (const [idx, { key: flag, value: expansion }] of propertiesIn(
+            for (const [idx, { key: flag, value: expansion }] of scanIndexed(
                 flagPool,
             )) {
                 if (!this.cur()) {

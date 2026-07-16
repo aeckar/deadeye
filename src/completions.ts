@@ -4,15 +4,14 @@
 import { MarkdownString, Position, Range, TextDocument, window } from 'vscode'
 
 import { md } from './diagnostics'
-import DocumentService, { DocumentInfo } from './document_service'
+import DocumentInfoService, { DocumentInfo } from './document_info_service'
 import { itemsAt } from './interval_tree'
 import { rangeBefore, reverse } from './misc'
 import { Scope } from './scopes_base'
 import Tape from './tape'
+import { findNearest } from './languages'
 
-export const MAX_TOKEN_SEEK = 50
-export const MAX_LINE_SEEK = 50
-export const MAX_CHAR_SEEK = 2500
+
 
 // =============================================================================================
 // Utilities & Constants: Special Characters
@@ -80,10 +79,6 @@ export type Trigger = '' | ' ' | ';' | '.' | 'enter'
 // =============================================================================================
 // Utilities & Constants: Letter Case
 // =============================================================================================
-
-export const ALPHA =
-    'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ' as const
-export const DIGIT = '0123456789' as const
 
 /** Concatenates the strings and applies PascalCase. */
 export function toPascalCase(chunks: string[]): string {
@@ -407,11 +402,11 @@ export class CompletionContext<ScopeKind extends string> {
     ) {
         const idx = document.offsetAt(this.cursor)
         this._line = this.newLineBuffer()
-        this.docInfo = DocumentService.get(document)
+        this.docInfo = DocumentInfoService.get(document)
         this.scopesAtCursor = (
             itemsAt(this.docInfo.scopes, idx) as Scope<ScopeKind>[]
         ).sort((a, b) => a.begin - b.begin)
-        this.tokenPos = this.docInfo.tokens.findIndex(e => e.includes(idx))
+        this.tokenPos = findNearest(this.docInfo.tokens, idx, 'right')
     }
 
     get line(): Tape {
