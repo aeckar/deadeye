@@ -24,11 +24,11 @@
  */
 
 import * as assert from 'assert'
-import { itemsAt } from '../interval_tree_service'
 import rustLanguage from '../lang/rust/language'
 import rustScopes from '../lang/rust/scope_registry'
 import { Token } from '../languages'
 import { Scope } from '../scope'
+import { itemsAt } from '../services/interval_tree_service'
 
 /** Collect all tokens from the stream into a plain array of kind strings. */
 function collectKinds(tokens: readonly Token[]): string[] {

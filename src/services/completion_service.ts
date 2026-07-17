@@ -1,0 +1,181 @@
+import {
+    commands,
+    ExtensionContext,
+    Hover,
+    languages,
+    MarkdownString,
+    Position,
+    Selection,
+    SnippetString,
+    TextEditor,
+    ThemeColor,
+    window,
+} from 'vscode'
+import {
+    Completion,
+    CompletionContext,
+    CompletionStrategy,
+} from '../completions'
+import allCompletionRegistries from '../lang/all_completion_registries'
+
+/**
+ * Provides an interface to the current completion strategy,
+ * as well as methods to apply it when the associated completion is triggered.
+ */
+class CompletionService {
+    private static _completionStrategy?: CompletionStrategy
+
+    static get completionStrategy(): CompletionStrategy {
+        return this._completionStrategy!
+    }
+
+    static start(ctx: ExtensionContext) {
+        // Cancel completion on selection change
+        ctx.subscriptions.push(
+            window.onDidChangeTextEditorSelection(event => {
+                CompletionService.cancelCompletion(event.textEditor)
+            }),
+        )
+
+        // Prepare completion on keystroke
+        //
+        // Prefer low-level command to `onDidChangeActiveTextEditor` listener
+        // for optimal recognition of fast keystroke combos.
+        ctx.subscriptions.push(
+            commands.registerCommand('type', async args => {
+                const editor = window.activeTextEditor
+                if (!editor) {
+                    return
+                }
+                const keyIn = (args.text as string).replace(/^ +$/g, '') // sometimes preceded by space
+                const strategy = this._completionStrategy
+                if (!keyIn) {
+                    // pressed space
+                    if (!strategy) {
+                        // fixme for hot completions, other triggers
+                        editor.edit(editBuilder => {
+                            editBuilder.insert(editor.selection.active, ' ')
+                        })
+                        return
+                    }
+                    this.applyCompletion(editor, strategy.completion)
+                    this._completionStrategy = undefined
+                    return
+                }
+                commands.executeCommand('default:type', args) // manually perform insertion
+                await this.updateCompletionStrategy(keyIn, editor)
+                if (strategy) {
+                    editor.setDecorations(this.decoration, [
+                        strategy.completion.target,
+                    ])
+                }
+            }),
+        )
+
+        // Show documentation on hover
+        ctx.subscriptions.push(
+            languages.registerHoverProvider('rust', {
+                provideHover(_, position) {
+                    const strategy = CompletionService._completionStrategy
+                    if (
+                        !strategy ||
+                        !strategy.completion.target.contains(position)
+                    ) {
+                        return null
+                    }
+                    return new Hover(strategy.family.docs)
+                },
+            }),
+        )
+
+        // Show preview on hover
+        ctx.subscriptions.push(
+            languages.registerHoverProvider('rust', {
+                provideHover(_, position) {
+                    const strategy = CompletionService._completionStrategy
+                    if (
+                        !strategy ||
+                        !strategy.completion.target.contains(position)
+                    ) {
+                        return null
+                    }
+                    // Since there can be multiple code blocks in a preview, don't bother
+                    // highlighting them by turning them into fenced code blocks.
+                    return new Hover(
+                        new MarkdownString(
+                            strategy.completion.preview.value
+                                .replace('$0', '/* stop here */')
+                                .replace(
+                                    /\$\{?(\d)(?::.*?\})?/,
+                                    '/* placeholder $1 */',
+                                ),
+                        ),
+                    )
+                },
+            }),
+        )
+    }
+
+    //todo refine
+    private static decoration = window.createTextEditorDecorationType({
+        borderColor: new ThemeColor('editorInfo.foreground'),
+        border: '1px solid',
+        borderRadius: '3px',
+        color: new ThemeColor('editorInfo.foreground'),
+    })
+
+    /**
+     * Tests every completion resolver for the completion family of the current language.
+     * If a `Completion` is returned, it is stored in a `CompletionStrategy` and
+     * that completion is sent once the trigger is pressed.
+     */
+    static updateCompletionStrategy(keyIn: string, editor: TextEditor) {
+        const document = editor.document
+        const active = editor.selection.active
+        const cursor = new Position(active.line, active.character + 1) // adjust for key-in
+        const langId = document.languageId
+        const ctx = new CompletionContext(document, keyIn, cursor)
+        for (const [trigger, families] of allCompletionRegistries[langId]) {
+            for (const family of families) {
+                ctx.resetLine()
+                const completion = family.resolver(ctx)
+                if (!completion) {
+                    continue
+                }
+                this._completionStrategy = new CompletionStrategy(
+                    family,
+                    trigger,
+                    completion,
+                    cursor,
+                )
+                return
+            }
+        }
+    }
+
+    static async applyCompletion(editor: TextEditor, completion: Completion) {
+        await editor.insertSnippet(
+            new SnippetString(completion.snippet),
+            completion.target,
+        )
+        if (!completion.endCursorPos) {
+            return
+        }
+        editor.selection = new Selection(
+            completion.endCursorPos,
+            completion.endCursorPos,
+        )
+    }
+
+    static cancelCompletion(editor: TextEditor) {
+        const strategy = this._completionStrategy
+        if (strategy && editor.selection.active.isEqual(strategy.pos)) {
+            // waiting for insertion of pressed key
+            return
+        }
+        this._completionStrategy = undefined
+        editor.setDecorations(this.decoration, []) // reset decorations
+    }
+}
+
+export default CompletionService

@@ -1,6 +1,6 @@
 //! Miscellaneous utilities.
 import { Position, Range } from 'vscode'
-import { Interval } from './interval_tree_service'
+import { Interval } from './services/interval_tree_service'
 
 // =============================================================================================
 // Strings

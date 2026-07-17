@@ -14,11 +14,16 @@ After writing up a brief description, we recommend including the following secti
 getter properties must be proven to not have side effects
 (purely functions on readonly)
 
+Manual text insertion and snippet injection have a negligible performance difference,
+//! so the latter is chosen for ergonomics
+
 prefer gutter testing, if not go to `testing` tab in vsc
 
->take readonly arrays (when not modifying a buf), return mutable arrays (when not returning a prop)
-todo: ctrl-arrows to rearrange params, args
-should run locally before linter (support for global refactor + debounce?)
+only use default export, not both if using
+
+> take readonly arrays (when not modifying a buf), return mutable arrays (when not returning a prop)
+> todo: ctrl-arrows to rearrange params, args
+> should run locally before linter (support for global refactor + debounce?)
 
 pressing ENTER BEFORE CLOSING BRACKET ESCAPES TO NEXT LINE, combines cluster
 if space before enter, go in as next param/arg
@@ -30,20 +35,22 @@ use `pool` naming for collections of items where any one may be matched (1 or 0 
 cfg types must be strictly object/record types
 
 `preset` design pattern
+
 ## Testing
 
 See https://code.visualstudio.com/api/working-with-extensions/testing-extension#quick-setup-the-test-cli
 
-Tests are run through the extension host, which is a specialized version of Visual Studio Code, and from that it runs mocha to then execute each unit test. It cannot run mocha directly because it won't run in the extension host, which supplies the VS Code module dynamically. If you're having trouble with source maps, ensure that you have source maps defined as inline in vite.config.js and true in tsconfig.json for the best experience. 
+Tests are run through the extension host, which is a specialized version of Visual Studio Code, and from that it runs mocha to then execute each unit test. It cannot run mocha directly because it won't run in the extension host, which supplies the VS Code module dynamically. If you're having trouble with source maps, ensure that you have source maps defined as inline in vite.config.js and true in tsconfig.json for the best experience.
 
 tostring of array type removes brackets!
 debug string reps should try to be unambiguous when printed in sequence
 
-We used V over Webpack for speed and reliability reasons. And we used PNPM over NPM for the same reason. This is in contrast to the defaults for VS Code extension scaffolding. 
+We used V over Webpack for speed and reliability reasons. And we used PNPM over NPM for the same reason. This is in contrast to the defaults for VS Code extension scaffolding.
 
 try npm run clean if source map is misaligned (debugger step-over is inaccurate)
 
 ensure `pnpm run watch-tests` is running when running tests to ensure code is continuously compiled
+
 ##
 
 ## Features

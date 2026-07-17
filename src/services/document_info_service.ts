@@ -4,13 +4,13 @@ import {
     TextDocumentContentChangeEvent,
     workspace,
 } from 'vscode'
+import allLanguages from '../lang/all_languages'
+import allScopeRegistries from '../lang/all_scope_registries'
+import { Language, Token } from '../languages'
+import { Scope } from '../scope'
+import { ScopeRegistry } from '../scopes'
+import Tape from '../tape'
 import { IntervalTree, itemsAt } from './interval_tree_service'
-import allLanguages from './lang/all_languages'
-import allScopeRegistries from './lang/all_scope_registries'
-import { Language, Token } from './languages'
-import { Scope } from './scope'
-import { ScopeRegistry } from './scopes'
-import Tape from './tape'
 
 /** Contains a cache of useful information for a given text document. */
 export class DocumentInfo<ScopeKind extends string> {
@@ -78,7 +78,7 @@ export class DocumentInfo<ScopeKind extends string> {
     }
 }
 
-export class DocumentInfoService {
+class DocumentInfoService {
     private static files = new Map<string, DocumentInfo<string>>()
 
     private constructor() {}

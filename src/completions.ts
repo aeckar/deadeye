@@ -4,12 +4,14 @@
 import { MarkdownString, Position, Range, TextDocument, window } from 'vscode'
 
 import { md } from './diagnostics'
-import DocumentInfoService, { DocumentInfo } from './document_info_service'
-import { itemsAt } from './interval_tree_service'
+import { Token } from './languages'
 import { rangeBefore, reverse } from './misc'
 import { Scope } from './scope'
+import DocumentInfoService, {
+    DocumentInfo,
+} from './services/document_info_service'
+import { itemsAt } from './services/interval_tree_service'
 import Tape from './tape'
-import { Token } from './languages'
 
 // =============================================================================================
 // Utilities & Constants: Special Characters

@@ -1,10 +1,13 @@
 //! Scope registry API and utilities.
 //!
 //! Unlike `scope_utils.ts`, contains logic for scope analysis.
-import { IntervalTree, IntervalTreeService } from './interval_tree_service'
 import { Language, Tag, Token, UnknownTokenKind } from './languages'
 import { entries } from './misc'
 import { Scope } from './scope'
+import {
+    IntervalTree,
+    IntervalTreeService,
+} from './services/interval_tree_service'
 
 // =============================================================================================
 // Scope Description API

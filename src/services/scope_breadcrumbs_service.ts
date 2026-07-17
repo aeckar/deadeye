@@ -6,7 +6,7 @@ import {
 } from 'vscode'
 import DocumentInfoService from './document_info_service'
 
-export class ScopeBreadcrumbsController {
+export class ScopeBreadcrumbsService {
     private static statusBarItem = window.createStatusBarItem(
         StatusBarAlignment.Left,
         10000,
@@ -65,4 +65,4 @@ export class ScopeBreadcrumbsController {
     }
 }
 
-export default ScopeBreadcrumbsController
+export default ScopeBreadcrumbsService
