@@ -154,7 +154,8 @@ export class Token extends Span {
     }
 
     /**
-     * Returns the index of the closest token for a given cursor offset, resolving whitespace gaps.
+     * Returns the index of the closest token for a given cursor offset
+     * and in the given direction, resolving whitespace gaps.
      *
      * @param tokens Flat array of tokens, strictly sorted by token.begin.
      * @param offset The active numeric cursor position.
@@ -176,7 +177,6 @@ export class Token extends Span {
             const mid = (low + high) >> 1 // fast floor division
             const token = tokens[mid]
             if (offset >= token.begin && offset <= token.end) {
-                // cursor is at boundary between tokens
                 if (
                     offset === token.end &&
                     mid < tokens.length - 1 &&
@@ -203,16 +203,12 @@ export class Token extends Span {
         // 2. Fallback: The cursor is in a whitespace gap between two tokens.
         // At this point, 'high' points to the token immediately before the gap,
         // and 'low' points to the token immediately after the gap.
-
-        // Out of bounds checks
         if (high < 0) {
             return 0
         }
         if (low >= tokens.length) {
             return tokens.length - 1
         }
-
-        // Resolve the gap ambiguity using the bias flag
         return bias === 'left' ? high : low
     }
 }
@@ -426,7 +422,7 @@ export class Language {
         while (!tape.isExhausted()) {
             const start = tape.pos
 
-            // === 1. Test Keywords ===
+            // 1. Test Keywords
             for (const [kind, kword] of this.keywords) {
                 const { tag, value } = kword
                 if (tape.isAtIdentifier(value)) {
@@ -444,7 +440,7 @@ export class Language {
                 continue
             }
 
-            // === 2. Test Strings ===
+            // 2. Test Strings
             for (const [kind, text] of this.strings.entries()) {
                 const { tag, value } = text
                 if (tape.isAt(value)) {
@@ -459,7 +455,7 @@ export class Language {
                 continue
             }
 
-            // === 3. Test Patterns ===
+            // 3. Test Patterns
             for (const [kind, pattern] of this.patterns.entries()) {
                 const { tag, value } = pattern
                 value.lastIndex = tape.pos
@@ -482,7 +478,7 @@ export class Language {
                 continue
             }
 
-            // === 4. Test Resolvers ===
+            // 4. Test Resolvers
             for (const [kind, resolver] of this.resolvers.entries()) {
                 const { tag, value } = resolver
                 const match = value(tape)
@@ -503,7 +499,7 @@ export class Language {
                 continue
             }
 
-            // === 4. Attempt Recovery ===
+            // 4. Attempt Recovery
             if (tape.isExhausted()) {
                 continue
             }

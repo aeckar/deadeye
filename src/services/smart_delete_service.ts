@@ -7,8 +7,9 @@ import {
     TextEditor,
 } from 'vscode'
 import { Token } from '../languages'
-import { Direction } from '../misc'
+import { Direction, range } from '../misc'
 import DocumentInfoService from './document_info_service'
+import Tape from '../tape'
 
 class SmartDeleteService {
     static start(ctx: ExtensionContext) {
@@ -42,7 +43,8 @@ class SmartDeleteService {
         const selectionEnd = document.offsetAt(selection.end)
         let minBegin = selectionBegin
         let maxEnd = selectionEnd
-        const begin = tokens.findIndex(e => e.includes(selectionBegin))
+        // fixme doesnt work at whitespace
+        const begin = tokens.findIndex(e => e.includes(selectionBegin + 1))
         let foundOverlap = false
         for (let idx = begin; idx < tokens.length; ++idx) {
             const token = tokens[idx]
@@ -84,13 +86,36 @@ class SmartDeleteService {
         editor: TextEditor,
         direction: Direction,
     ) {
+        // adj
+        // 1.
         const { document, selection } = editor
         const active = selection.active
         const offset = document.offsetAt(active)
-        const { tokens } = DocumentInfoService.get(document)
+        const { tokens, text } = DocumentInfoService.get(document)
         const token = tokens[Token.findNearest(tokens, offset, direction)]
+
+        // 2.
+        if (token.end < offset && direction === 'right') {
+            // no token in direction; delete trailing whitespace
+            const tape = Tape.over(text, offset)
+            tape.putBack(ch => ch === '\n' || ch === '\r' || Tape.isWs(ch))
+            await editor.edit(editBuilder => {
+                editBuilder.delete(range(document, tape.pos + 1, text.length))
+            })
+            return
+        }
+        if (token.begin > offset && direction === 'left') {
+            // no token in direction; delete leading whitespace
+            const tape = Tape.over(text, offset)
+            tape.consume(ch => ch === '\n' || ch === '\r' || Tape.isWs(ch))
+            await editor.edit(editBuilder => {
+                editBuilder.delete(range(document, 0, tape.pos))
+            })
+            return
+        }
         if (token.kind === 'ID') {
             this.applyCharacterDelete(editor, direction)
+            return
         }
         const begin = document.positionAt(token.begin)
         const end = document.positionAt(token.end)

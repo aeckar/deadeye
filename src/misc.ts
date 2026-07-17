@@ -1,5 +1,5 @@
 //! Miscellaneous utilities.
-import { Position, Range } from 'vscode'
+import { Position, Range, TextDocument } from 'vscode'
 import { Interval } from './services/interval_tree_service'
 
 // =============================================================================================
@@ -83,6 +83,16 @@ export type Member<T> = RemovePrefix<
 // VS Code Ranges
 // =============================================================================================
 
+// todo doc
+export function range(
+    document: TextDocument,
+    begin: number,
+    end: number,
+): Range {
+    return new Range(document.positionAt(begin), document.positionAt(end))
+}
+
+// todo doc
 export function rangeBefore(
     cursor: Position,
     from: number = cursor.character,
@@ -102,6 +112,7 @@ export function rangeBefore(
     )
 }
 
+// todo doc
 export function after(cursor: Position, skip: number = 0): Position {
     return new Position(cursor.line, cursor.character + skip + 1)
 }
