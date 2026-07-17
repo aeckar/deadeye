@@ -91,3 +91,5 @@ export class IntervalTreeService {
         return new IntervalTreeService.CTOR<V>() as IntervalTree<V>
     }
 }
+
+export default IntervalTreeService

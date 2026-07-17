@@ -1,10 +1,10 @@
 //! Scope registry API and utilities.
 //!
 //! Unlike `scope_utils.ts`, contains logic for scope analysis.
-import { IntervalTree, IntervalTreeService } from './interval_tree'
+import { IntervalTree, IntervalTreeService } from './interval_tree_service'
 import { Language, Tag, Token, UnknownTokenKind } from './languages'
-import { scan } from './misc'
-import { Scope } from './scopes_base'
+import { entries } from './misc'
+import { Scope } from './scope'
 
 // =============================================================================================
 // Scope Description API
@@ -158,11 +158,30 @@ export class ScopeRegistry<ScopeKind extends string> {
         if (!this._entries) {
             this._entries = []
             const lang = this.langCallback()
-            for (const { key, value } of scan(this.cfg)) {
-                this._entries.push(ScopeInfo.newInstance(lang, key, value))
+            for (const [key, val] of entries(this.cfg)) {
+                this._entries.push(ScopeInfo.newInstance(lang, key, val))
             }
         }
         return this._entries
+    }
+
+    /**
+     * Returns all valid scopes found in the token stream.
+     *
+     * `begin` may be the head of a token stream. If it is not, that token is the first one
+     * checked for a match to a scope marker.
+     */
+    //todo implement stop
+    extractScopes(tokens: readonly Token[]): IntervalTree<Scope<ScopeKind>> {
+        const stream = new ScopeStream<ScopeKind>(tokens)
+        while (!stream.isExhausted()) {
+            for (const query of this.entries) {
+                if (stream.parse(query)) break
+            }
+            stream.collect()
+        }
+        stream.finish()
+        return stream.closed
     }
 }
 
@@ -180,28 +199,6 @@ export function newScopeRegistry<ScopeKind extends string>(
 // =============================================================================================
 // Scope Analysis API
 // =============================================================================================
-
-/**
- * Returns all valid scopes found in the token stream.
- *
- * `begin` may be the head of a token stream. If it is not, that token is the first one
- * checked for a match to a scope marker.
- */
-//todo implement stop
-export function extractScopes<ScopeKind extends string>(
-    tokens: readonly Token[],
-    registry: ScopeRegistry<ScopeKind>,
-): IntervalTree<Scope<ScopeKind>> {
-    const stream = new ScopeStream<ScopeKind>(tokens)
-    while (!stream.isExhausted()) {
-        for (const query of registry.entries) {
-            if (stream.parse(query)) break
-        }
-        stream.collect()
-    }
-    stream.finish()
-    return stream.closed
-}
 
 /** A scope in the `unclosed` stack of {@link ScopeStream} */
 export class UnclosedScope<ScopeKind extends string> {

@@ -1,5 +1,5 @@
 import { Language } from '../languages'
-import rustLanguage from './rust/language'
+import rustVocab from './rust/language'
 
 /**
  * Contains the vocabulary of every supported language.
@@ -7,7 +7,7 @@ import rustLanguage from './rust/language'
  * The key is the `langId`.
  */
 const allLanguages: Record<string, Language> = {
-    rust: rustLanguage,
+    rust: rustVocab,
 }
 
 export default allLanguages

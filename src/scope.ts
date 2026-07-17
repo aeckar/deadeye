@@ -1,7 +1,7 @@
-//! Common scope-related utilities used by both scope registry API and completion registry API.
+//! Scope data structure.
 //!
-//! Unlike `scope_registry_utils.ts`, focuses on scope data visible to the completion API.
-import { Span } from './misc'
+//! Common dependency to both `completions.ts` and `scopes.ts`.
+import { Span } from "./misc"
 
 /**
  * A member in the scope tree at a particular position in a file.
@@ -19,14 +19,14 @@ export class Scope<ScopeKind extends string> extends Span {
          * The position of the first character of the scope marker
          * (`if`, `fn`, `impl`, `mod`, etc.), which is primarily useful to hot completions
          * that modify the scope signature.
-         * 
+         *
          * @see {@link markerTokenPos}
          */
         readonly markerPos: number,
 
         /**
          * The index of the marker token in the token stream.
-         * 
+         *
          * @see {@link markerPos}
          */
         readonly markerTokenPos: number,
@@ -41,3 +41,5 @@ export class Scope<ScopeKind extends string> extends Span {
         return `${this.kind} @ [${this.markerPos}, ${super.toString()}]`
     }
 }
+
+export default Scope

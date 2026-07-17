@@ -4,12 +4,12 @@ import {
     TextDocumentContentChangeEvent,
     workspace,
 } from 'vscode'
-import { IntervalTree, itemsAt } from './interval_tree'
+import { IntervalTree, itemsAt } from './interval_tree_service'
 import allLanguages from './lang/all_languages'
 import allScopeRegistries from './lang/all_scope_registries'
 import { Language, Token } from './languages'
-import { extractScopes, ScopeRegistry } from './scopes'
-import { Scope } from './scopes_base'
+import { Scope } from './scope'
+import { ScopeRegistry } from './scopes'
 import Tape from './tape'
 
 /** Contains a cache of useful information for a given text document. */
@@ -43,7 +43,7 @@ export class DocumentInfo<ScopeKind extends string> {
     /** Returns an interval tree of every found scope in this file. */
     get scopes(): IntervalTree<Scope<ScopeKind>> {
         if (!this._scopes) {
-            this._scopes = extractScopes(this.tokens, this.scopeRegistry)
+            this._scopes = this.scopeRegistry.extractScopes(this.tokens)
         }
         return this._scopes!
     }

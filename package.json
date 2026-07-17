@@ -13,6 +13,9 @@
         "onStartupFinished"
     ],
     "main": "./dist/extension.js",
+    "contributes": {
+        
+    },
     "scripts": {
         "vscode:prepublish": "pnpm run package",
         "clean": "rimraf out",

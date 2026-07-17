@@ -9,6 +9,7 @@ import { md } from '../../diagnostics'
 import { after, joinValues, rangeBefore, reverse } from '../../misc'
 import Tape from '../../tape'
 import { extractRustTargetReversed } from './consume_target'
+import { inferType } from './infer_type'
 import { RustScopeKind } from './scope_registry'
 
 // optimizing docs should add proper punctation, capitalization
@@ -20,7 +21,7 @@ import { RustScopeKind } from './scope_registry'
 // language idea over ts/s: unique keys :)
 
 //todo do not format!
-const builtins = /str|bool|char|[ui]([8136][624][8]?|size)|f[36][24]/g
+const builtins = /str|bool|char|[ui](?:8|16|32|64|128|size)|f(?:32|64)/g
 
 // .inz = is not zero
 // .iz = is zero
@@ -266,35 +267,63 @@ grey squiggly when left of scope marker to show help
 // todo dont hassle over rule starts when collecting ID chunks, not worth it
 //todo cursor in word + tab = indent line (should alr exist but alright)
 //todo vecof id one, id two,
+//todo configuration for type preferences, also docs for thee
 const rustCompletions = newCompletionRegistry<RustScopeKind>(
     {
         docs: md`
-            Concatenates, formats identifier chunks and begins a type annotation.
+            Formats identifier chunks and begins a type annotation.
 
             \`let this my var \` → \`let this_my_var:\`
 
             **Constraints:**
 
             - Nearest scope is one of the following
-                - \`fnParams\`, \`closureParams\`, \`struct\`, \`assignment\`
+                - \`fnParams\`, \`closureParams\`, \`struct\`,
         `,
         minLookbehind: 1,
         trigger: ' ',
         resolver(ctx) {
-            if (
-                !ctx.isNearestScope([
-                    'fnParams',
-                    'closureParams',
-                    'struct',
-                    'assignment',
-                ])
-            ) {
+            if (!ctx.isNearestScope(['fnParams', 'closureParams', 'struct'])) {
                 return undefined
             }
             const tape = ctx.left().reversed()
             if (!tape.consumeAt(' ')) {
                 return undefined
             }
+            const { language } = ctx.docInfo
+            const chunks = tape
+                .consumeChunks(language.idRule.isPart)
+                .map(reverse)
+            if (chunks.length === 0) {
+                return undefined
+            }
+            const id = toSnakeCase(chunks)
+            const infer = inferType(chunks)
+            const snippet = `${id}: ${infer ? `\${1:${infer}}` : ''}`
+            return Completion.newInstance({
+                preview: md`Insert \`${snippet}\`.`,
+                target: rangeBefore(ctx.cursor, id.length + ' '.length),
+                snippet,
+            })
+        },
+    },
+    {
+        docs: md`
+            Formats identifier chunks and begins an assignment.
+
+            \`const one two three \` → \`const ONE_TWO_THREE = \`
+
+            **Constraints:**
+
+            - Nearest scope is \`assignment\`
+        `,
+        minLookbehind: 1,
+        trigger: '',
+        resolver(ctx) {
+            if (!ctx.isNearestScope('assignment')) {
+                return undefined
+            }
+            const tape = ctx.left().reversed()
             const { language, tokens } = ctx.docInfo
             const chunks = tape
                 .consumeChunks(language.idRule.isPart)
@@ -312,25 +341,26 @@ const rustCompletions = newCompletionRegistry<RustScopeKind>(
             } else {
                 id = toSnakeCase(chunks)
             }
+            const snippet = `${id} = `
             return Completion.newInstance({
-                preview: md`Insert \`${id}: \`.`,
-                target: rangeBefore(ctx.cursor, id.length + ' '.length),
-                snippet: id + ': ',
+                preview: md`Insert \`${snippet}\`.`,
+                target: rangeBefore(ctx.cursor, tape.pos),
+                snippet,
             })
         },
     },
     {
         docs: md`
-            Concatenates, formats identifier chunks and begins an assignment.
+            Begins a type annotation.
 
-            \`const this my var is\` → \`let THIS_IS_MY_VAR = \`
+            \`let this_my_var = 2 \` → \`let this_my_var: /* stop here */ = 2\`
 
             **Constraints:**
 
             - Nearest scope is \`assignment\`
         `,
         minLookbehind: 1,
-        trigger: '',
+        trigger: ' ',
         resolver(ctx) {
             if (!ctx.isNearestScope('assignment')) {
                 return undefined

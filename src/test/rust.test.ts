@@ -24,12 +24,11 @@
  */
 
 import * as assert from 'assert'
-import { IntervalTreeService, itemsAt } from '../interval_tree'
+import { itemsAt } from '../interval_tree_service'
 import rustLanguage from '../lang/rust/language'
 import rustScopes from '../lang/rust/scope_registry'
 import { Token } from '../languages'
-import { ScopeInfo, ScopeStream } from '../scopes'
-import { Scope } from '../scopes_base'
+import { Scope } from '../scope'
 
 /** Collect all tokens from the stream into a plain array of kind strings. */
 function collectKinds(tokens: readonly Token[]): string[] {
@@ -287,32 +286,8 @@ suite('Rust Tokenizer', () => {
 // ===========================================================================
 
 suite('Rust Scope Stream', () => {
-    // Ensure the interval tree library is loaded before any scope test runs.
-    suiteSetup(async () => {
-        await IntervalTreeService.start()
-    })
-
-    // ========================================================================-
-    // Helper: drive the scope stream more carefully, matching all scope kinds
-    // ========================================================================-
-
-    /**
-     * Parse a Rust source string and return the closed-scope interval tree.
-     * Every iteration: try all registered scope parsers, then collect.
-     */
     async function parse(src: string) {
-        const head = rustLanguage.tokenize(src)
-        const stream = new ScopeStream<string>(head)
-
-        while (!stream.isExhausted()) {
-            for (const info of rustScopes.entries) {
-                if (stream.parse(info as ScopeInfo<string>)) {
-                    break
-                }
-            }
-            stream.collect()
-        }
-        return stream.closed
+        return rustScopes.extractScopes(rustLanguage.tokenize(src))
     }
 
     // ========================================================================-

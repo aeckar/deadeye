@@ -5,13 +5,11 @@ import { MarkdownString, Position, Range, TextDocument, window } from 'vscode'
 
 import { md } from './diagnostics'
 import DocumentInfoService, { DocumentInfo } from './document_info_service'
-import { itemsAt } from './interval_tree'
+import { itemsAt } from './interval_tree_service'
 import { rangeBefore, reverse } from './misc'
-import { Scope } from './scopes_base'
+import { Scope } from './scope'
 import Tape from './tape'
-import { findNearest } from './languages'
-
-
+import { Token } from './languages'
 
 // =============================================================================================
 // Utilities & Constants: Special Characters
@@ -406,7 +404,7 @@ export class CompletionContext<ScopeKind extends string> {
         this.scopesAtCursor = (
             itemsAt(this.docInfo.scopes, idx) as Scope<ScopeKind>[]
         ).sort((a, b) => a.begin - b.begin)
-        this.tokenPos = findNearest(this.docInfo.tokens, idx, 'right')
+        this.tokenPos = Token.findNearest(this.docInfo.tokens, idx, 'right')
     }
 
     get line(): Tape {

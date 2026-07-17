@@ -1,51 +1,18 @@
 //! Miscellaneous utilities.
 import { Position, Range } from 'vscode'
-import { Interval } from './interval_tree'
+import { Interval } from './interval_tree_service'
 
-/**
- * An immutable record whose key values are not exhaustive of type `K`.
- *
- * For example, if `K` is a string union, instances of this type do not need to account
- * for all possible entries.
- */
-export type RecordSubset<K extends JsKey, V> = { readonly [Key in K]?: V }
+// =============================================================================================
+// Strings
+// =============================================================================================
+
+/** Returns a copy of this string when reversed. */
+export function reverse(s: string): string {
+    return s.split('').reverse().join('')
+}
 
 /** Left or right. */
 export type Direction = 'left' | 'right'
-
-/** Removes a common prefix from a string literal type. */
-export type RemovePrefix<
-    Prefix extends string,
-    T extends string,
-> = T extends `${Prefix}${infer Suffix}` ? Suffix : T
-
-/**
- * Evaluates to a string union of all public member keys.
- *
- * Strips "__" from members marked as internal.
- */
-export type Member<T> = RemovePrefix<
-    '__',
-    Exclude<keyof T, 'prototype'> & string
->
-
-/**
- * Compares two values.
- *
- * Returns:
- * - -1 if `cur` is less than `next`
- * - 0 if `cur` and `next` are equal
- * - 1 if `cur` is greater than `next`
- *
- * According to ECMA-262 Section 23.1.3.30,
- * all sorting functions provided by JavaScript are stable.
- */
-export type Comparator<T> = (cur: T, next: T) => number
-
-/** Concatenates all values to a string in the same order they were inserted. */
-export function joinValues<K, V>(map: Map<K, V>): string {
-    return [...map].map(([_, sub]) => sub).join('')
-}
 
 /** A range of indices. */
 export class Span {
@@ -84,32 +51,37 @@ export class Span {
     }
 }
 
-/** A valid key in a JavaScript object. */
-export type JsKey = string | number | symbol
+// =============================================================================================
+// Advanced Types
+// =============================================================================================
 
 /**
- * A key-value pair that may exist as an entry in a JavaScript object.
+ * An immutable record whose key values are not exhaustive of type `K`.
  *
- * Use of this class over standard 2-tuples encourages conciseness,
- * especially when the key and value cannot be easily discerned from their types.
+ * For example, if `K` is a string union, instances of this type do not need to account
+ * for all possible entries.
  */
-export class Property<K extends JsKey, V> {
-    readonly key: K
-    readonly value: V
+export type RecordSubset<K extends JsKey, V> = { readonly [Key in K]?: V }
 
-    constructor(key: K, value: V) {
-        this.key = key
-        this.value = value
-    }
+/** Removes a common prefix from a string literal type. */
+export type RemovePrefix<
+    Prefix extends string,
+    T extends string,
+> = T extends `${Prefix}${infer Suffix}` ? Suffix : T
 
-    static from<K extends JsKey, V>(arr: [K, V]): Property<K, V> {
-        return new Property(arr[0], arr[1])
-    }
+/**
+ * Evaluates to a string union of all public member keys.
+ *
+ * Strips "__" from members marked as internal.
+ */
+export type Member<T> = RemovePrefix<
+    '__',
+    Exclude<keyof T, 'prototype'> & string
+>
 
-    toArray(): [K, V] {
-        return [this.key, this.value]
-    }
-}
+// =============================================================================================
+// VS Code Ranges
+// =============================================================================================
 
 export function rangeBefore(
     cursor: Position,
@@ -134,19 +106,33 @@ export function after(cursor: Position, skip: number = 0): Position {
     return new Position(cursor.line, cursor.character + skip + 1)
 }
 
+// =============================================================================================
+// Type-Safe Record Iteration
+// =============================================================================================
+
+/** A valid key in a JavaScript object. */
+export type JsKey = string | number | symbol
+
 /**
  * Collects each key-value pair in the given object and yields each preceded by its index.
  *
- * Most often used for indexed iteration.
+ * Unlike {@link Object.entries}, encourages type safety and allows for type inference.
+ * Can be used for indexed iteration.
+ *
+ * # API
+ *
+ * Instead of a nominal type, properties are returned as tuples,
+ * which have proven to be more ergonomic.
+ *
+ * @see {@link entries}
  */
-export function scanIndexed<K extends number | string | symbol, V>(
+export function enumerate<K extends number | string | symbol, V>(
     o: RecordSubset<K, V>,
-): [number, Property<K, V>][] {
+): [number, [K, V]][] {
     // Object.entries returns [string, unknown][], so cast to the expected types
     const entries = Object.entries(o) as unknown as [K, V][]
     return entries.map(
-        ([key, val], idx) =>
-            [idx, new Property(key, val)] as [number, Property<K, V>],
+        ([key, val], idx) => [idx, [key, val]] as [number, [K, V]],
     )
 }
 
@@ -154,35 +140,40 @@ export function scanIndexed<K extends number | string | symbol, V>(
  * Returns all entries of the object as a typed array.
  *
  * Unlike {@link Object.entries}, encourages type safety and allows for type inference.
+ *
+ * # API
+ *
+ * Instead of a nominal type, properties are returned as tuples,
+ * which have proven to be more ergonomic.
+ *
+ * @see {@link enumerate}
  */
-export function scan<K extends JsKey, V>(o: Record<K, V>): Property<K, V>[] {
-    return (Object.entries(o) as [K, V][]).map(([k, v]) => {
-        return new Property(k, v)
+export function entries<K extends JsKey, V>(o: Record<K, V>): [K, V][] {
+    return (Object.entries(o) as [K, V][]).map(([key, val]) => {
+        return [key, val]
     })
 }
 
-/** Collects each character in the given string and yields it preceded by its index. */
-export function* charsIn(s: string): Generator<[number, string]> {
-    for (let idx = 0; idx < s.length; ++idx) {
-        yield [idx, s[idx]]
-    }
-}
+// =============================================================================================
+// Collections
+// =============================================================================================
 
 /**
- * Returns the value paired to the key matching the query, or `undefined` if none exists.
+ * Compares two values.
  *
- * For completion matching, values should not have a trailing space.
+ * Returns:
+ * - -1 if `cur` is less than `next`
+ * - 0 if `cur` and `next` are equal
+ * - 1 if `cur` is greater than `next`
+ *
+ * According to ECMA-262 Section 23.1.3.30,
+ * all sorting functions provided by JavaScript are stable.
  */
-export function match<K extends JsKey, V>(
-    query: K,
-    pool: Record<K, V>,
-): Property<K, V> | undefined {
-    for (const prop of scan(pool)) {
-        if (query === prop.key) {
-            return prop
-        }
-    }
-    return undefined
+export type Comparator<T> = (cur: T, next: T) => number
+
+/** Concatenates all values to a string in the same order they were inserted. */
+export function joinValues<K, V>(map: Map<K, V>): string {
+    return [...map].map(([_, sub]) => sub).join('')
 }
 
 /**
@@ -193,14 +184,14 @@ export function match<K extends JsKey, V>(
  */
 export function rebindToMap<K extends JsKey, V>(
     o: Record<K, V>,
-    sortBy?: Comparator<Property<K, V>>,
+    sortBy?: Comparator<[K, V]>,
 ): Map<K, V> {
-    let props = scan(o)
+    let props = Object.entries(o) as unknown as [K, V][]
     if (sortBy) {
         props = props.sort(sortBy)
     }
-    return props.reduce((sorted, { key, value }) => {
-        sorted.set(key, value)
+    return props.reduce((sorted, [key, val]) => {
+        sorted.set(key, val)
         return sorted
     }, new Map())
 }
@@ -215,9 +206,4 @@ export function rebindToMap<K extends JsKey, V>(
  */
 export function sortBy<T>(keyMap: (entry: T) => number): Comparator<T> {
     return (cur, next) => keyMap(cur) - keyMap(next)
-}
-
-/** Returns a copy of this string when reversed. */
-export function reverse(s: string): string {
-    return s.split('').reverse().join('')
 }

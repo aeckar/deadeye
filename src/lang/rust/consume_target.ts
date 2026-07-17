@@ -1,11 +1,11 @@
 import { Tag, Token } from '../../languages'
-import rustLanguage from './language'
+import rustVocab from './language'
 
 const STOP = ['EQUALS', 'COMMA', 'OPEN_CURLY', 'CLOSE_CURLY', 'SEMICOLON'].map(
-    e => rustLanguage.tagForKind(e)!,
+    e => rustVocab.tagForKind(e)!,
 )
 const SIGIL = ['AND', 'ASTERISK', 'BANG', 'PLUS', 'MINUS'].map(e =>
-    rustLanguage.tagForKind(e)!,
+    rustVocab.tagForKind(e)!,
 )
 
 function skipBalanced(
@@ -75,12 +75,12 @@ export function extractRustTarget(
         if (STOP.includes(tag) || SIGIL.includes(tag)) {
             break
         }
-        const close = rustLanguage.matchingCloseTag(tag)
+        const close = rustVocab.matchingCloseTag(tag)
         if (close) {
             idx = skipBalanced(tokens, idx, tag, close)
             continue
         }
-        if (rustLanguage.matchingOpenTag(tag)) {
+        if (rustVocab.matchingOpenTag(tag)) {
             // past the end of the target
             break
         }
@@ -99,12 +99,12 @@ export function extractRustTargetReversed(
         if (STOP.includes(tag) || SIGIL.includes(tag)) {
             break
         }
-        const open = rustLanguage.matchingOpenTag(tag)
+        const open = rustVocab.matchingOpenTag(tag)
         if (open !== undefined) {
             idx = skipBalancedReverse(tokens, idx, open, tag)
             continue
         }
-        if (rustLanguage.matchingCloseTag(tag) !== undefined) {
+        if (rustVocab.matchingCloseTag(tag) !== undefined) {
             // past the start of the target
             break
         }

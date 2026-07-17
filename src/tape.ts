@@ -9,7 +9,7 @@ import {
     isUpperLetter,
 } from './completions'
 import { IdRule } from './languages'
-import { RecordSubset, reverse, scanIndexed } from './misc'
+import { enumerate, RecordSubset, reverse } from './misc'
 
 /**
  * A lightweight cursor over a string for non-linear parsing.
@@ -334,7 +334,7 @@ export default class Tape {
         const expansions: [number, string, Range][] = []
         while (!this.isExhausted()) {
             let found = false
-            for (const [idx, { key: flag, value: expansion }] of scanIndexed(
+            for (const [idx, [flag, expansion]] of enumerate(
                 flagPool,
             )) {
                 if (!this.cur()) {

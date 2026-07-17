@@ -79,9 +79,9 @@ export const { openClosureParams, closeClosureParams } = (() => {
 /**
  * Nesting-aware block comment.
  *
- * Rust nests `∕* *∕`, unlike C.
+ * Rust nests `／* *／`, unlike C.
  */
-// ∕ = U+2215
+// ／ = U+FF0F
 export function blockComment(tape: Tape): string {
     if (!tape.isAt('/*')) {
         return ''
