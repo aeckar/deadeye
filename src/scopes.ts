@@ -4,9 +4,8 @@
 import { Language, Tag, Token, UnknownTokenKind } from './languages'
 import { entries } from './misc'
 import { Scope } from './scope'
-import {
+import IntervalTreeService, {
     IntervalTree,
-    IntervalTreeService,
 } from './services/interval_tree_service'
 
 // =============================================================================================

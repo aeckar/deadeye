@@ -18,3 +18,6 @@ export async function activate(context: ExtensionContext) {
     SmartDeleteService.start(context)
     CompletionService.start(context)
 }
+
+/** Extension cleanup. */
+export function deactivate() {}

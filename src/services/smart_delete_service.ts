@@ -90,12 +90,7 @@ class SmartDeleteService {
         const { tokens } = DocumentInfoService.get(document)
         const token = tokens[Token.findNearest(tokens, offset, direction)]
         if (token.kind === 'ID') {
-            if (direction === 'left') {
-                await commands.executeCommand('deleteLeft', { value: 1 })
-            } else {
-                await commands.executeCommand('deleteRight', { value: 1 })
-            }
-            return
+            this.applyCharacterDelete(editor, direction)
         }
         const begin = document.positionAt(token.begin)
         const end = document.positionAt(token.end)
@@ -106,45 +101,47 @@ class SmartDeleteService {
             editor.selection = new Selection(begin, begin)
         }
     }
+
+    /**
+     * Since we have overriden the default `deleteLeft` and `deleteRight`
+     * commands, we must re-implement deleting a single character.
+     */
+    static applyCharacterDelete(editor: TextEditor, direction: Direction) {
+        const { document, selection } = editor
+        const active = selection.active
+        editor.edit(editBuilder => {
+            if (direction === 'left') {
+                if (active.character > 0) {
+                    // delete one character behind the cursor
+                    editBuilder.delete(
+                        new Range(active.translate(0, -1), active),
+                    )
+                } else if (active.line > 0) {
+                    // line wrap delete: join with previous line
+                    const prevLineLength = document.lineAt(active.line - 1).text
+                        .length
+                    const endOfPrevLine = new Position(
+                        active.line - 1,
+                        prevLineLength,
+                    )
+                    editBuilder.delete(new Range(endOfPrevLine, active))
+                }
+            } else {
+                const currentLineLength = document.lineAt(active.line).text
+                    .length
+                if (active.character < currentLineLength) {
+                    // delete one character ahead of the cursor
+                    editBuilder.delete(
+                        new Range(active, active.translate(0, 1)),
+                    )
+                } else if (active.line < document.lineCount - 1) {
+                    // line wrap delete: join with next line
+                    const startOfNextLine = new Position(active.line + 1, 0)
+                    editBuilder.delete(new Range(active, startOfNextLine))
+                }
+            }
+        })
+    }
 }
 
 export default SmartDeleteService
-
-/**
- * Since we have overriden the default `deleteLeft` and `deleteRight`
- * commands, we must re-implement deleting a single character.
- */
-async function _applyCharacterDelete(
-    editor: TextEditor,
-    direction: Direction,
-) {
-    const { document, selection } = editor
-    const active = selection.active
-    editor.edit(editBuilder => {
-        if (direction === 'left') {
-            if (active.character > 0) {
-                // delete one character behind the cursor
-                editBuilder.delete(new Range(active.translate(0, -1), active))
-            } else if (active.line > 0) {
-                // line wrap delete: join with previous line
-                const prevLineLength = document.lineAt(active.line - 1).text
-                    .length
-                const endOfPrevLine = new Position(
-                    active.line - 1,
-                    prevLineLength,
-                )
-                editBuilder.delete(new Range(endOfPrevLine, active))
-            }
-        } else {
-            const currentLineLength = document.lineAt(active.line).text.length
-            if (active.character < currentLineLength) {
-                // delete one character ahead of the cursor
-                editBuilder.delete(new Range(active, active.translate(0, 1)))
-            } else if (active.line < document.lineCount - 1) {
-                // line wrap delete: join with next line
-                const startOfNextLine = new Position(active.line + 1, 0)
-                editBuilder.delete(new Range(active, startOfNextLine))
-            }
-        }
-    })
-}
