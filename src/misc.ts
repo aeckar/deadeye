@@ -1,5 +1,12 @@
 //! Miscellaneous utilities.
-import { Position, Range, TextDocument } from 'vscode'
+import {
+    Position,
+    Range,
+    Selection,
+    TextDocument,
+    TextEditor,
+    TextEditorEdit,
+} from 'vscode'
 import { Interval } from './services/interval_tree_service'
 
 // =============================================================================================
@@ -83,13 +90,73 @@ export type Member<T> = RemovePrefix<
 // VS Code Ranges
 // =============================================================================================
 
-// todo doc
-export function range(
-    document: TextDocument,
-    begin: number,
-    end: number,
-): Range {
-    return new Range(document.positionAt(begin), document.positionAt(end))
+export function insert(
+    pos: Position,
+    text: string,
+): (editBuilder: TextEditorEdit) => void {
+    return editBuilder => {
+        editBuilder.insert(pos, text)
+    }
+}
+
+/**
+ * Translates offsets to `vscode` data structures over text documents.
+ * 
+ * Resolving line-character positions from indices incurs a small
+ * performance hit--**use this class with caution**.
+ */
+export class DocumentContext {
+    constructor(private readonly document: TextDocument) {}
+
+    /** Returns the `Position.line` number for the position at the given offset. */
+    line(offset: number): number {
+        return this.pos(offset).line
+    }
+
+    /** Returns the absolute `Position` for the given offset */
+    pos(offset: number): Position {
+        return this.document.positionAt(offset)
+    }
+
+    /** Returns the absolute `Range` for the given offsets. */
+    range(begin: number, end: number): Range {
+        return new Range(this.pos(begin), this.pos(end))
+    }
+
+    /** Returns the absolute `Selection` for the given offsets. */
+    selection(begin: number, end: number = begin): Selection {
+        return new Selection(this.pos(begin), this.pos(end))
+    }
+
+    /**
+     * Performs the text insertion by converting the given offset to an absolute `Position`.
+     *
+     * Returns true if the operation succeeded.
+     */
+    async insert(
+        offset: number,
+        text: string,
+        editor: TextEditor,
+    ): Promise<boolean> {
+        return editor.edit(editBuilder => {
+            editBuilder.insert(this.pos(offset), text)
+        })
+    }
+
+    /**
+     * Performs the text insertion by converting the given offsets to an absolute `Selection`.
+     *
+     * Returns true if the operation succeeded.
+     */
+    async delete(
+        begin: number,
+        end: number,
+        editor: TextEditor,
+    ): Promise<boolean> {
+        return editor.edit(editBuilder => {
+            editBuilder.delete(this.selection(begin, end))
+        })
+    }
 }
 
 // todo doc

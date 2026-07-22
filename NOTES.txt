@@ -184,3 +184,5 @@ A raw scanner satisfies all four. The symbol tree satisfies none of them fully. 
 // fn parse_float(kind: string, value: u8) -> u64 {
 //     /*stop here */
 // }
+
+// completions for extracting scope

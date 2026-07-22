@@ -17,12 +17,20 @@ export class DocumentInfo<ScopeKind extends string> {
     private _tokens?: Token[]
     private _scopes?: IntervalTree<Scope<ScopeKind>>
     private _text?: string
+    private _version: number
 
     constructor(
         readonly document: TextDocument,
         readonly language: Language,
         readonly scopeRegistry: ScopeRegistry<ScopeKind>,
-    ) {}
+    ) {
+        this._version = document.version
+    }
+
+    /** The exact version of the content buffer, including undo/redo. */
+    get version(): number {
+        return this._version
+    }
 
     /** Returns the entire source code as a string */
     get text(): string {
@@ -49,7 +57,10 @@ export class DocumentInfo<ScopeKind extends string> {
     }
 
     registerChanges(changes: readonly TextDocumentContentChangeEvent[]) {
-        const text = this.text // resolve
+        this._text = undefined
+        this._scopes = undefined
+        this._version = this.document.version
+        const text = this.text // rehydrated
         let minEditStart = text.length
         for (const change of changes) {
             if (change.rangeOffset < minEditStart) {
@@ -57,18 +68,20 @@ export class DocumentInfo<ScopeKind extends string> {
             }
         }
         let resumeIdx = 0
-        const tokens = this.tokens // resolve
+        let resumeOffset = 0
+        const tokens = this.tokens // stale
         for (let idx = 0; idx < tokens.length; ++idx) {
             if (tokens[idx].end >= minEditStart) {
-                tokens.length = idx
                 resumeIdx = idx
+                if (idx > 0) {
+                    resumeOffset = tokens[idx - 1].end
+                }
                 break
             }
         }
+        tokens.length = resumeIdx
         const lang = this.language
-        lang.tokenize(Tape.over(text, resumeIdx, lang.idRule), tokens)
-        this._text = undefined
-        this._scopes = undefined
+        lang.tokenize(Tape.over(text, resumeOffset, lang.idRule), tokens)
     }
 
     getBreadcrumbs(offset: number): string[] {

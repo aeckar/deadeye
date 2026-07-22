@@ -1,17 +1,15 @@
-import {
-    commands,
-    ExtensionContext,
-    Position,
-    Range,
-    Selection,
-    TextEditor,
-} from 'vscode'
+import { commands, ExtensionContext, TextEditor } from 'vscode'
 import { Token } from '../languages'
-import { Direction, range } from '../misc'
-import DocumentInfoService from './document_info_service'
+import { Direction, DocumentContext } from '../misc'
 import Tape from '../tape'
+import DocumentInfoService from './document_info_service'
 
-class SmartDeleteService {
+/**
+ * # Implementation
+ * 
+ * When performing deletions, it is important to strip away as much todo
+ */
+class TextDeletionService {
     static start(ctx: ExtensionContext) {
         // Smart backspace key
         ctx.subscriptions.push(
@@ -72,58 +70,70 @@ class SmartDeleteService {
                 break
             }
         }
-        editor.edit(editBuilder => {
-            editBuilder.delete(
-                new Range(
-                    document.positionAt(minBegin),
-                    document.positionAt(maxEnd),
-                ),
-            )
-        })
+        const rel = new DocumentContext(document)
+        await rel.delete(minBegin, maxEnd, editor)
     }
 
     static async applySmartCaretDelete(
         editor: TextEditor,
         direction: Direction,
     ) {
-        // adj
-        // 1.
         const { document, selection } = editor
-        const active = selection.active
-        const offset = document.offsetAt(active)
+        const cursor = document.offsetAt(selection.active)
+        const rel = new DocumentContext(document)
         const { tokens, text } = DocumentInfoService.get(document)
-        const token = tokens[Token.findNearest(tokens, offset, direction)]
-
-        // 2.
-        if (token.end < offset && direction === 'right') {
-            // no token in direction; delete trailing whitespace
-            const tape = Tape.over(text, offset)
-            tape.putBack(ch => ch === '\n' || ch === '\r' || Tape.isWs(ch))
-            await editor.edit(editBuilder => {
-                editBuilder.delete(range(document, tape.pos + 1, text.length))
-            })
+        let idx = Token.findNearest(tokens, cursor, direction)
+        if (idx === -1) {
+            // no tokens; delete all whitespace
+            await rel.delete(0, text.length, editor)
             return
         }
-        if (token.begin > offset && direction === 'left') {
-            // no token in direction; delete leading whitespace
-            const tape = Tape.over(text, offset)
+        let token = tokens[idx]
+if (direction === 'left') {
+            if (cursor === token.begin && idx !== 0) {
+                // cursor directly before token; backspace should target previous token
+                idx -= 1
+                token = tokens[idx]
+            }
+        } else if (token.end < cursor) {
+            // no tokens right of cursor; delete trailing whitespace
+            const tape = Tape.over(text, cursor)
+            tape.putBack(ch => ch === '\n' || ch === '\r' || Tape.isWs(ch))
+            await rel.delete(tape.pos + 1, text.length, editor)
+            return
+        }
+        if (direction === 'left' && token.begin > cursor) {
+            // no tokens left of cursor; delete leading whitespace
+            const tape = Tape.over(text, cursor)
             tape.consume(ch => ch === '\n' || ch === '\r' || Tape.isWs(ch))
-            await editor.edit(editBuilder => {
-                editBuilder.delete(range(document, 0, tape.pos))
-            })
+            await rel.delete(0, tape.pos, editor)
             return
         }
         if (token.kind === 'ID') {
-            this.applyCharacterDelete(editor, direction)
+            this.applyCaretDelete(editor, direction)
             return
         }
-        const begin = document.positionAt(token.begin)
-        const end = document.positionAt(token.end)
-        const success = await editor.edit(editBuilder => {
-            editBuilder.delete(new Range(begin, end))
-        })
-        if (success && direction === 'left') {
-            editor.selection = new Selection(begin, begin)
+
+        // between tokens; perform deletion between lines also
+        if (direction === 'left') {
+            // preserve leading whitespace for indentation
+            const tape = Tape.over(text, cursor)
+            const ws = tape.consumeWs().length
+            if (tape.isAtLineSep()) {
+                // no tokens right of cursor in current line; delete trailing whitespace
+                await rel.delete(token.begin, cursor + ws, editor)
+            } else {
+                await rel.delete(token.begin, cursor, editor)
+            }
+        } else {
+            const tape = Tape.over(text, token.end)
+            const ws = tape.consumeWs().length
+            if (tape.isAtLineSep()) {
+                // deleting token leaves cursor at end of line; strip leading whitespace
+                await rel.delete(cursor, token.end + ws, editor)
+            } else {
+                await rel.delete(cursor, token.end, editor)
+            }
         }
     }
 
@@ -131,42 +141,16 @@ class SmartDeleteService {
      * Since we have overriden the default `deleteLeft` and `deleteRight`
      * commands, we must re-implement deleting a single character.
      */
-    static applyCharacterDelete(editor: TextEditor, direction: Direction) {
+    static applyCaretDelete(editor: TextEditor, direction: Direction) {
         const { document, selection } = editor
-        const active = selection.active
-        editor.edit(editBuilder => {
-            if (direction === 'left') {
-                if (active.character > 0) {
-                    // delete one character behind the cursor
-                    editBuilder.delete(
-                        new Range(active.translate(0, -1), active),
-                    )
-                } else if (active.line > 0) {
-                    // line wrap delete: join with previous line
-                    const prevLineLength = document.lineAt(active.line - 1).text
-                        .length
-                    const endOfPrevLine = new Position(
-                        active.line - 1,
-                        prevLineLength,
-                    )
-                    editBuilder.delete(new Range(endOfPrevLine, active))
-                }
-            } else {
-                const currentLineLength = document.lineAt(active.line).text
-                    .length
-                if (active.character < currentLineLength) {
-                    // delete one character ahead of the cursor
-                    editBuilder.delete(
-                        new Range(active, active.translate(0, 1)),
-                    )
-                } else if (active.line < document.lineCount - 1) {
-                    // line wrap delete: join with next line
-                    const startOfNextLine = new Position(active.line + 1, 0)
-                    editBuilder.delete(new Range(active, startOfNextLine))
-                }
-            }
-        })
+        const cursor = document.offsetAt(selection.active)
+        const rel = new DocumentContext(document)
+        if (direction === 'left') {
+            rel.delete(cursor - 1, cursor, editor)
+        } else {
+            rel.delete(cursor, cursor + 1, editor)
+        }
     }
 }
 
-export default SmartDeleteService
+export default TextDeletionService

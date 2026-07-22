@@ -156,6 +156,8 @@ export class Token extends Span {
     /**
      * Returns the index of the closest token for a given cursor offset
      * and in the given direction, resolving whitespace gaps.
+     * 
+     * If one is not found, returns -1.
      *
      * @param tokens Flat array of tokens, strictly sorted by token.begin.
      * @param offset The active numeric cursor position.

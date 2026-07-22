@@ -5,6 +5,7 @@ import {
     window,
 } from 'vscode'
 import DocumentInfoService from './document_info_service'
+import { BREADCRUMB_SEP } from '../constants'
 
 export class ScopeBreadcrumbsService {
     private static statusBarItem = window.createStatusBarItem(
@@ -40,6 +41,7 @@ export class ScopeBreadcrumbsService {
         }
 
         const document = editor.document
+        
         // Only run for your supported languages (e.g., Rust)
         if (document.languageId !== 'rust') {
             this.statusBarItem.hide()
@@ -59,7 +61,7 @@ export class ScopeBreadcrumbsService {
         }
 
         // Format with a clean breadcrumb separator symbol
-        this.statusBarItem.text = `$(symbol-class) ${breadcrumbs.join(' > ')}`
+        this.statusBarItem.text = `$(symbol-class) ${breadcrumbs.join(` ${BREADCRUMB_SEP} `)}`
         this.statusBarItem.tooltip = 'Current Scope Hierarchy'
         this.statusBarItem.show()
     }

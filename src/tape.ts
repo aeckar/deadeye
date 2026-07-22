@@ -58,7 +58,11 @@ export default class Tape {
         }
     }
 
-    /** Returns a new instance over the original string. */
+    /**
+     * Returns a new instance over the original string.
+     *
+     * If `pos` is negative, the starting position is taken from the back of `raw`.
+     */
     static over(raw: string, pos = 0, idRule = IdRule.resolve('STRICT')) {
         return new Tape(raw, pos, false, idRule)
     }
@@ -66,6 +70,11 @@ export default class Tape {
     /** Returns true if the given character is space or tab. */
     static isWs(ch: string): boolean {
         return ch === ' ' || ch === '\t'
+    }
+
+    /** Returns true if the given character is a carriage return or line feed. */
+    static isLineSep(ch: string): boolean {
+        return ch === '\r' || ch === '\n'
     }
 
     // =========================================================================================
@@ -176,24 +185,24 @@ export default class Tape {
     // Pattern Lookup
     // =========================================================================================
 
-    /** Returns the position of the first character returning true, or `undefined`. */
-    poll(pred: (ch: string, pos: number) => boolean): number | undefined {
+    /** Returns the position of the first character returning true, or -1. */
+    poll(pred: (ch: string, pos: number) => boolean): number {
         for (let i = this.pos; i < this.raw.length; ++i) {
             if (pred(this.raw[i], i)) {
                 return i
             }
         }
-        return undefined
+        return -1
     }
 
-    /** Returns the position of the last character returning true, or `undefined`. */
-    pollBack(pred: (ch: string, pos: number) => boolean): number | undefined {
-        for (let i = this.raw.length - 1; i >= this.pos; --i) {
+    /** Returns the position of the last character before the current position returning true, or -1. */
+    pollBack(pred: (ch: string, pos: number) => boolean): number {
+        for (let i = this.pos; i > 0; --i) {
             if (pred(this.raw[i], i)) {
                 return i
             }
         }
-        return undefined
+        return -1
     }
 
     // =========================================================================================
@@ -209,7 +218,7 @@ export default class Tape {
      */
     consume(pred: (ch: string, pos: number) => boolean): string {
         const end = this.poll((ch, pos) => !pred(ch, pos))
-        if (end === undefined) {
+        if (end === -1) {
             const res = this.raw.slice(this.pos)
             this.pos = this.raw.length
             return res
@@ -334,9 +343,7 @@ export default class Tape {
         const expansions: [number, string, Range][] = []
         while (!this.isExhausted()) {
             let found = false
-            for (const [idx, [flag, expansion]] of enumerate(
-                flagPool,
-            )) {
+            for (const [idx, [flag, expansion]] of enumerate(flagPool)) {
                 if (!this.cur()) {
                     break
                 }
@@ -432,7 +439,7 @@ export default class Tape {
      */
     putBack(pred: (ch: string, pos: number) => boolean): string {
         const end = this.pollBack((ch, pos) => !pred(ch, pos))
-        if (end === undefined) {
+        if (end === -1) {
             return ''
         }
         const res = this.raw.slice(this.pos, end)
@@ -468,7 +475,7 @@ export default class Tape {
      */
     seek(pred: (ch: string, pos: number) => boolean): boolean {
         const found = this.poll(pred)
-        if (found === undefined) {
+        if (found === -1) {
             return false
         }
         this.pos = found
@@ -483,7 +490,7 @@ export default class Tape {
      */
     seekBack(pred: (ch: string, pos: number) => boolean): boolean {
         const found = this.pollBack(pred)
-        if (found === undefined) {
+        if (found === -1) {
             return false
         }
         this.pos = found
@@ -508,6 +515,22 @@ export default class Tape {
     // =========================================================================================
     // Pattern Testing
     // =========================================================================================
+
+    /** Returns true if the current character is whitespace. */
+    isAtWs(): boolean {
+        if (this.isExhausted()) {
+            return false
+        }
+        return Tape.isWs(this.raw[this.pos])
+    }
+
+    /** Returns true if the current character is a carriage return or line feed. */
+    isAtLineSep(): boolean {
+        if (this.isExhausted()) {
+            return false
+        }
+        return Tape.isLineSep(this.raw[this.pos])
+    }
 
     /**
      * Returns true if the substring starting at the current position
