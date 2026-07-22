@@ -65,6 +65,9 @@ export type ScopeInfoCfg<ScopeKind extends string> = {
     /** @see {@link ScopeInfo.flatten} */
     readonly flatten?: boolean
 
+    /** @see {@link ScopeInfo.once} */
+    readonly once?: boolean
+
     /** @see {@link ScopeInfo.outerOpenScope} */
     readonly outerOpenScope?: ScopeKind
 
@@ -91,11 +94,12 @@ export class ScopeInfo<ScopeKind extends string> {
         readonly markerPool: readonly Tag[],
 
         /**
-         * A
+         * Atodo
          */
         readonly boundariesPool: readonly Boundaries[],
         readonly terminatorPool: readonly Tag[],
         readonly flatten: boolean,
+        readonly once: boolean,
         readonly outerOpenScope?: ScopeKind,
         readonly outerPrimedScope?: ScopeKind,
 
@@ -126,6 +130,7 @@ export class ScopeInfo<ScopeKind extends string> {
             boundaries,
             cfg.terminatorPool?.map(e => lang.tagForKind(e)!) ?? [],
             cfg.flatten ?? false,
+            cfg.once ?? false,
             cfg.outerOpenScope,
             cfg.outerPrimedScope,
             isOpenByDefault ? boundaries.map(e => e.close) : undefined,
@@ -208,6 +213,7 @@ export class UnclosedScope<ScopeKind extends string> {
     private _expectedClose?: readonly Tag[]
     private _isOpen: boolean = false
     private _isReopened: boolean = false
+    private _deactivated: ScopeKind[] = []
 
     private constructor(
         readonly kind: ScopeKind,
@@ -254,8 +260,16 @@ export class UnclosedScope<ScopeKind extends string> {
         return this._isReopened
     }
 
+    get deactivated(): readonly ScopeKind[] {
+        return this._deactivated
+    }
+
     toString(): string {
         return `${this.kind} ${this.isOpen ? '🟢' : '🔴'}`
+    }
+
+    deactivate(innerScope: ScopeKind) {
+        this._deactivated.push(innerScope)
     }
 
     /** Can be called a second time to declare a scope to be open at a later token. */
@@ -349,20 +363,44 @@ export class ScopeStream<ScopeKind extends string> {
         const cur = this.tokens[this.pos]
         if (
             !markerPool.includes(cur.tag) ||
-            (outerPrimedScope !== undefined &&
-                !unclosed.find(
-                    scope => !scope.isOpen && scope.kind === outerPrimedScope,
-                )) ||
-            (outerOpenScope !== undefined &&
-                !unclosed.find(
-                    scope => scope.isOpen && scope.kind === outerOpenScope,
-                ))
+            !isSatisfied(outerPrimedScope) ||
+            !isSatisfied(outerOpenScope)
         ) {
             return false
         }
         const scope = UnclosedScope.newInstance(query, cur, this.pos)
         this.unclosed.push(scope)
         return true
+
+        function isSatisfied(outerScope: ScopeKind | undefined): boolean {
+            if (outerScope !== undefined) {
+                const outer = unclosed.find(
+                    scope => !scope.isOpen && scope.kind === outerScope,
+                )
+                if (!outer) {
+                    return false
+                }
+                if (query.once) {
+                    if (outer.deactivated.includes(query.scopeKind)) {
+                        return false
+                    }
+                    outer.deactivate(query.scopeKind)
+                }
+            }
+            return true
+        }
+    }
+
+    /**  Closes all opened scopes and discards all primed scopes. */
+    finish() {
+        const end = this.tokens[this.pos - 1].end
+        for (const scope of this.unclosed) {
+            if (scope.isOpen) {
+                const s = scope.close(end)
+                this.closed.insert(s.interval, s)
+            }
+        }
+        this.unclosed.length = 0
     }
 
     /**
@@ -382,18 +420,6 @@ export class ScopeStream<ScopeKind extends string> {
             continue
         } while (this._collect())
         this.adv()
-    }
-
-    /**  Closes all opened scopes and discards all primed scopes. */
-    finish() {
-        const end = this.tokens[this.pos - 1].end
-        for (const scope of this.unclosed) {
-            if (scope.isOpen) {
-                const s = scope.close(end)
-                this.closed.insert(s.interval, s)
-            }
-        }
-        this.unclosed.length = 0
     }
 
     /** Returns `true` if any element in `unclosed` was modified. */

@@ -115,6 +115,7 @@ export const rustScopes = newScopeRegistry<RustScopeKind>(() => rustVocab, {
         markerPool: ['OPEN_PAREN'],
         boundariesPool: [[null, 'CLOSE_PAREN']],
         outerPrimedScope: 'fn',
+        once: true,
     },
     closureParams: {
         markerPool: ['OPEN_CLOSURE_PARAMS'],
