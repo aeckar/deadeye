@@ -6,10 +6,12 @@ import DocumentInfoService from './document_info_service'
 
 /**
  * # Implementation
- * 
+ *
  * When performing deletions, it is important to strip away as much todo
  */
 class TextDeletionService {
+    private constructor() {}
+
     static start(ctx: ExtensionContext) {
         // Smart backspace key
         ctx.subscriptions.push(
@@ -89,7 +91,7 @@ class TextDeletionService {
             return
         }
         let token = tokens[idx]
-if (direction === 'left') {
+        if (direction === 'left') {
             if (cursor === token.begin && idx !== 0) {
                 // cursor directly before token; backspace should target previous token
                 idx -= 1
@@ -109,7 +111,7 @@ if (direction === 'left') {
             await rel.delete(0, tape.pos, editor)
             return
         }
-        if (token.kind === 'ID') {
+        if (Token.isEditable(token.kind)) {
             this.applyCaretDelete(editor, direction)
             return
         }

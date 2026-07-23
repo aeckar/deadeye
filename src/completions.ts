@@ -357,7 +357,7 @@ export class Completion {
                 const strings = invalid
                     .map(
                         e =>
-                            `${e.start.line}:${e.start.character}..${e.end.line}:${e.end.character}`,
+                            `(${e.start.line},${e.start.character}:${e.end.line},${e.end.character})`,
                     )
                     .join(', ')
                 window.showWarningMessage(

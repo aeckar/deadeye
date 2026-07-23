@@ -6,6 +6,7 @@ import DocumentInfoService from './services/document_info_service'
 import IntervalTreeService from './services/interval_tree_service'
 import ScopeBreadcrumbsService from './services/scope_breadcrumbs_service'
 import TextDeletionService from './services/smart_delete_service'
+import TokenExplorerService from './services/token_explorer_service'
 
 /** Extension initializer. */
 export async function activate(context: ExtensionContext) {
@@ -17,6 +18,7 @@ try{    // 1. Asynchronous dependency resolution
     ScopeBreadcrumbsService.start(context)
     TextDeletionService.start(context)
     CompletionService.start(context)
+    TokenExplorerService.start(context)
 } catch (e) {
     console.error(e)
     }

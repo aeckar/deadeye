@@ -14,7 +14,50 @@
     ],
     "main": "./dist/extension.js",
     "contributes": {
-        
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "tokenExplorer",
+                    "title": "Token Explorer",
+                    "icon": "$(whole-word)"
+                },
+                {
+                    "id": "scopeExplorer",
+                    "title": "Scope Explorer",
+                    "icon": "$(type-heirarchy)"
+                }
+            ]
+        },
+        "views": {
+            "tokenExplorer": [
+                {
+                    "id": "tokenListView",
+                    "name": "Document Tokens",
+                    "icon": "$(whole-word)"
+                }
+            ],
+            "scopeExplorer": [
+                {
+                    "id": "scopeHeirarchyView",
+                    "name": "Document Scopes",
+                    "icon": "$(type-heirarchy)"
+                }
+            ]
+        },
+        "commands": [
+            {
+                "command": "deadeye.tokenExplorer.jumpTo",
+                "title": "Jump to Token in Active Document",
+                "category": "Token Explorer",
+                "icon": "$(debug-step-into)"
+            },
+            {
+                "command": "deadeye.scopeExplorer.jumpTo",
+                "title": "Jump to Scope Marker and Region in Active Document",
+                "category": "Scope Explorer",
+                "icon": "$(debug-step-into)"
+            }
+        ]
     },
     "scripts": {
         "vscode:prepublish": "pnpm run package",

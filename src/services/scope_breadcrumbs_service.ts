@@ -39,28 +39,19 @@ export class ScopeBreadcrumbsService {
             this.statusBarItem.hide()
             return
         }
-
         const document = editor.document
-        
-        // Only run for your supported languages (e.g., Rust)
         if (document.languageId !== 'rust') {
+            // unsupported language
             this.statusBarItem.hide()
             return
         }
-
-        const cursorOffset = document.offsetAt(editor.selection.active)
-
-        // Fetch from your custom registry manager instance
-        // e.g., const scopesManager = this.getRegistryFor(document);
+        const offset = document.offsetAt(editor.selection.active)
         const breadcrumbs =
-            DocumentInfoService.get(document).getBreadcrumbs(cursorOffset)
-
+            DocumentInfoService.get(document).getBreadcrumbs(offset)
         if (breadcrumbs.length === 0) {
             this.statusBarItem.hide()
             return
         }
-
-        // Format with a clean breadcrumb separator symbol
         this.statusBarItem.text = `$(symbol-class) ${breadcrumbs.join(` ${BREADCRUMB_SEP} `)}`
         this.statusBarItem.tooltip = 'Current Scope Hierarchy'
         this.statusBarItem.show()

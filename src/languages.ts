@@ -129,7 +129,7 @@ export class Token extends Span {
     }
 
     toString(): string {
-        return `${this.kind} @ ${this.begin}..${this.end}`
+        return `${this.kind}${super.toString()}`
     }
 
     static readonly UNKNOWN_KIND: TokenKind = 'UNKNOWN' as TokenKind
@@ -153,6 +153,10 @@ export class Token extends Span {
         )
     }
 
+    static isEditable(kind: TokenKind): boolean {
+        return kind === 'ID' || kind.endsWith('COMMENT')
+    }
+
     /**
      * Returns the index of the closest token for a given cursor offset
      * and in the given direction, resolving whitespace gaps.
@@ -174,7 +178,7 @@ export class Token extends Span {
         let low = 0
         let high = tokens.length - 1
 
-        // 1. Binary search to find exact overlap or the tightest containing bounds
+        // 1. Biased binary search to find exact overlap or the tightest containing bounds
         while (low <= high) {
             const mid = (low + high) >> 1 // fast floor division
             const token = tokens[mid]

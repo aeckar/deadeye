@@ -50,7 +50,7 @@ export class Span {
     }
 
     toString(): string {
-        return `${this.begin}..${this.end}`
+        return `(${this.begin}:${this.end})`
     }
 
     includes(idx: number): boolean {
