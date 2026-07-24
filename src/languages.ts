@@ -160,7 +160,7 @@ export class Token extends Span {
     /**
      * Returns the index of the closest token for a given cursor offset
      * and in the given direction, resolving whitespace gaps.
-     * 
+     *
      * If one is not found, returns -1.
      *
      * @param tokens Flat array of tokens, strictly sorted by token.begin.
@@ -336,6 +336,17 @@ export class Language {
 
     matchingCloseTag(open: Tag): Tag | undefined {
         return this.matchingCloseTags.get(open)
+    }
+
+    /**
+     * Returns true if the language for the given ID has all of the following:
+     *
+     * - Completion registry
+     * - Scope registry
+     * - `Language` implementation
+     */
+    static isSupported(langId: string): boolean {
+        return langId === 'rust'
     }
 
     /**

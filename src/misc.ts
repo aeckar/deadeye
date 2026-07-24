@@ -1,5 +1,6 @@
 //! Miscellaneous utilities.
 import {
+    ExtensionContext,
     Position,
     Range,
     Selection,
@@ -87,7 +88,7 @@ export type Member<T> = RemovePrefix<
 >
 
 // =============================================================================================
-// VS Code Ranges
+// VS Code API
 // =============================================================================================
 
 export function insert(

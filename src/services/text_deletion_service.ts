@@ -13,17 +13,13 @@ class TextDeletionService {
     private constructor() {}
 
     static start(ctx: ExtensionContext) {
-        const subscribe = ctx.subscriptions.push
-
-        // Smart backspace key
-        subscribe(
+        ctx.subscriptions.push(
+            // Smart backspace key
             commands.registerTextEditorCommand('deleteLeft', editor => {
                 this.applySmartDelete(editor, 'left')
             }),
-        )
 
-        // Smart delete key
-        subscribe(
+            // Smart delete key
             commands.registerTextEditorCommand('deleteRight', editor => {
                 this.applySmartDelete(editor, 'right')
             }),

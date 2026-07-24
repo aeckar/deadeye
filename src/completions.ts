@@ -476,4 +476,14 @@ export class CompletionStrategy {
         /** The position of the cursor the instance this object was created. */
         readonly pos: Position,
     ) {}
+
+    /** Returns the Markdown string for the completion preview, with placeholders made fancy. */
+    preview(): MarkdownString {
+        const preview = this.completion.preview.value
+        return new MarkdownString(
+            preview
+                .replace('$0', '/* stop here */')
+                .replace(/\$\{?(\d)(?::.*?\})?/, '/* placeholder $1 */'),
+        )
+    }
 }

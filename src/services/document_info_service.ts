@@ -97,10 +97,8 @@ class DocumentInfoService {
     private constructor() {}
 
     static start(ctx: ExtensionContext) {
-        const subscribe = ctx.subscriptions.push
-
-        // Listen for text buffer edits
-        subscribe(
+        ctx.subscriptions.push(
+            // Listen for text buffer edits
             workspace.onDidChangeTextDocument(event => {
                 const document = event.document
                 if (
@@ -111,10 +109,8 @@ class DocumentInfoService {
                 }
                 this.get(document).registerChanges(event.contentChanges)
             }),
-        )
 
-        // Clear cache when a file is closed to free up memory
-        subscribe(
+            // Clear cache when a file is closed to free up memory
             workspace.onDidCloseTextDocument(document => {
                 this.files.delete(document.uri.toString())
             }),

@@ -186,3 +186,5 @@ A raw scanner satisfies all four. The symbol tree satisfies none of them fully. 
 // }
 
 // completions for extracting scope
+typescript: as a rule of thumb, === undefined should always be made explicit for strings and numbers
+    as 0 and "" are both falsy

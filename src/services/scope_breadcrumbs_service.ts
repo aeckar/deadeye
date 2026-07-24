@@ -4,8 +4,9 @@ import {
     TextEditor,
     window,
 } from 'vscode'
-import DocumentInfoService from './document_info_service'
 import { BREADCRUMB_SEP } from '../constants'
+import { Language } from '../languages'
+import DocumentInfoService from './document_info_service'
 
 export class ScopeBreadcrumbsService {
     private static statusBarItem = window.createStatusBarItem(
@@ -14,21 +15,18 @@ export class ScopeBreadcrumbsService {
     )
 
     static start(ctx: ExtensionContext) {
-        const subscribe = ctx.subscriptions.push
         this.updateBreadcrumbs(window.activeTextEditor)
 
-        // Show status bar
-        subscribe(this.statusBarItem)
+        ctx.subscriptions.push(
+            // Show status bar
+            this.statusBarItem,
 
-        // Listen for cursor movement
-        subscribe(
+            // Listen for cursor movement
             window.onDidChangeTextEditorSelection(e => {
                 this.updateBreadcrumbs(e.textEditor)
             }),
-        )
 
-        // Listen for active editor switches
-        subscribe(
+            // Listen for active editor switches
             window.onDidChangeActiveTextEditor(editor => {
                 this.updateBreadcrumbs(editor)
             }),
@@ -41,7 +39,7 @@ export class ScopeBreadcrumbsService {
             return
         }
         const document = editor.document
-        if (document.languageId !== 'rust') {
+        if (!Language.isSupported(document.languageId)) {
             // unsupported language
             this.statusBarItem.hide()
             return

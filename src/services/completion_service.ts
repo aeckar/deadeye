@@ -30,20 +30,16 @@ class CompletionService {
     }
 
     static start(ctx: ExtensionContext) {
-        const subscribe = ctx.subscriptions.push
-
-        // Cancel completion on selection change
-        subscribe(
+        ctx.subscriptions.push(
+            // Cancel completion on selection change
             window.onDidChangeTextEditorSelection(event => {
                 CompletionService.cancelCompletion(event.textEditor)
             }),
-        )
 
-        // Prepare completion on keystroke
-        //
-        // Prefer low-level command to `onDidChangeActiveTextEditor` listener
-        // for optimal recognition of fast keystroke combos.
-        subscribe(
+            // Prepare completion on keystroke
+            //
+            // Prefer low-level command to `onDidChangeActiveTextEditor` listener
+            // for optimal recognition of fast keystroke combos.
             commands.registerCommand('type', async args => {
                 const editor = window.activeTextEditor
                 if (!editor) {
@@ -72,10 +68,8 @@ class CompletionService {
                     ])
                 }
             }),
-        )
 
-        // Show documentation on hover
-        subscribe(
+            // Show documentation on hover
             languages.registerHoverProvider('rust', {
                 provideHover(_, position) {
                     const strategy = CompletionService._completionStrategy
@@ -88,31 +82,16 @@ class CompletionService {
                     return new Hover(strategy.family.docs)
                 },
             }),
-        )
 
-        // Show preview on hover
-        subscribe(
+            // Show preview on hover
             languages.registerHoverProvider('rust', {
                 provideHover(_, position) {
                     const strategy = CompletionService._completionStrategy
-                    if (
-                        !strategy ||
-                        !strategy.completion.target.contains(position)
-                    ) {
+                    const target = strategy?.completion.target
+                    if (!strategy || !target?.contains(position)) {
                         return null
                     }
-                    // Since there can be multiple code blocks in a preview, don't bother
-                    // highlighting them by turning them into fenced code blocks.
-                    return new Hover(
-                        new MarkdownString(
-                            strategy.completion.preview.value
-                                .replace('$0', '/* stop here */')
-                                .replace(
-                                    /\$\{?(\d)(?::.*?\})?/,
-                                    '/* placeholder $1 */',
-                                ),
-                        ),
-                    )
+                    return new Hover(strategy.preview())
                 },
             }),
         )
