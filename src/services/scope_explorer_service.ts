@@ -17,6 +17,7 @@ import {
 import { Language } from '../languages'
 import { Scope } from '../scope'
 import DocumentInfoService, { DocumentInfo } from './document_info_service'
+import { DocumentContext } from '../misc'
 
 /**
  * # Implementation
@@ -106,10 +107,14 @@ export class ScopeExplorerService implements TreeDataProvider<ScopeTreeItem> {
                 'deadeye.scopeExplorer.jumpTo',
                 (scope: Scope<string>) => {
                     const editor = window.activeTextEditor
-                    if (!editor) return
-                    const pos = editor.document.positionAt(scope.begin)
-                    editor.selection = new Selection(pos, pos)
-                    editor.revealRange(new Range(pos, pos))
+                    if (!editor) {
+                        return
+                    }
+                    const rel = new DocumentContext(editor.document)
+                    const begin = rel.pos(scope.begin)
+                    const end = rel.pos(scope.end)
+                    editor.selection = new Selection(begin, end)
+                    editor.revealRange(new Range(begin, end))
                 },
             ),
 

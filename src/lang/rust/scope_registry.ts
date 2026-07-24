@@ -127,6 +127,7 @@ export const rustScopes = newScopeRegistry<RustScopeKind>(() => rustVocab, {
     assignment: {
         markerPool: ['LET', 'CONST', 'STATIC'],
         boundariesPool: [[null, 'SEMICOLON']],
+        
     },
     typeAnno: {
         markerPool: ['COLON'],

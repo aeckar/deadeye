@@ -2,6 +2,7 @@ import {
     Event,
     EventEmitter,
     ExtensionContext,
+    ProviderResult,
     Range,
     Selection,
     TextEditor,
@@ -98,6 +99,11 @@ export class TokenExplorerService implements TreeDataProvider<TokenTreeItem> {
     private refresh() {
         this.items = []
         this._onDidChangeTreeData.fire()
+    }
+
+    getParent(_: TokenTreeItem): ProviderResult<TokenTreeItem> {
+        
+        return undefined
     }
 
     // override

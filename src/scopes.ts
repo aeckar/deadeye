@@ -85,7 +85,7 @@ export type ScopeInfoCfg<ScopeKind extends string> = {
 export class ScopeInfo<ScopeKind extends string> {
     private constructor(
         /** The scope ID. */
-        readonly scopeKind: ScopeKind,
+        readonly kind: ScopeKind,
 
         /**
          * All possible marker tokens that may be matched
@@ -97,10 +97,30 @@ export class ScopeInfo<ScopeKind extends string> {
          * Atodo
          */
         readonly boundariesPool: readonly Boundaries[],
+
+        /**
+         * Atodo
+         */
         readonly terminatorPool: readonly Tag[],
+
+        /**
+         * Atodo
+         */
         readonly flatten: boolean,
+
+        /**
+         * Atodo
+         */
         readonly once: boolean,
+
+        /**
+         * Atodo
+         */
         readonly outerOpenScope?: ScopeKind,
+
+        /**
+         * Atodo
+         */
         readonly outerPrimedScope?: ScopeKind,
 
         /** Closing token kinds, cached for easy access if open by default. */
@@ -112,7 +132,7 @@ export class ScopeInfo<ScopeKind extends string> {
     }
 
     toString(): string {
-        return `ScopeInfo(${this.scopeKind})`
+        return `ScopeInfo(${this.kind})`
     }
 
     static newInstance<ScopeKind extends string>(
@@ -216,12 +236,9 @@ export class UnclosedScope<ScopeKind extends string> {
     private _deactivated: ScopeKind[] = []
 
     private constructor(
-        readonly kind: ScopeKind,
+        readonly query: ScopeInfo<ScopeKind>,
         readonly markerPos: number,
         readonly markerTokenPos: number,
-        readonly boundariesPool: readonly Boundaries[],
-        readonly terminatorPool: readonly Tag[],
-        readonly flatten: boolean,
     ) {}
 
     static newInstance<ScopeKind extends string>(
@@ -229,15 +246,7 @@ export class UnclosedScope<ScopeKind extends string> {
         marker: Token,
         markerTokenPos: number,
     ): UnclosedScope<ScopeKind> {
-        const { scopeKind, boundariesPool, terminatorPool, flatten } = query
-        const scope = new UnclosedScope(
-            scopeKind,
-            marker.begin,
-            markerTokenPos,
-            boundariesPool,
-            terminatorPool,
-            flatten,
-        )
+        const scope = new UnclosedScope(query, marker.begin, markerTokenPos)
         if (query.isOpenByDefault) {
             scope.open(marker.end, query.closeKinds!)
         }
@@ -265,7 +274,7 @@ export class UnclosedScope<ScopeKind extends string> {
     }
 
     toString(): string {
-        return `${this.kind} ${this.isOpen ? '🟢' : '🔴'}`
+        return `${this.query.kind} ${this.isOpen ? '🟢' : '🔴'}`
     }
 
     deactivate(innerScope: ScopeKind) {
@@ -285,7 +294,7 @@ export class UnclosedScope<ScopeKind extends string> {
     close(end: number): Scope<ScopeKind> {
         if (this.begin !== undefined) {
             return new Scope(
-                this.kind,
+                this.query.kind,
                 this.markerPos,
                 this.markerTokenPos,
                 this.begin!,
@@ -293,7 +302,7 @@ export class UnclosedScope<ScopeKind extends string> {
             )
         }
         return new Scope(
-            this.kind,
+            this.query.kind,
             this.markerPos,
             this.markerTokenPos,
             this.markerPos,
@@ -375,16 +384,16 @@ export class ScopeStream<ScopeKind extends string> {
         function isSatisfied(outerScope: ScopeKind | undefined): boolean {
             if (outerScope !== undefined) {
                 const outer = unclosed.find(
-                    scope => !scope.isOpen && scope.kind === outerScope,
+                    scope => !scope.isOpen && scope.query.kind === outerScope,
                 )
                 if (!outer) {
                     return false
                 }
                 if (query.once) {
-                    if (outer.deactivated.includes(query.scopeKind)) {
+                    if (outer.deactivated.includes(query.kind)) {
                         return false
                     }
-                    outer.deactivate(query.scopeKind)
+                    outer.deactivate(query.kind)
                 }
             }
             return true
@@ -438,7 +447,7 @@ export class ScopeStream<ScopeKind extends string> {
             if (top.expectedClose?.includes(tag!)) {
                 const s = unclosed.pop()!.close(start.begin)
                 closed.insert([s.begin, s.end], s)
-                while (unclosed.at(-1)?.flatten) {
+                while (unclosed.at(-1)?.query.flatten) {
                     // cascade changes to adjacent flat scopes
                     const fs = unclosed.pop()!.close(start.begin)
                     closed.insert([fs.begin, fs.end], fs)
@@ -454,14 +463,18 @@ export class ScopeStream<ScopeKind extends string> {
         let modified = false
         while (idx >= 0) {
             const scope = unclosed[idx]
-            for (const boundaries of scope.boundariesPool) {
+            for (const boundaries of scope.query.boundariesPool) {
                 // Attempt to open scope by matching to opener
                 if (
                     tag === boundaries.open &&
                     (!scope.isOpen || !scope.isReopened)
                 ) {
                     scope.open(start.end, [boundaries.close])
-                    for (idx -= 1; idx >= 0 && unclosed[idx]?.flatten; --idx) {
+                    for (
+                        idx -= 1;
+                        idx >= 0 && unclosed[idx]?.query.flatten;
+                        --idx
+                    ) {
                         unclosed[idx].open(start.end, [boundaries.close])
                     }
                     modified = true
@@ -478,7 +491,7 @@ export class ScopeStream<ScopeKind extends string> {
                     closed.insert(s.interval, s)
                     for (
                         idx -= 1;
-                        idx >= 0 && unclosed.at(-1)?.flatten;
+                        idx >= 0 && unclosed.at(-1)?.query.flatten;
                         --idx
                     ) {
                         const fs = unclosed.pop()!.close(start.begin)
@@ -490,13 +503,13 @@ export class ScopeStream<ScopeKind extends string> {
                 }
             }
             if (!modified && !scope.isOpen) {
-                for (const terminator of scope.terminatorPool) {
+                for (const terminator of scope.query.terminatorPool) {
                     if (tag === terminator) {
                         const s = scope.close(start.begin)
                         closed.insert(s.interval, s)
                         for (
                             idx -= 1;
-                            idx >= 0 && unclosed.at(-1)?.flatten;
+                            idx >= 0 && unclosed.at(-1)?.query.flatten;
                             --idx
                         ) {
                             const fs = unclosed.pop()!.close(start.begin)

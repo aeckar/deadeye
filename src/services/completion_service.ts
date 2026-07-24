@@ -3,7 +3,6 @@ import {
     ExtensionContext,
     Hover,
     languages,
-    MarkdownString,
     Position,
     Selection,
     SnippetString,
