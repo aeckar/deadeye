@@ -30,8 +30,10 @@ class CompletionService {
     }
 
     static start(ctx: ExtensionContext) {
+        const subscribe = ctx.subscriptions.push
+
         // Cancel completion on selection change
-        ctx.subscriptions.push(
+        subscribe(
             window.onDidChangeTextEditorSelection(event => {
                 CompletionService.cancelCompletion(event.textEditor)
             }),
@@ -41,7 +43,7 @@ class CompletionService {
         //
         // Prefer low-level command to `onDidChangeActiveTextEditor` listener
         // for optimal recognition of fast keystroke combos.
-        ctx.subscriptions.push(
+        subscribe(
             commands.registerCommand('type', async args => {
                 const editor = window.activeTextEditor
                 if (!editor) {
@@ -63,7 +65,7 @@ class CompletionService {
                     return
                 }
                 commands.executeCommand('default:type', args) // manually perform insertion
-                await this.updateCompletionStrategy(keyIn, editor)
+                this.updateCompletionStrategy(keyIn, editor)
                 if (strategy) {
                     editor.setDecorations(this.decoration, [
                         strategy.completion.target,
@@ -73,7 +75,7 @@ class CompletionService {
         )
 
         // Show documentation on hover
-        ctx.subscriptions.push(
+        subscribe(
             languages.registerHoverProvider('rust', {
                 provideHover(_, position) {
                     const strategy = CompletionService._completionStrategy
@@ -89,7 +91,7 @@ class CompletionService {
         )
 
         // Show preview on hover
-        ctx.subscriptions.push(
+        subscribe(
             languages.registerHoverProvider('rust', {
                 provideHover(_, position) {
                     const strategy = CompletionService._completionStrategy

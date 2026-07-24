@@ -14,24 +14,25 @@ export class ScopeBreadcrumbsService {
     )
 
     static start(ctx: ExtensionContext) {
-        ctx.subscriptions.push(this.statusBarItem)
+        const subscribe = ctx.subscriptions.push
+        this.updateBreadcrumbs(window.activeTextEditor)
+
+        // Show status bar
+        subscribe(this.statusBarItem)
 
         // Listen for cursor movement
-        ctx.subscriptions.push(
+        subscribe(
             window.onDidChangeTextEditorSelection(e => {
                 this.updateBreadcrumbs(e.textEditor)
             }),
         )
 
         // Listen for active editor switches
-        ctx.subscriptions.push(
+        subscribe(
             window.onDidChangeActiveTextEditor(editor => {
                 this.updateBreadcrumbs(editor)
             }),
         )
-
-        // Initial run
-        this.updateBreadcrumbs(window.activeTextEditor)
     }
 
     private static updateBreadcrumbs(editor: TextEditor | undefined) {

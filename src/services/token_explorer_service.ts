@@ -4,7 +4,6 @@ import {
     ExtensionContext,
     Range,
     Selection,
-    ThemeIcon,
     TreeDataProvider,
     TreeItem,
     TreeItemCollapsibleState,
@@ -18,14 +17,17 @@ import { DocumentContext } from '../misc'
 
 /**
  * Previous versions supported icons for tree items.
- * This became confusing, especially for sigil tokens, so this feature was scrapped. 
+ * This became confusing, especially for sigil tokens, so this feature was scrapped.
  */
 class TokenTreeItem extends TreeItem {
-    constructor(readonly token: Token, docInfo: DocumentInfo<string>) {
+    constructor(
+        readonly token: Token,
+        docInfo: DocumentInfo<string>,
+    ) {
         const slice = docInfo.text.slice(token.begin, token.end)
         super(slice, TreeItemCollapsibleState.None)
         this.description = token.kind
-        this.tooltip = token.toString() // show offsets
+        this.tooltip = token.toString() // complete information
         this.command = {
             command: 'deadeye.tokenExplorer.jumpTo',
             title: 'Jump to token',
@@ -44,13 +46,15 @@ export class TokenExplorerService implements TreeDataProvider<TokenTreeItem> {
     private constructor() {}
 
     static start(ctx: ExtensionContext) {
-        // Derivec tree data from singleton instance
-        ctx.subscriptions.push(
+        const subscribe = ctx.subscriptions.push
+
+        // Derive tree data from singleton instance
+        subscribe(
             window.registerTreeDataProvider('tokenListView', this.instance),
         )
 
         // Jump to token in active document
-        ctx.subscriptions.push(
+        subscribe(
             commands.registerCommand(
                 'deadeye.tokenExplorer.jumpTo',
                 (token: Token) => {
@@ -68,7 +72,7 @@ export class TokenExplorerService implements TreeDataProvider<TokenTreeItem> {
         )
 
         // Refresh on edits in active document
-        ctx.subscriptions.push(
+        subscribe(
             workspace.onDidChangeTextDocument(event => {
                 if (event.document === window.activeTextEditor?.document) {
                     this.instance.refresh()
@@ -77,9 +81,12 @@ export class TokenExplorerService implements TreeDataProvider<TokenTreeItem> {
         )
 
         // Refresh on editor change
-        ctx.subscriptions.push(
+        subscribe(
             window.onDidChangeActiveTextEditor(() => this.instance.refresh()),
         )
+
+        // Follow the cursor: Select the active token
+        subscribe()
     }
 
     private refresh() {

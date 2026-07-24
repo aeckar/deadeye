@@ -24,7 +24,7 @@
                 {
                     "id": "scopeExplorer",
                     "title": "Scope Explorer",
-                    "icon": "$(type-heirarchy)"
+                    "icon": "$(symbol-namespace)"
                 }
             ]
         },
@@ -38,9 +38,9 @@
             ],
             "scopeExplorer": [
                 {
-                    "id": "scopeHeirarchyView",
+                    "id": "scopeHierarchyView",
                     "name": "Document Scopes",
-                    "icon": "$(type-heirarchy)"
+                    "icon": "$(symbol-namespace)"
                 }
             ]
         },
