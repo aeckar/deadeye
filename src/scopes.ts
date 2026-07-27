@@ -152,7 +152,7 @@ export class ScopeInfo<ScopeKind extends string> {
         return new ScopeInfo(
             scopeKind,
             cfg.markerPool?.map(e => lang.tagForKind(e)!) ?? [
-                lang.tagForKind(scopeKind.toUpperCase())!,
+                lang.tagForKind(scopeKind.toUpperCase() as Uppercase<string>)!,
             ],
             boundaries,
             cfg.terminatorPool?.map(e => lang.tagForKind(e)!) ?? [],

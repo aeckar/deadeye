@@ -6,15 +6,15 @@ export const tsScopes = newScopeRegistry(() => tsVocab, {
     // Declarations using soft keywords like `type` or `namespace`
     // are checked by verifying the identifier's raw text
     typeAlias: {
-        markerPool: ['IDENTIFIER:type'],
+        markerPool: ['TYPE'],
         boundariesPool: [[null, 'SEMICOLON']],
     },
     namespace: {
-        markerPool: ['IDENTIFIER:namespace', 'IDENTIFIER:module'],
+        markerPool: ['NAMESPACE', 'MODULE'],
         boundariesPool: [CURLIES],
     },
     interface: {
-        markerPool: ['IDENTIFIER:interface'],
+        markerPool: ['INTERFACE'],
         boundariesPool: [CURLIES],
     },
 
