@@ -1,6 +1,5 @@
 //! Miscellaneous utilities.
 import {
-    ExtensionContext,
     Position,
     Range,
     Selection,

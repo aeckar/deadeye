@@ -103,7 +103,7 @@ export type TokenKind = string & { __brand: 'TokenName' }
  * This type is not branded so users do not need to perform a cast just
  * to provide these values to a configuration object
  */
-export type UnknownTokenKind = string
+export type UnknownTokenKind = Uppercase<string>
 
 /**
  * A token, implemented as a node in a linked list (token stream).
