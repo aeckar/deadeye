@@ -9,7 +9,12 @@ import TextDeletionService from './services/text_deletion_service'
 import TokenExplorerService from './services/token_explorer_service'
 import ScopeExplorerService from './services/scope_explorer_service'
 
-/** Extension initializer. */
+/**
+ * Extension initializer.
+ * 
+ * Codicon reference:
+ * https://code.visualstudio.com/api/references/icons-in-labels
+ */
 export async function activate(context: ExtensionContext) {
 try{    // 1. Asynchronous dependency resolution
     await IntervalTreeService.start()

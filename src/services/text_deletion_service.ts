@@ -7,7 +7,11 @@ import DocumentInfoService from './document_info_service'
 /**
  * # Implementation
  *
- * When performing deletions, it is important to strip away as much todo
+ * When performing smart deletions, it is important to strip away as much known redundant
+ * data as possible. For example, if redundant whitespace is found while scanning,
+ * it should be discarded even if it does not affect the position of the cursor.
+ * This gives peace of mind to the client so they can place their cursor where they
+ * expect it to go.
  */
 class TextDeletionService {
     private constructor() {}
@@ -126,6 +130,12 @@ class TextDeletionService {
                 await rel.delete(token.begin, cursor, editor)
             }
         } else {
+            //todo create snippets on the fly!
+
+            //todo fix indentation delete
+            //todo if last in line is OPEN_ (or COLON and langId == 'python'),
+            //todo  then find next non blank line, extract indent, then delete such
+            //todo  that the current line is now 1 indent less than that 
             const tape = Tape.over(text, token.end)
             const ws = tape.consumeWs().length
             if (tape.isAtLineSep()) {

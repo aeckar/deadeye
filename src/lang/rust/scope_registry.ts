@@ -2,30 +2,6 @@ import { CURLIES } from '../../constants'
 import { newScopeRegistry } from '../../scopes'
 import rustVocab from './language'
 
-export type RustScopeKind =
-    | 'struct'
-    | 'fn'
-    | 'closure'
-    | 'enum'
-    | 'trait'
-    | 'mod'
-    | 'extern'
-    | 'async'
-    | 'const'
-    | 'macro'
-    | 'macroArm'
-    | 'macroArmParams'
-    | 'fnParams'
-    | 'closureParams'
-    | 'impl'
-    | 'assignment'
-    | 'typeAnno'
-    | 'conditional'
-    | 'else'
-    | 'loop'
-    | 'match'
-    | 'matchArm'
-
 // | 'condition' // IMPOSSIBLE IN RUST bc no (); completions must infer scope
 // | 'typeParams' // $id < .. > //leave generocs out of lexer, defer to local ctx resolution
 // | 'typeArgs' // ${$ty $id | fn} < .. >
@@ -53,7 +29,7 @@ export type RustScopeKind =
 
 // struct init is also too complex to parse at scope time, defer to completions
 
-export const rustScopes = newScopeRegistry<RustScopeKind>(() => rustVocab, {
+export const rustScopes = newScopeRegistry(() => rustVocab, {
     struct: {
         markerPool: ['STRUCT', 'UNION'],
         boundariesPool: [CURLIES],

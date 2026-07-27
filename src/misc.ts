@@ -160,13 +160,20 @@ export class DocumentContext {
     }
 }
 
-// todo doc
+/**
+ * Returns the range before the cursor on the same line
+ * containing `cursor.character` characters.
+ * 
+ * For a larger `from` value, the range grows left from the cursor.
+ * Omitting `from` gives the entire line before the cursor,
+ * and passing zero gives a zero-length selection at the cursor.
+ */
 export function rangeBefore(
     cursor: Position,
     from: number = cursor.character,
 ): Range {
     if (from < 0) {
-        // otherwise, would silently fail
+        // handle to prevent silent failure
         throw new RangeError(`'from' must be non-negative, got ${from}`)
     }
     if (from > cursor.character) {
@@ -180,11 +187,14 @@ export function rangeBefore(
     )
 }
 
-// todo doc
+/**
+ * Returns the position on the same line directly after the cursor,
+ * with the given number of characters skipped also.
+ */
 export function after(cursor: Position, skip: number = 0): Position {
     return new Position(cursor.line, cursor.character + skip + 1)
 }
-
+ 
 // =============================================================================================
 // Type-Safe Record Iteration
 // =============================================================================================

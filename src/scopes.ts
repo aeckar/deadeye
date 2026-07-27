@@ -17,18 +17,8 @@ export type BoundariesPool = (readonly [
     UnknownTokenKind,
 ])[]
 
-/**
- * The boundaries of a scope.
- *
- * Possibilties:
- * - **`openByDefault` + `open === undefined`:** `<scope-marker> ...open... <primed>`
- * - **`open === undefined`:** `<scope-marker> ...primed... <close>`
- * - **`open !== undefined`:** `<scope-marker> ...primed... <open> ...open... <close>`
- *
- * A scope starts open if any of its possible boundaries have an undefined open token.
- */
+/** The boundaries of a scope. */
 export class Boundaries {
-    // explicit passing of `undefined` allowable here, since it is also a declaration
     constructor(
         readonly open: Tag | undefined,
         readonly close: Tag,
@@ -87,39 +77,56 @@ export class ScopeInfo<ScopeKind extends string> {
         /** The scope ID. */
         readonly kind: ScopeKind,
 
-        /**
-         * All possible marker tokens that may be matched
-         * to successfully parse the start of this scope.
-         */
+        /** Tags of marker tokens that can be matched as the start of this scope. */
         readonly markerPool: readonly Tag[],
 
         /**
-         * Atodo
+         * The tags of the tokens that can be matched to open and close a scope, respectively.
+         *
+         * Each open-close pairing is represented as a `Boundaries` instance.
+         * If `open` is undefined for any element, the scope does not require an opening
+         * token to become open. Instead, it becomes open by default.
          */
         readonly boundariesPool: readonly Boundaries[],
 
         /**
-         * Atodo
+         * The tags of the tokens that can be matched to unconditionally close a scope,
+         * including if it has not been opened yet.
+         *
+         * If the scope was never opened, the region the scope covers extends to the scope marker.
          */
         readonly terminatorPool: readonly Tag[],
 
         /**
-         * Atodo
+         * If true, while this scope is not closed, closing any subsequent scope also closes
+         * this one, and so on for other scopes where `flatten` is true.
          */
         readonly flatten: boolean,
 
         /**
-         * Atodo
+         * If true, the outer primed or open scope can only be used to permit a match to the
+         * marker token once, respectively.
+         *
+         * @see {@link outerPrimedScope}
+         * @see {@link outerOpenScope}
          */
         readonly once: boolean,
 
         /**
-         * Atodo
+         * If defined, this scope must be open when the scope marker is matched
+         * for the scope to be recognized.
+         *
+         * @see {@link outerPrimedScope}
+         * @see {@link once}
          */
         readonly outerOpenScope?: ScopeKind,
 
         /**
-         * Atodo
+         * If defined, this scope must be primed when the scope marker is matched
+         * for the scope to be recognized.
+         *
+         * @see {@link outerOpenScope}
+         * @see {@link once}
          */
         readonly outerPrimedScope?: ScopeKind,
 
@@ -198,7 +205,6 @@ export class ScopeRegistry<ScopeKind extends string> {
      * `begin` may be the head of a token stream. If it is not, that token is the first one
      * checked for a match to a scope marker.
      */
-    //todo implement stop
     extractScopes(tokens: readonly Token[]): IntervalTree<Scope<ScopeKind>> {
         const stream = new ScopeStream<ScopeKind>(tokens)
         while (!stream.isExhausted()) {
@@ -215,11 +221,19 @@ export class ScopeRegistry<ScopeKind extends string> {
 /**
  * The corresponding `Language` is passed as a callback to circumvent JavaScript module loading
  * order issues.
+ * 
+ * # Type Parameter
+ * 
+ * Callers should always infer `Cfg`.
+ * 
+ * Extraction of the congifuration object type to a type parameter enables automatic extraction of
+ * the key string union type. This allows callers to define a scope registry without first
+ * defining a string union of the keys (`ScopeKind` variants).
  */
-export function newScopeRegistry<ScopeKind extends string>(
+export function newScopeRegistry<Cfg extends ScopeRegistryCfg<string>>(
     langCallback: () => Language,
-    cfg: ScopeRegistryCfg<ScopeKind>,
-): ScopeRegistry<ScopeKind> {
+    cfg: Cfg,
+): ScopeRegistry<keyof Cfg & string> {
     return new ScopeRegistry(langCallback, cfg)
 }
 

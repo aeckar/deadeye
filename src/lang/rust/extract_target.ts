@@ -64,7 +64,7 @@ function skipBalancedReverse(
  *
  * @todo Check for edge cases: `->` in fn pointers, lifetimes (`'a`), `impl`/`dyn` bounds
  */
-export function extractRustTarget(
+export function extractTarget(
     docText: string,
     tokens: readonly Token[],
     begin: number,

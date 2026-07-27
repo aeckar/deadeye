@@ -17,29 +17,22 @@
         "viewsContainers": {
             "activitybar": [
                 {
-                    "id": "tokenExplorer",
-                    "title": "Token Explorer",
+                    "id": "deadeyeInspector",
+                    "title": "Deadeye Inspector",
                     "icon": "$(whole-word)"
-                },
-                {
-                    "id": "scopeExplorer",
-                    "title": "Scope Explorer",
-                    "icon": "$(symbol-namespace)"
                 }
             ]
         },
         "views": {
-            "tokenExplorer": [
+            "deadeyeInspector": [
                 {
-                    "id": "tokenListView",
-                    "name": "Document Tokens",
+                    "id": "tokenExplorer",
+                    "name": "Token Explorer",
                     "icon": "$(whole-word)"
-                }
-            ],
-            "scopeExplorer": [
+                },
                 {
-                    "id": "scopeHierarchyView",
-                    "name": "Document Scopes",
+                    "id": "scopeExplorer",
+                    "name": "Scope Explorer",
                     "icon": "$(symbol-namespace)"
                 }
             ]
@@ -48,13 +41,13 @@
             {
                 "command": "deadeye.tokenExplorer.jumpTo",
                 "title": "Jump to Token in Active Document",
-                "category": "Token Explorer",
+                "category": "Deadeye Inspector",
                 "icon": "$(debug-step-into)"
             },
             {
                 "command": "deadeye.scopeExplorer.jumpTo",
                 "title": "Jump to Scope Marker and Region in Active Document",
-                "category": "Scope Explorer",
+                "category": "Deadeye Inspector",
                 "icon": "$(debug-step-into)"
             }
         ]

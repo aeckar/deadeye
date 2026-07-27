@@ -93,7 +93,7 @@ export class ScopeExplorerService implements TreeDataProvider<ScopeTreeItem> {
     private constructor() {}
 
     static start(ctx: ExtensionContext) {
-        const treeView = window.createTreeView('scopeHierarchyView', {
+        const treeView = window.createTreeView('scopeExplorer', {
             treeDataProvider: this.instance,
         })
         this.instance.treeView = treeView

@@ -55,7 +55,7 @@ export class TokenExplorerService implements TreeDataProvider<TokenTreeItem> {
     private constructor() {}
 
     static start(ctx: ExtensionContext) {
-        const treeView = window.createTreeView('tokenListView', {
+        const treeView = window.createTreeView('tokenExplorer', {
             treeDataProvider: this.instance,
         })
         this.instance.treeView = treeView

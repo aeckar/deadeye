@@ -8,7 +8,7 @@ import { MAX_LINE_SEEK } from '../../constants'
 import { md } from '../../diagnostics'
 import { after, joinValues, rangeBefore, reverse } from '../../misc'
 import Tape from '../../tape'
-import { extractRustTargetReversed } from './consume_target'
+import { extractRustTargetReversed } from './extract_target'
 import { inferType } from './infer_type'
 import { RustScopeKind } from './scope_registry'
 
