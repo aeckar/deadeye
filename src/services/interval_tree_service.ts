@@ -61,7 +61,8 @@ export function itemsAt<V>(tree: IntervalTree<V>, idx: number): V[] {
  * and provides a factory function for {@link IntervalTree}.
  */
 class IntervalTreeService {
-    private static CTOR?: typeof IntervalTreeClass
+    private static CLASS?: typeof IntervalTreeClass
+    private static isActive = false
 
     private constructor() {}
 
@@ -73,24 +74,25 @@ class IntervalTreeService {
      * This is is required due to conflicts between this extension (which uses CommonJS modules),
      * and `@flatten-js/interval-tree` (which uses modern ESM modules).
      * The caveat, though, is that we lose IntelliSense for each instance returned by the factory.
-     * 
+     *
      * To prevent bugs, **this should be called as soon as possible**.
      */
     public static async start(): Promise<void> {
-        if (!IntervalTreeService.CTOR) {
-            const module = await import('@flatten-js/interval-tree')
-            IntervalTreeService.CTOR = module.default
+        if (this.isActive) {
+            return
         }
+        const module = await import('@flatten-js/interval-tree')
+        IntervalTreeService.CLASS = module.default
     }
 
     public static newInstance<V>(): IntervalTree<V> {
-        if (!IntervalTreeService.CTOR) {
+        if (!IntervalTreeService.CLASS) {
             throw new Error(
                 'IntervalTree class has not been loaded yet. ' +
                     'Please await IntervalTreeService.start() first',
             )
         }
-        return new IntervalTreeService.CTOR<V>() as IntervalTree<V>
+        return new IntervalTreeService.CLASS<V>() as IntervalTree<V>
     }
 }
 

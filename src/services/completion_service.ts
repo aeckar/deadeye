@@ -16,19 +16,25 @@ import {
     CompletionStrategy,
 } from '../completions'
 import allCompletionRegistries from '../lang/all_completion_registries'
+import DocumentInfoService from './document_info_service'
 
 /**
  * Provides an interface to the current completion strategy,
  * as well as methods to apply it when the associated completion is triggered.
  */
 class CompletionService {
-    private static _completionStrategy?: CompletionStrategy
+    private static isActive = false
+    private static _curStrategy?: CompletionStrategy
 
-    static get completionStrategy(): CompletionStrategy {
-        return this._completionStrategy!
+    static get curStrategy(): CompletionStrategy {
+        return this._curStrategy!
     }
 
-    static start(ctx: ExtensionContext) {
+    static async start(ctx: ExtensionContext) {
+        if (this.isActive) {
+            return
+        }
+        await DocumentInfoService.start(ctx)
         ctx.subscriptions.push(
             // Cancel completion on selection change
             window.onDidChangeTextEditorSelection(event => {
@@ -45,7 +51,7 @@ class CompletionService {
                     return
                 }
                 const keyIn = (args.text as string).replace(/^ +$/g, '') // sometimes preceded by space
-                const strategy = this._completionStrategy
+                const strategy = this._curStrategy
                 if (!keyIn) {
                     // pressed space
                     if (!strategy) {
@@ -56,7 +62,7 @@ class CompletionService {
                         return
                     }
                     this.applyCompletion(editor, strategy.completion)
-                    this._completionStrategy = undefined
+                    this._curStrategy = undefined
                     return
                 }
                 commands.executeCommand('default:type', args) // manually perform insertion
@@ -71,7 +77,7 @@ class CompletionService {
             // Show documentation on hover
             languages.registerHoverProvider('rust', {
                 provideHover(_, position) {
-                    const strategy = CompletionService._completionStrategy
+                    const strategy = CompletionService._curStrategy
                     if (
                         !strategy ||
                         !strategy.completion.target.contains(position)
@@ -85,7 +91,7 @@ class CompletionService {
             // Show preview on hover
             languages.registerHoverProvider('rust', {
                 provideHover(_, position) {
-                    const strategy = CompletionService._completionStrategy
+                    const strategy = CompletionService._curStrategy
                     const target = strategy?.completion.target
                     if (!strategy || !target?.contains(position)) {
                         return null
@@ -122,7 +128,7 @@ class CompletionService {
                 if (!completion) {
                     continue
                 }
-                this._completionStrategy = new CompletionStrategy(
+                this._curStrategy = new CompletionStrategy(
                     family,
                     trigger,
                     completion,
@@ -148,12 +154,12 @@ class CompletionService {
     }
 
     static cancelCompletion(editor: TextEditor) {
-        const strategy = this._completionStrategy
+        const strategy = this._curStrategy
         if (strategy && editor.selection.active.isEqual(strategy.pos)) {
             // waiting for insertion of pressed key
             return
         }
-        this._completionStrategy = undefined
+        this._curStrategy = undefined
         editor.setDecorations(this.decoration, []) // reset decorations
     }
 }

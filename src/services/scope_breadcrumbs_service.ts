@@ -9,14 +9,18 @@ import { Language } from '../languages'
 import DocumentInfoService from './document_info_service'
 
 export class ScopeBreadcrumbsService {
+    private static isActive = false
     private static statusBarItem = window.createStatusBarItem(
         StatusBarAlignment.Left,
         10000,
     )
 
-    static start(ctx: ExtensionContext) {
+    static async start(ctx: ExtensionContext) {
+        if (this.isActive) {
+            return
+        }
+        await DocumentInfoService.start(ctx)
         this.updateBreadcrumbs(window.activeTextEditor)
-
         ctx.subscriptions.push(
             // Show status bar
             this.statusBarItem,
@@ -46,7 +50,7 @@ export class ScopeBreadcrumbsService {
         }
         const offset = document.offsetAt(editor.selection.active)
         const breadcrumbs =
-            DocumentInfoService.get(document).getBreadcrumbs(offset)
+            DocumentInfoService.get(document).getScopeBreadcrumbs(offset)
         if (breadcrumbs.length === 0) {
             this.statusBarItem.hide()
             return

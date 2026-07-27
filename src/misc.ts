@@ -101,7 +101,7 @@ export function insert(
 
 /**
  * Translates offsets to `vscode` data structures over text documents.
- * 
+ *
  * Resolving line-character positions from indices incurs a small
  * performance hit--**use this class with caution**.
  */
@@ -162,7 +162,7 @@ export class DocumentContext {
 /**
  * Returns the range before the cursor on the same line
  * containing `cursor.character` characters.
- * 
+ *
  * For a larger `from` value, the range grows left from the cursor.
  * Omitting `from` gives the entire line before the cursor,
  * and passing zero gives a zero-length selection at the cursor.
@@ -193,7 +193,7 @@ export function rangeBefore(
 export function after(cursor: Position, skip: number = 0): Position {
     return new Position(cursor.line, cursor.character + skip + 1)
 }
- 
+
 // =============================================================================================
 // Type-Safe Record Iteration
 // =============================================================================================

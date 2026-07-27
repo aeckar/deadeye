@@ -41,24 +41,91 @@ class TokenTreeItem extends TreeItem {
     }
 }
 
-export class TokenExplorerService implements TreeDataProvider<TokenTreeItem> {
-    /** Singleton must be reduced to a variable to be able to implement interface. */
-    private static instance = new TokenExplorerService()
-
+class TokenTreeDataProvider implements TreeDataProvider<TokenTreeItem> {
     private _onDidChangeTreeData = new EventEmitter<void>()
+    private items: TokenTreeItem[] = []
+    treeView?: TreeView<TokenTreeItem>
+
+    // override
     readonly onDidChangeTreeData: Event<void> = this._onDidChangeTreeData.event
 
-    /** Cached so `reveal` can be called against the same object references handed to the tree. */
-    private items: TokenTreeItem[] = []
-    private treeView?: TreeView<TokenTreeItem>
+    // override
+    getParent(_: TokenTreeItem): ProviderResult<TokenTreeItem> {
+        return undefined
+    }
+
+    // override
+    getTreeItem(element: TokenTreeItem): TreeItem {
+        return element
+    }
+
+    // override
+    getChildren(): TokenTreeItem[] {
+        if (this.items.length === 0) {
+            this.items = this.buildItemTree()
+        }
+        return this.items
+    }
+
+    refresh() {
+        this.items = []
+        this._onDidChangeTreeData.fire()
+    }
+
+    revealActiveItem(editor: TextEditor) {
+        if (!this.treeView) return
+        if (editor.document !== window.activeTextEditor?.document) return
+
+        const offset = editor.document.offsetAt(editor.selection.active)
+        const item = this.findItemAt(offset)
+        if (item) {
+            this.treeView.reveal(item, { select: true, focus: false })
+        }
+    }
+
+    private buildItemTree(): TokenTreeItem[] {
+        const document = window.activeTextEditor?.document
+        if (!document) {
+            return []
+        }
+        const docInfo = DocumentInfoService.get(document)
+        return docInfo.tokens.map(e => new TokenTreeItem(e, docInfo))
+    }
+
+    /** Tokens are non-overlapping and sorted by `begin`, so binary search is safe. */
+    private findItemAt(offset: number): TokenTreeItem | undefined {
+        let lo = 0
+        let hi = this.items.length - 1
+        while (lo <= hi) {
+            const mid = (lo + hi) >> 1
+            const token = this.items[mid].token
+            if (offset < token.begin) {
+                hi = mid - 1
+            } else if (offset >= token.end) {
+                lo = mid + 1
+            } else {
+                return this.items[mid]
+            }
+        }
+        return undefined
+    }
+}
+
+export class TokenExplorerService {
+    private static isActive = false
+    private static treeDataProvider = new TokenTreeDataProvider()
 
     private constructor() {}
 
-    static start(ctx: ExtensionContext) {
+    static async start(ctx: ExtensionContext) {
+        if (this.isActive) {
+            return
+        }
+        await DocumentInfoService.start(ctx)
         const treeView = window.createTreeView('tokenExplorer', {
-            treeDataProvider: this.instance,
+            treeDataProvider: this.treeDataProvider,
         })
-        this.instance.treeView = treeView
+        this.treeDataProvider.treeView = treeView
 
         ctx.subscriptions.push(
             treeView,
@@ -82,79 +149,20 @@ export class TokenExplorerService implements TreeDataProvider<TokenTreeItem> {
             // Refresh on edits in active document
             workspace.onDidChangeTextDocument(event => {
                 if (event.document === window.activeTextEditor?.document) {
-                    this.instance.refresh()
+                    this.treeDataProvider.refresh()
                 }
             }),
 
             // Refresh on editor change
-            window.onDidChangeActiveTextEditor(() => this.instance.refresh()),
+            window.onDidChangeActiveTextEditor(() =>
+                this.treeDataProvider.refresh(),
+            ),
 
             // Follow the cursor: select the active token
             window.onDidChangeTextEditorSelection(event =>
-                this.instance.revealActiveItem(event.textEditor),
+                this.treeDataProvider.revealActiveItem(event.textEditor),
             ),
         )
-    }
-
-    private refresh() {
-        this.items = []
-        this._onDidChangeTreeData.fire()
-    }
-
-    getParent(_: TokenTreeItem): ProviderResult<TokenTreeItem> {
-        
-        return undefined
-    }
-
-    // override
-    getTreeItem(element: TokenTreeItem): TreeItem {
-        return element
-    }
-
-    // override
-    getChildren(): TokenTreeItem[] {
-        if (this.items.length === 0) {
-            this.items = this.buildItemsForActiveDocument()
-        }
-        return this.items
-    }
-
-    private buildItemsForActiveDocument(): TokenTreeItem[] {
-        const document = window.activeTextEditor?.document
-        if (!document) {
-            return []
-        }
-        const docInfo = DocumentInfoService.get(document)
-        return docInfo.tokens.map(e => new TokenTreeItem(e, docInfo))
-    }
-
-    private revealActiveItem(editor: TextEditor) {
-        if (!this.treeView) return
-        if (editor.document !== window.activeTextEditor?.document) return
-
-        const offset = editor.document.offsetAt(editor.selection.active)
-        const item = this.findItemAt(offset)
-        if (item) {
-            this.treeView.reveal(item, { select: true, focus: false })
-        }
-    }
-
-    /** Tokens are non-overlapping and sorted by `begin`, so binary search is safe. */
-    private findItemAt(offset: number): TokenTreeItem | undefined {
-        let lo = 0
-        let hi = this.items.length - 1
-        while (lo <= hi) {
-            const mid = (lo + hi) >> 1
-            const token = this.items[mid].token
-            if (offset < token.begin) {
-                hi = mid - 1
-            } else if (offset >= token.end) {
-                lo = mid + 1
-            } else {
-                return this.items[mid]
-            }
-        }
-        return undefined
     }
 }
 

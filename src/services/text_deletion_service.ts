@@ -14,9 +14,14 @@ import DocumentInfoService from './document_info_service'
  * expect it to go.
  */
 class TextDeletionService {
+    private static isActive = false
     private constructor() {}
 
-    static start(ctx: ExtensionContext) {
+    static async start(ctx: ExtensionContext) {
+        if (this.isActive) {
+            return
+        }
+        await DocumentInfoService.start(ctx)
         ctx.subscriptions.push(
             // Smart backspace key
             commands.registerTextEditorCommand('deleteLeft', editor => {
@@ -135,7 +140,7 @@ class TextDeletionService {
             //todo fix indentation delete
             //todo if last in line is OPEN_ (or COLON and langId == 'python'),
             //todo  then find next non blank line, extract indent, then delete such
-            //todo  that the current line is now 1 indent less than that 
+            //todo  that the current line is now 1 indent less than that
             const tape = Tape.over(text, token.end)
             const ws = tape.consumeWs().length
             if (tape.isAtLineSep()) {

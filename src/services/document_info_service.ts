@@ -10,7 +10,7 @@ import { Language, Token } from '../languages'
 import { Scope } from '../scope'
 import { ScopeRegistry } from '../scopes'
 import Tape from '../tape'
-import { IntervalTree, itemsAt } from './interval_tree_service'
+import IntervalTreeService, { IntervalTree, itemsAt } from './interval_tree_service'
 
 /** Contains a cache of useful information for a given text document. */
 export class DocumentInfo<ScopeKind extends string> {
@@ -84,7 +84,7 @@ export class DocumentInfo<ScopeKind extends string> {
         lang.tokenize(Tape.over(text, resumeOffset, lang.idRule), tokens)
     }
 
-    getBreadcrumbs(offset: number): string[] {
+    getScopeBreadcrumbs(offset: number): string[] {
         const activeScopes = itemsAt(this.scopes, offset)
         activeScopes.sort((a, b) => a.begin - b.begin)
         return activeScopes.map(scope => scope.kind)
@@ -92,11 +92,16 @@ export class DocumentInfo<ScopeKind extends string> {
 }
 
 class DocumentInfoService {
+    private static isActive = false
     private static files = new Map<string, DocumentInfo<string>>()
 
-    private constructor() {}
+    private constructor() { }
 
-    static start(ctx: ExtensionContext) {
+    static async start(ctx: ExtensionContext) {
+        if (this.isActive) {
+            return
+        }
+        await IntervalTreeService.start()
         ctx.subscriptions.push(
             // Listen for text buffer edits
             workspace.onDidChangeTextDocument(event => {

@@ -1,6 +1,6 @@
 # Architecture
 
-## File Organization
+## Folder Structure
 
 ```text
 src/
@@ -59,11 +59,7 @@ function deactivate() {
 
 ## `completions.ts`, `languages.ts`, `scopes.ts` — Pipeline APIs
 
-These top-level modules act as the public abstraction layer connecting raw language registries to active editor services. Rather than allowing services to query language definitions directly, all pipeline interactions pass through unified accessors defined here.
-
-*   **`completions.ts`**: Defines the unified interface for snippet and chunk completion providers. It handles query normalization, resolves active triggers against the cursor context via `Tape`, and aggregates completion candidates from language-specific registries.
-*   **`languages.ts`**: Provides the global language loader and runtime state management. It exposes utilities for inspecting registered language capabilities, resolving document selector targets, and binding fallback behavior when specialized language modules are absent.
-*   **`scopes.ts`**: Exposes context-aware AST and scope evaluation routines. It leverages `Tape` to inspect ambient code structure around the cursor (e.g., detecting if the cursor sits inside a string literal, comment, or function body), ensuring completion pipelines only execute within valid semantic bounds.
+//todo
 
 ## `services/` — Services
 
@@ -79,7 +75,20 @@ class BasicService {
 }
 ```
 
-`start` can be `async`, and can expect either no arguments or a single `vscode.ExtensionContext`. The only time that the initializer should be called is once within `activate`.
+```mermaid
+graph LR
+    subgraph Pipeline["Static Analysis"]
+        Text["text"] --> Tokens["tokens"]
+        Tokens --> Scopes["scopes"]
+    end
+
+    Pipeline -- "Stored In" --> DocumentInfoService["DocumentInfoService"]
+    DocumentInfoService -- "Passed To" --> CompletionContext["CompletionContext"]
+```
+
+`start` is `async`, and can expect either no arguments or a single `vscode.ExtensionContext`. The only time that the initializer should be called is once within `activate`.
+
+Although all services are initialized at extension activation, some services may depend on other services. Therefore, `start` for any immediate dependencies should be called in a service's own initializer. Because multiple instances of the same dependency may exist, `start` is made to be idempotent.
 
 Service classes can also contain static mutable fields to be used by the various static utility functions provided by that service. Though it is tempting to declare a common service `interface`, static object are not permitted to extend interfaces. Therefore, compliance to the service pattern cannot be strictly enforced without transferring responsibility to a class instance. To make things simple, we have decided not to pursue this pattern.
 
@@ -96,16 +105,18 @@ Unit tests are dispatched and synced using [Mocha](https://mochajs.org/).
 
 When writing unit tests, favor testing `Tape` parsing logic and scope resolution over simulating user input streams, since unit-level cursor assertions execute significantly faster and yield clearer stack traces.
 
-## `lang/` — Language Support
+### `lang/<LANG_ID>/completion_registry.ts` — Language Support Implementation
 
-The `lang/` directory contains all language-specific grammar implementations, completion triggers, and scope definitions. To keep language additions modular, each supported language resides in its own isolated subfolder.
 
-### `lang/<...LANG_ID>/` — Language Support Implementation
 
-*   **`language.ts`**: Implements the base language configuration (delimiters, indentation rules, and baseline parsing flags). It exports the primary entry point for registering the language ID with `all_languages.ts`.
-*   **`completion_registry.ts`**: Maps specific chunk snippets and procedural expansions to structural patterns. Instead of large static arrays, expansions can evaluate `Tape` dynamically to insert context-sensitive tokens.
-*   **`scope_registry.ts`**: Defines procedural parsing logic using `Tape` to map language-specific token boundaries, comments, strings, and structural blocks.
+### `lang/<LANG_ID>/language.ts` — Language Support Implementation
 
-### `lang/all_*.ts` — Global Aggregation
 
-\
+
+### `lang/<LANG_ID>/scope_registry.ts` — Language Support Implementation
+
+
+
+## `lang/all_*.ts` —  Aggregation of Language Specifics
+
+All completion registries, `Language`s, and scope registries are aggregated to a single `Record` per item type, where each key is the [ID](https://code.visualstudio.com/docs/languages/identifiers) of a supported language.
