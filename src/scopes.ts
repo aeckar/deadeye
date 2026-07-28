@@ -1,4 +1,4 @@
-//! Scope registry API and utilities.
+//! Scope API and utilities.
 //!
 //! Unlike `scope_utils.ts`, contains logic for scope analysis.
 import { Language, Tag, Token, UnknownTokenKind } from './languages'
@@ -9,8 +9,15 @@ import IntervalTreeService, {
 } from './services/interval_tree_service'
 
 // =============================================================================================
-// Scope Description API
+// Scope Description
 // =============================================================================================
+
+/**
+ * Extracts the string union containing all scope kinds from the scope registry type.
+ *
+ * Usage should resemble `Scopes<typeof scopes>`.
+ */
+export type ScopeKind<T> = T extends ScopeRegistry<infer U> ? U : never
 
 export type BoundariesPool = (readonly [
     UnknownTokenKind | null,
@@ -238,7 +245,7 @@ export class ScopeRegistry<ScopeKind extends string> {
 }
 
 // =============================================================================================
-// Scope Analysis API
+// Scope Analysis
 // =============================================================================================
 
 /** A scope in the `unclosed` stack of {@link ScopeStream} */
@@ -260,11 +267,11 @@ export class UnclosedScope<ScopeKind extends string> {
         marker: Token,
         markerTokenPos: number,
     ): UnclosedScope<ScopeKind> {
-        const scope = new this(query, marker.begin, markerTokenPos)
+        const self = new this(query, marker.begin, markerTokenPos)
         if (query.isOpenByDefault) {
-            scope.open(marker.end, query.closeKinds!)
+            self.open(marker.end, query.closeKinds!)
         }
-        return scope
+        return self
     }
 
     get begin(): number | undefined {

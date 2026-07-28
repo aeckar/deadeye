@@ -1,4 +1,4 @@
-//! Completion registry API and utilities.
+//! Completion API and utilities.
 //!
 //! Also provides algorithms and data structures used to parse completion shorthands.
 import { MarkdownString, Position, Range, TextDocument, window } from 'vscode'
@@ -136,32 +136,36 @@ export function isLetter(ch: string): boolean {
 }
 
 // =============================================================================================
-// Completion Registry API
+// Completion Registry
 // =============================================================================================
 
 /** Contains all completion families for a given language, grouped by trigger. */
-export type CompletionRegistry<ScopeKind extends string> = Map<
+export class CompletionRegistry<ScopeKind extends string> extends Map<
     Trigger,
     CompletionFamily<ScopeKind>[]
-> & { __brand: 'CompletionRegistry' }
-
-/**
- * Initializes a completion family for each configuration,
- * then stores each in a map, grouped by trigger.
- */
-export function newCompletionRegistry<ScopeKind extends string>(
-    ...families: CompletionFamilyCfg<ScopeKind>[]
-): CompletionRegistry<ScopeKind> {
-    const byTrigger = new Map() as CompletionRegistry<ScopeKind>
-    for (const cfg of families) {
-        const family = CompletionFamily.newInstance(cfg)
-        if (!byTrigger.has(family.trigger)) {
-            byTrigger.set(family.trigger, [family])
-        } else {
-            byTrigger.get(family.trigger)!.push(family)
-        }
+> {
+    private constructor() {
+        super()
     }
-    return byTrigger as CompletionRegistry<ScopeKind>
+
+    /**
+     * Initializes a completion family for each configuration,
+     * then stores each in a map, grouped by trigger.
+     */
+    static newInstance<ScopeKind extends string>(
+        ...families: CompletionFamilyCfg<ScopeKind>[]
+    ): CompletionRegistry<ScopeKind> {
+        const self = new this<ScopeKind>()
+        for (const cfg of families) {
+            const family = CompletionFamily.newInstance(cfg)
+            if (!self.has(family.trigger)) {
+                self.set(family.trigger, [family])
+            } else {
+                self.get(family.trigger)!.push(family)
+            }
+        }
+        return self
+    }
 }
 
 export function substitute<ScopeKind extends string>(
@@ -260,12 +264,7 @@ export class CompletionFamily<ScopeKind extends string> {
     static newInstance<ScopeKind extends string>(
         cfg: CompletionFamilyCfg<ScopeKind>,
     ) {
-        return new this(
-            cfg.docs,
-            cfg.minLookbehind,
-            cfg.trigger,
-            cfg.resolver,
-        )
+        return new this(cfg.docs, cfg.minLookbehind, cfg.trigger, cfg.resolver)
     }
 }
 
@@ -448,9 +447,7 @@ export class CompletionContext<ScopeKind extends string> {
         if (typeof kind !== 'string') {
             return kind.some(this.inScope)
         }
-        return (
-            this.scopesAtCursor.find(e => e.kind === kind) !== undefined
-        )
+        return this.scopesAtCursor.find(e => e.kind === kind) !== undefined
     }
 
     /**

@@ -20,7 +20,10 @@ const processDocument = (text: string): Tokens => { ... };
 
 ## 2. Object-Oriented Patterns & Types
 
+## Factory Methods
+
 - Factory methods should use the `this` type to create an instance of the enclosing class without being affected by renaming
+- Instances created in factory methods should be stored in a local variable named `self`
 
 ### Classes vs. Types
 

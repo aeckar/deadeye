@@ -1,4 +1,4 @@
-//! Algorithms and data structures for tokenizing language-specific input.
+//! Language API and utilities.
 //!
 //! For general utilities related to text manipulation, refer to `text_utils.ts`.
 import { ALPHA, DIGIT } from './constants'
@@ -58,7 +58,7 @@ export class IdRulePreset {
 }
 
 // =============================================================================================
-// Token API
+// Tokens
 // =============================================================================================
 
 /** A unique numerical identifier. */
@@ -220,7 +220,7 @@ export class Token extends Span {
 }
 
 // =============================================================================================
-// Language (Lexer) Description API
+// Language (Lexer) Description
 // =============================================================================================
 
 /** Parses tokens manually as a last resort when strings and regexes will not suffice. */

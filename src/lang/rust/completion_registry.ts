@@ -1,15 +1,17 @@
 import {
     Completion,
-    newCompletionRegistry,
+    CompletionRegistry,
     toScreamCase,
     toSnakeCase,
 } from '../../completions'
 import { MAX_LINE_SEEK } from '../../constants'
 import { md } from '../../diagnostics'
 import { after, joinValues, rangeBefore, reverse } from '../../misc'
+import { ScopeKind } from '../../scopes'
 import Tape from '../../tape'
 import { extractRustTargetReversed } from './extract_target'
 import { inferType } from './infer_type'
+import rustScopes from './scope_registry'
 
 // optimizing docs should add proper punctation, capitalization
 // toggle mode for automatic tab-out by delimiter
@@ -267,7 +269,8 @@ grey squiggly when left of scope marker to show help
 //todo cursor in word + tab = indent line (should alr exist but alright)
 //todo vecof id one, id two,
 //todo configuration for type preferences, also docs for thee
-const rustCompletions = newCompletionRegistry<RustScopeKind>(
+
+const rustCompletions = CompletionRegistry.newInstance<ScopeKind<typeof rustScopes>>(
     {
         docs: md`
             Formats identifier chunks and begins a type annotation.
