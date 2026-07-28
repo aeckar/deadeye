@@ -156,7 +156,7 @@ export class ScopeInfo<ScopeKind extends string> {
     ): ScopeInfo<ScopeKind> {
         const boundaries = Boundaries.newInstancePool(lang, cfg.boundariesPool)
         const isOpenByDefault = boundaries.find(e => e.open === undefined)
-        return new ScopeInfo(
+        return new this(
             scopeKind,
             cfg.markerPool?.map(e => lang.tagForKind(e)!) ?? [
                 lang.tagForKind(scopeKind.toUpperCase() as Uppercase<string>)!,

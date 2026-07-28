@@ -27,12 +27,12 @@
             "deadeyeInspector": [
                 {
                     "id": "tokenExplorer",
-                    "name": "Token Explorer",
+                    "name": "Tokens",
                     "icon": "$(whole-word)"
                 },
                 {
                     "id": "scopeExplorer",
-                    "name": "Scope Explorer",
+                    "name": "Scopes",
                     "icon": "$(symbol-namespace)"
                 }
             ]

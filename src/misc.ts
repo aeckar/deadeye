@@ -106,7 +106,11 @@ export function insert(
  * performance hit--**use this class with caution**.
  */
 export class DocumentContext {
-    constructor(private readonly document: TextDocument) {}
+    private constructor(private readonly document: TextDocument) {}
+
+    static newInstance(document: TextDocument): DocumentContext {
+        return new this(document)
+    }
 
     /** Returns the `Position.line` number for the position at the given offset. */
     line(offset: number): number {

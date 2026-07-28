@@ -15,7 +15,7 @@ export type IdRuleResolvable =
 
 /** Contains the possiblities for the first and subsequent characters in an identifier. */
 export class IdRule {
-    constructor(
+    private constructor(
         readonly startPool: string,
         readonly partPool: string,
     ) {}
@@ -26,6 +26,10 @@ export class IdRule {
 
     isPart(ch: string): boolean {
         return this.partPool.includes(ch)
+    }
+
+    static newInstance(startPool: string, partPool: string): IdRule {
+        return new this(startPool, partPool)
     }
 
     /**
@@ -39,7 +43,7 @@ export class IdRule {
         }
         return typeof key === 'string'
             ? IdRulePreset[`__${key}`]
-            : new IdRule(key[0], key[1])
+            : IdRule.newInstance(key[0], key[1])
     }
 }
 
@@ -52,9 +56,9 @@ export class IdRule {
 export class IdRulePreset {
     // https://stackoverflow.com/a/3609335/14178487
     /** Ensures identifiers never occur next to any starting or partial characters. */
-    static __STRICT = new IdRule('', '')
+    static __STRICT = IdRule.newInstance('', '')
 
-    static __C_LIKE = new IdRule(ALPHA + '_', ALPHA + DIGIT + '_')
+    static __C_LIKE = IdRule.newInstance(ALPHA + '_', ALPHA + DIGIT + '_')
 }
 
 // =============================================================================================
@@ -69,7 +73,7 @@ export class Tagger {
     private count = 0
 
     tag<T>(value: T): Tagged<T> {
-        const next = new Tagged(this.count as Tag, value)
+        const next = Tagged.newInstance(this.count as Tag, value)
         this.count += 1
         return next
     }
@@ -77,10 +81,14 @@ export class Tagger {
 
 /** An object assigned tag. */
 export class Tagged<T> {
-    constructor(
+    private constructor(
         readonly tag: Tag,
         readonly value: T,
     ) {}
+
+    static newInstance<T>(tag: Tag, value: T): Tagged<T> {
+        return new this(tag, value)
+    }
 }
 
 /**

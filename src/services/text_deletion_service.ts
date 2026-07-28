@@ -79,7 +79,7 @@ class TextDeletionService {
                 break
             }
         }
-        const rel = new DocumentContext(document)
+        const rel = DocumentContext.newInstance(document)
         await rel.delete(minBegin, maxEnd, editor)
     }
 
@@ -89,7 +89,7 @@ class TextDeletionService {
     ) {
         const { document, selection } = editor
         const cursor = document.offsetAt(selection.active)
-        const rel = new DocumentContext(document)
+        const rel = DocumentContext.newInstance(document)
         const { tokens, text } = DocumentInfoService.get(document)
         let idx = Token.findNearest(tokens, cursor, direction)
         if (idx === -1) {
@@ -159,7 +159,7 @@ class TextDeletionService {
     static applyCaretDelete(editor: TextEditor, direction: Direction) {
         const { document, selection } = editor
         const cursor = document.offsetAt(selection.active)
-        const rel = new DocumentContext(document)
+        const rel = DocumentContext.newInstance(document)
         if (direction === 'left') {
             rel.delete(cursor - 1, cursor, editor)
         } else {

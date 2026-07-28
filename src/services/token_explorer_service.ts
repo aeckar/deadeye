@@ -25,7 +25,7 @@ import DocumentInfoService, { DocumentInfo } from './document_info_service'
  * when shown next to matched lexemes.
  */
 class TokenTreeItem extends TreeItem {
-    constructor(
+    private constructor(
         readonly token: Token,
         docInfo: DocumentInfo<string>,
     ) {
@@ -38,6 +38,10 @@ class TokenTreeItem extends TreeItem {
             title: 'Jump to token',
             arguments: [token],
         }
+    }
+
+    static newInstance(token: Token, docInfo: DocumentInfo<string>): TokenTreeItem {
+        return new this(token, docInfo)
     }
 }
 
@@ -89,7 +93,7 @@ class TokenTreeDataProvider implements TreeDataProvider<TokenTreeItem> {
             return []
         }
         const docInfo = DocumentInfoService.get(document)
-        return docInfo.tokens.map(e => new TokenTreeItem(e, docInfo))
+        return docInfo.tokens.map(e => TokenTreeItem.newInstance(e, docInfo))
     }
 
     /** Tokens are non-overlapping and sorted by `begin`, so binary search is safe. */
@@ -138,7 +142,7 @@ export class TokenExplorerService {
                     if (!editor) {
                         return
                     }
-                    const rel = new DocumentContext(editor.document)
+                    const rel = DocumentContext.newInstance(editor.document)
                     const begin = rel.pos(token.begin)
                     const end = rel.pos(token.end)
                     editor.selection = new Selection(begin, end)

@@ -1,5 +1,5 @@
 import { CompletionRegistry } from '../completions'
-import markdownCompletions from './md/completion_registry'
+// import markdownCompletions from './md/completion_registry'
 import rustCompletions from './rust/completion_registry'
 
 /**
@@ -10,7 +10,7 @@ import rustCompletions from './rust/completion_registry'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const allCompletionRegistries: Record<string, CompletionRegistry<any>> = {
     rust: rustCompletions,
-    markdown: markdownCompletions,
+    // markdown: markdownCompletions,
 }
 
 export default allCompletionRegistries

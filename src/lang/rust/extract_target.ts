@@ -2,10 +2,10 @@ import { Tag, Token } from '../../languages'
 import rustVocab from './language'
 
 const STOP = ['EQUALS', 'COMMA', 'OPEN_CURLY', 'CLOSE_CURLY', 'SEMICOLON'].map(
-    e => rustVocab.tagForKind(e)!,
+    e => rustVocab.tagForKind(e as Uppercase<string>)!,
 )
 const SIGIL = ['AND', 'ASTERISK', 'BANG', 'PLUS', 'MINUS'].map(e =>
-    rustVocab.tagForKind(e)!,
+    rustVocab.tagForKind(e as Uppercase<string>)!,
 )
 
 function skipBalanced(

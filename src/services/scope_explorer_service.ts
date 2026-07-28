@@ -15,9 +15,9 @@ import {
     workspace,
 } from 'vscode'
 import { Language } from '../languages'
+import { DocumentContext } from '../misc'
 import { Scope } from '../scope'
 import DocumentInfoService, { DocumentInfo } from './document_info_service'
-import { DocumentContext } from '../misc'
 
 /**
  * # Implementation
@@ -28,7 +28,7 @@ import { DocumentContext } from '../misc'
 class ScopeTreeItem extends TreeItem {
     readonly children: ScopeTreeItem[] = []
 
-    constructor(
+    private constructor(
         readonly scope: Scope<string>,
         readonly parent: ScopeTreeItem | undefined,
         docInfo: DocumentInfo<string>,
@@ -43,6 +43,14 @@ class ScopeTreeItem extends TreeItem {
             title: 'Jump to scope',
             arguments: [scope],
         }
+    }
+
+    static newInstance(
+        scope: Scope<string>,
+        parent: ScopeTreeItem | undefined,
+        docInfo: DocumentInfo<string>,
+    ): ScopeTreeItem {
+        return new this(scope, parent, docInfo)
     }
 }
 
@@ -140,7 +148,7 @@ class ScopeTreeDataProvider implements TreeDataProvider<ScopeTreeItem> {
                 stack.pop()
             }
             const parentNode = stack[stack.length - 1]
-            const node = new ScopeTreeItem(scope, parentNode, docInfo)
+            const node = ScopeTreeItem.newInstance(scope, parentNode, docInfo)
             if (parentNode) {
                 parentNode.children.push(node)
             } else {
@@ -188,7 +196,7 @@ export class ScopeExplorerService {
                     if (!editor) {
                         return
                     }
-                    const rel = new DocumentContext(editor.document)
+                    const rel = DocumentContext.newInstance(editor.document)
                     const begin = rel.pos(scope.begin)
                     const end = rel.pos(scope.end)
                     editor.selection = new Selection(begin, end)
