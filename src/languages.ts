@@ -141,7 +141,7 @@ export class Token extends Span {
         tag: Tag,
         kind: TokenKind,
     ) {
-        return new Token(begin, begin + length, tag, kind)
+        return new this(begin, begin + length, tag, kind)
     }
 
     static unknown(begin: number, length: number): Token {
@@ -408,7 +408,7 @@ export class Language {
                 kwords.push(tagger.tag(kword.value))
             }
         }
-        return new Language(
+        return new this(
             new Map(kwords.map(e => [e.value.toUpperCase() as TokenKind, e])),
             rebindToMap(
                 strings,

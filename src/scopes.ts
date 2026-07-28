@@ -167,7 +167,7 @@ export class ScopeInfo<ScopeKind extends string> {
 
 /**
  * Configuration parameter for {@link ScopeRegistry}.
- * @see {@link newScopeRegistry}
+ * @see {@link ScopeRegistry.newInstance}
  */
 export type ScopeRegistryCfg<ScopeKind extends string> = {
     readonly [K in ScopeKind]: ScopeInfoCfg<ScopeKind>
@@ -177,16 +177,35 @@ export type ScopeRegistryCfg<ScopeKind extends string> = {
  * Top-level data structure mapping every unique scope for a given language
  * to its details.
  *
- * @see {@link newScopeRegistry}
+ * @see {@link ScopeRegistry.newInstance}
  * @see {@link extractScopes}
  */
 export class ScopeRegistry<ScopeKind extends string> {
     private _entries?: ScopeInfo<ScopeKind>[]
 
-    constructor(
+    private constructor(
         private readonly langCallback: () => Language,
         private readonly cfg: ScopeRegistryCfg<ScopeKind>,
     ) {}
+
+    /**
+     * The corresponding `Language` is passed as a callback to circumvent JavaScript module loading
+     * order issues.
+     *
+     * # Type Parameter
+     *
+     * Callers should always infer `Cfg`.
+     *
+     * Extraction of the congifuration object type to a type parameter enables automatic extraction of
+     * the key string union type. This allows callers to define a scope registry without first
+     * defining a string union of the keys (`ScopeKind` variants).
+     */
+    static newInstance<Cfg extends ScopeRegistryCfg<string>>(
+        langCallback: () => Language,
+        cfg: Cfg,
+    ): ScopeRegistry<keyof Cfg & string> {
+        return new this(langCallback, cfg)
+    }
 
     get entries(): readonly ScopeInfo<ScopeKind>[] {
         if (!this._entries) {
@@ -218,25 +237,6 @@ export class ScopeRegistry<ScopeKind extends string> {
     }
 }
 
-/**
- * The corresponding `Language` is passed as a callback to circumvent JavaScript module loading
- * order issues.
- * 
- * # Type Parameter
- * 
- * Callers should always infer `Cfg`.
- * 
- * Extraction of the congifuration object type to a type parameter enables automatic extraction of
- * the key string union type. This allows callers to define a scope registry without first
- * defining a string union of the keys (`ScopeKind` variants).
- */
-export function newScopeRegistry<Cfg extends ScopeRegistryCfg<string>>(
-    langCallback: () => Language,
-    cfg: Cfg,
-): ScopeRegistry<keyof Cfg & string> {
-    return new ScopeRegistry(langCallback, cfg)
-}
-
 // =============================================================================================
 // Scope Analysis API
 // =============================================================================================
@@ -260,7 +260,7 @@ export class UnclosedScope<ScopeKind extends string> {
         marker: Token,
         markerTokenPos: number,
     ): UnclosedScope<ScopeKind> {
-        const scope = new UnclosedScope(query, marker.begin, markerTokenPos)
+        const scope = new this(query, marker.begin, markerTokenPos)
         if (query.isOpenByDefault) {
             scope.open(marker.end, query.closeKinds!)
         }

@@ -10,7 +10,6 @@ import { after, joinValues, rangeBefore, reverse } from '../../misc'
 import Tape from '../../tape'
 import { extractRustTargetReversed } from './extract_target'
 import { inferType } from './infer_type'
-import { RustScopeKind } from './scope_registry'
 
 // optimizing docs should add proper punctation, capitalization
 // toggle mode for automatic tab-out by delimiter

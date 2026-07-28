@@ -260,7 +260,7 @@ export class CompletionFamily<ScopeKind extends string> {
     static newInstance<ScopeKind extends string>(
         cfg: CompletionFamilyCfg<ScopeKind>,
     ) {
-        return new CompletionFamily(
+        return new this(
             cfg.docs,
             cfg.minLookbehind,
             cfg.trigger,
@@ -368,7 +368,7 @@ export class Completion {
                 errors = cfg.errors
             }
         }
-        return new Completion(
+        return new this(
             cfg.preview,
             cfg.target,
             cfg.snippet,
@@ -449,7 +449,7 @@ export class CompletionContext<ScopeKind extends string> {
             return kind.some(this.inScope)
         }
         return (
-            this.scopesAtCursor.find(scope => scope.kind === kind) !== undefined
+            this.scopesAtCursor.find(e => e.kind === kind) !== undefined
         )
     }
 

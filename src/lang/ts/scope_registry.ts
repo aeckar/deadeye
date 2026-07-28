@@ -1,8 +1,8 @@
 import { CURLIES } from '../../constants'
-import { newScopeRegistry } from '../../scopes'
+import { ScopeRegistry } from '../../scopes'
 import tsVocab from './language'
 
-export const tsScopes = newScopeRegistry(() => tsVocab, {
+export const tsScopes = ScopeRegistry.newInstance(() => tsVocab, {
     // Declarations using soft keywords like `type` or `namespace`
     // are checked by verifying the identifier's raw text
     typeAlias: {

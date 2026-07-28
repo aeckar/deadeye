@@ -1,5 +1,5 @@
 import { CURLIES } from '../../constants'
-import { newScopeRegistry } from '../../scopes'
+import { ScopeRegistry } from '../../scopes'
 import rustVocab from './language'
 
 // | 'condition' // IMPOSSIBLE IN RUST bc no (); completions must infer scope
@@ -29,7 +29,7 @@ import rustVocab from './language'
 
 // struct init is also too complex to parse at scope time, defer to completions
 
-export const rustScopes = newScopeRegistry(() => rustVocab, {
+export const rustScopes = ScopeRegistry.newInstance(() => rustVocab, {
     struct: {
         markerPool: ['STRUCT', 'UNION'],
         boundariesPool: [CURLIES],
