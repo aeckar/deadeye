@@ -1,8 +1,8 @@
+import { Language, Token } from '@/api/language_api'
+import { ScopeRegistry } from '@/api/scope_api'
+import Scope from '@/scope'
+import Tape from '@/tape'
 import { ExtensionContext, TextDocument, TextDocumentContentChangeEvent, workspace } from 'vscode'
-import { Language, Token } from '../languages'
-import { Scope } from '../scope'
-import { ScopeRegistry } from '../scopes'
-import Tape from '../tape'
 import IntervalTreeService, { IntervalTree, itemsAt } from './interval_tree_service'
 import LanguageInfoService from './language_info_service'
 

@@ -26,7 +26,7 @@ export function md(
  * An attempt was made to pass the cause of errors to a property in `Completion`,
  * but the abstraction caused more work than it saved. Therefore, errors should be
  * constructed manually and listed at the end of the `preview` string.
-
+ *
  * @see warnHtml
  */
 export function errorHtml(cause: string): string {

@@ -1,5 +1,5 @@
-import { CURLIES } from '../../constants'
-import { ScopeRegistry } from '../../scopes'
+import { ScopeRegistry } from '@/api/scope_api'
+import { CURLIES } from '@/utils/constants'
 import rustVocab from './language'
 
 // | 'condition' // IMPOSSIBLE IN RUST bc no (); completions must infer scope

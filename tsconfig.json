@@ -4,12 +4,22 @@
         "target": "ES2022",
         "moduleResolution": "node16",
         "skipLibCheck": true, // ignore dependencies using local imports without file extension
-        "lib": ["ES2022"],
-        "types": ["node", "mocha"],
+        "lib": [
+            "ES2022"
+        ],
+        "types": [
+            "node",
+            "mocha"
+        ],
         "sourceMap": true,
         "rootDir": "src",
         "outDir": "./dist",
         "strict": true, // enable all strict type-checking options
+        "paths": {
+            "@/*": [
+                "./src/*"
+            ]
+        },
 
         // Additional Checks
         "noImplicitReturns": true,

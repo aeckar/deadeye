@@ -1,5 +1,5 @@
-import { IdRule, Language } from '../../languages'
-import Tape from '../../tape'
+import { IdRule, Language } from '@/api/language_api'
+import Tape from '@/tape'
 
 /**
  * Keywords that cannot be used as variable/type names,

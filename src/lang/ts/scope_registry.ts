@@ -1,5 +1,5 @@
-import { CURLIES } from '../../constants'
-import { ScopeRegistry } from '../../scopes'
+import { ScopeRegistry } from '@/api/scope_api'
+import { CURLIES } from '@/utils/constants'
 import tsVocab from './language'
 
 export const tsScopes = ScopeRegistry.newInstance(() => tsVocab, {

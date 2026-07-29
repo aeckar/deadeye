@@ -1,4 +1,4 @@
-import { Tag, Token } from '../../languages'
+import { Tag, Token } from '@/api/language_api'
 import rustVocab from './language'
 
 const STOP = ['EQUALS', 'COMMA', 'OPEN_CURLY', 'CLOSE_CURLY', 'SEMICOLON'].map(e =>

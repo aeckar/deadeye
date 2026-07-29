@@ -92,29 +92,6 @@ graph TD
 
 ````
 
-## Folder Structure
-
-```text
-src/
-    extension.ts
-    tape.ts
-    completions.ts
-    languages.ts
-    scopes.ts
-    <...HELPERS>
-    test/
-        runTests.ts
-        <...LANG_ID>.test.ts
-    services/
-        <...FEATURE>_service.ts
-    lang/
-        <...LANG_ID>/
-            completion_registry.ts
-            language.ts
-            scope_registry.ts
-            <...HELPERS>
-````
-
 ### `tape.ts` — Cursor Data Structure
 
 `Tape` is the most fundamental data structure used by this extension. It is a cursor over string, and provides many utilities for procedural parsing of substrings.
@@ -146,7 +123,7 @@ function deactivate() {
 }
 ```
 
-### `completions.ts`, `languages.ts`, `scopes.ts` — Pipeline API Definitions
+### `api/` — Pipeline API Definitions
 
 Three pipeline APIs are implemented, each providing information about a document depending on the language it is written in. Each comprises of a variety of classes and utilities that perform related functions. They each provide robust configurations for declaring how a language should behave.
 
@@ -212,7 +189,7 @@ Unit tests are dispatched and synced using [Mocha](https://mochajs.org/).
 
 When writing unit tests, favor testing `Tape` parsing logic and scope resolution over simulating user input streams, since unit-level cursor assertions execute significantly faster and yield clearer stack traces.
 
-### `lang/<LANG_ID>/` — Language Support Implementation
+### `lang/` — Language Support Implementation
 
 In the folder for each [language ID](https://code.visualstudio.com/docs/languages/identifiers), the completion registry, `Language`, and scope registry for that language is declared. These are top-level objects declared by configuring an instance for each Pipeline API.
 

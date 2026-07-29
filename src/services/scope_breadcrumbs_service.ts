@@ -1,6 +1,6 @@
+import { Language } from '@/api/language_api'
+import { BREADCRUMB_SEP } from '@/utils/constants'
 import { ExtensionContext, StatusBarAlignment, TextEditor, window } from 'vscode'
-import { BREADCRUMB_SEP } from '../constants'
-import { Language } from '../languages'
 import DocumentInfoService from './document_info_service'
 
 export class ScopeBreadcrumbsService {

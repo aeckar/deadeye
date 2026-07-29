@@ -1,3 +1,5 @@
+import { Token } from '@/api/language_api'
+import { DocumentContext } from '@/utils/vscode'
 import {
     Event,
     EventEmitter,
@@ -14,8 +16,6 @@ import {
     window,
     workspace,
 } from 'vscode'
-import { Token } from '../languages'
-import { DocumentContext } from '../misc'
 import DocumentInfoService, { DocumentInfo } from './document_info_service'
 
 /**

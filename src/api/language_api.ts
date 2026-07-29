@@ -1,9 +1,11 @@
 //! Language API and utilities.
 //!
 //! For general utilities related to text manipulation, refer to `text_utils.ts`.
-import { ALPHA, DIGIT } from './constants'
-import { Direction, Member, rebindToMap, sortBy, Span } from './misc'
-import Tape from './tape'
+import Tape from '@/tape'
+import { rebindToMap, sortBy } from '@/utils/collections'
+import { ALPHA, DIGIT } from '@/utils/constants'
+import { Direction, Span } from '@/utils/strings'
+import { Member } from '@/utils/types'
 
 // =============================================================================================
 // Identifier Rules

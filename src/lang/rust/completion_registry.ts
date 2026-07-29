@@ -1,9 +1,11 @@
-import { Completion, CompletionRegistry, toScreamCase, toSnakeCase } from '../../completions'
-import { MAX_LINE_SEEK } from '../../constants'
-import { md } from '../../diagnostics'
-import { after, joinValues, rangeBefore, reverse } from '../../misc'
-import { ScopeKind } from '../../scopes'
-import Tape from '../../tape'
+import { Completion, CompletionRegistry, toScreamCase, toSnakeCase } from '@/api/completion_api'
+import { ScopeKind } from '@/api/scope_api'
+import Tape from '@/tape'
+import { joinValues } from '@/utils/collections'
+import { MAX_LINE_SEEK } from '@/utils/constants'
+import { md } from '@/utils/diagnostics'
+import { reverse } from '@/utils/strings'
+import { after, rangeBefore } from '@/utils/vscode'
 import { extractRustTargetReversed } from './extract_target'
 import { inferType } from './infer_type'
 import rustScopes from './scope_registry'
@@ -621,7 +623,9 @@ const rustCompletions = CompletionRegistry.newInstance<ScopeKind<typeof rustScop
             }
             //todo
             return Completion.newInstance({
-                preview: md`Insert \`else\` block after current \`if\` block, then move there.`,
+                preview: md`
+Insert \`else\` block after current \`if\` block, then move there.
+                `,
                 target: rangeBefore(ctx.cursor), //todo include previous newline as well
                 insertAt: after(ctx.cursor),
                 snippet: includeIf ? ' else if {\n$0\n}' : ' else {\n$0\n}',

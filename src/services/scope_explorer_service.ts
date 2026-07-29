@@ -1,3 +1,6 @@
+import { Language } from '@/api/language_api'
+import { Scope } from '@/scope'
+import { DocumentContext } from '@/utils/vscode'
 import {
     Event,
     EventEmitter,
@@ -14,9 +17,6 @@ import {
     window,
     workspace,
 } from 'vscode'
-import { Language } from '../languages'
-import { DocumentContext } from '../misc'
-import { Scope } from '../scope'
 import DocumentInfoService, { DocumentInfo } from './document_info_service'
 
 /**

@@ -1,9 +1,9 @@
-import { CompletionRegistry } from '../completions'
-import { Language } from '../languages'
-import { ScopeRegistry } from '../scopes'
-import rustCompletions from '../lang/rust/completion_registry'
-import rustLanguage from '../lang/rust/language'
-import rustScopes from '../lang/rust/scope_registry'
+import { CompletionRegistry } from '@/api/completion_api'
+import { Language } from '@/api/language_api'
+import { ScopeRegistry } from '@/api/scope_api'
+import rustCompletions from '@/lang/rust/completion_registry'
+import rustLanguage from '@/lang/rust/language'
+import rustScopes from '@/lang/rust/scope_registry'
 
 export class LanguageInfo {
     private constructor(

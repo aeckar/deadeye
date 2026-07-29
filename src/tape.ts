@@ -1,9 +1,11 @@
 //! Cursor data structure.
 import { Position, Range } from 'vscode'
 
-import { Flag, FlagMatch, isLetter, isLowerLetter, isUpperLetter } from './completions'
-import { IdRule } from './languages'
-import { enumerate, RecordSubset, reverse } from './misc'
+import { Flag, FlagMatch, isLetter, isLowerLetter, isUpperLetter } from '@/api/completion_api'
+import { IdRule } from '@/api/language_api'
+import { enumerate } from '@/utils/collections'
+import { reverse } from '@/utils/strings'
+import { RecordSubset } from '@/utils/types'
 
 /**
  * A lightweight cursor over a string for non-linear parsing.

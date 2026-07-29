@@ -1,7 +1,8 @@
+import { Token } from '@/api/language_api'
+import Tape from '@/tape'
+import { Direction } from '@/utils/strings'
+import { DocumentContext } from '@/utils/vscode'
 import { commands, ExtensionContext, TextEditor } from 'vscode'
-import { Token } from '../languages'
-import { Direction, DocumentContext } from '../misc'
-import Tape from '../tape'
 import DocumentInfoService from './document_info_service'
 
 /**

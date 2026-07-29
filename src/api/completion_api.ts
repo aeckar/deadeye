@@ -3,13 +3,14 @@
 //! Also provides algorithms and data structures used to parse completion shorthands.
 import { MarkdownString, Position, Range, TextDocument, window } from 'vscode'
 
-import { md } from './diagnostics'
-import { Token } from './languages'
-import { rangeBefore, reverse } from './misc'
-import { Scope } from './scope'
-import DocumentInfoService, { DocumentInfo } from './services/document_info_service'
-import { itemsAt } from './services/interval_tree_service'
-import Tape from './tape'
+import Scope from '@/scope'
+import DocumentInfoService, { DocumentInfo } from '@/services/document_info_service'
+import { itemsAt } from '@/services/interval_tree_service'
+import Tape from '@/tape'
+import { md } from '@/utils/diagnostics'
+import { reverse } from '@/utils/strings'
+import { rangeBefore } from '@/utils/vscode'
+import { Token } from './language_api'
 
 // =============================================================================================
 // Utilities & Constants: Special Characters

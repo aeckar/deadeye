@@ -1,3 +1,4 @@
+import { Completion, CompletionContext, CompletionStrategy } from '@/api/completion_api'
 import {
     commands,
     ExtensionContext,
@@ -10,7 +11,6 @@ import {
     ThemeColor,
     window,
 } from 'vscode'
-import { Completion, CompletionContext, CompletionStrategy } from '../completions'
 import DocumentInfoService from './document_info_service'
 import LanguageInfoService from './language_info_service'
 
