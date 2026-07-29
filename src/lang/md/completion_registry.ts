@@ -12,7 +12,7 @@
 
 // Completions for Markdown differ slightly from those of other languages because of how the language is highly contextual and difficult to parse. To address this, completions are divided into two categories:
 
-// - **Suffix completions:** last word in a line, triggered by `ENTER` 
+// - **Suffix completions:** last word in a line, triggered by `ENTER`
 // - **Inline completions:** anywhere, prefixed by `;` and triggered by space (` `)
 
 // Because every common Markdown construct is supported as a completion, it is advised to disable all completions for Markdown files by adding the following entry to `settings.json`.

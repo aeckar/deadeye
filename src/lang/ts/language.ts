@@ -110,7 +110,7 @@ const BOUNDARY_SYMBOLS = [';', '{', '}', ',', '(', '=>', ':', '='] as const
 
 /**
  * Matches the keyword for all of the following:
- * 
+ *
  * - Not a member access
  * - Preceded by expression/statement boundaries.
  */
@@ -157,10 +157,7 @@ const declareKeywords: Record<string, (tape: Tape) => string> = {}
 }
 
 export const tsLanguage = Language.newInstance({
-    $idRule: [
-        IdRule.resolve('C_LIKE').startPool + '$',
-        IdRule.resolve('C_LIKE').partPool + '$',
-    ],
+    $idRule: [IdRule.resolve('C_LIKE').startPool + '$', IdRule.resolve('C_LIKE').partPool + '$'],
     $ignore: /\s*/y,
     declare: {
         ...declareKeywords,

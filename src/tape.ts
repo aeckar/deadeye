@@ -1,13 +1,7 @@
 //! Cursor data structure.
 import { Position, Range } from 'vscode'
 
-import {
-    Flag,
-    FlagMatch,
-    isLetter,
-    isLowerLetter,
-    isUpperLetter,
-} from './completions'
+import { Flag, FlagMatch, isLetter, isLowerLetter, isUpperLetter } from './completions'
 import { IdRule } from './languages'
 import { enumerate, RecordSubset, reverse } from './misc'
 
@@ -570,10 +564,7 @@ export default class Tape {
         if (isLetter(this.raw[idx + query.length - 1])) {
             // check boundary after match
             const nextIdx = idx + query.length
-            if (
-                nextIdx < this.raw.length &&
-                this.idRule.isPart(this.raw[nextIdx])
-            ) {
+            if (nextIdx < this.raw.length && this.idRule.isPart(this.raw[nextIdx])) {
                 return false
             }
         }

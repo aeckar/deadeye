@@ -10,8 +10,7 @@ import Tape from './tape'
 // =============================================================================================
 
 /** Any input to {@link IdRule.resolve}. */
-export type IdRuleResolvable =
-    IdRule | Member<typeof IdRulePreset> | [string, string]
+export type IdRuleResolvable = IdRule | Member<typeof IdRulePreset> | [string, string]
 
 /** Contains the possiblities for the first and subsequent characters in an identifier. */
 export class IdRule {
@@ -143,22 +142,12 @@ export class Token extends Span {
     static readonly UNKNOWN_KIND: TokenKind = 'UNKNOWN' as TokenKind
     static readonly UNKNOWN_TAG = -1 as Tag
 
-    static newInstance(
-        begin: number,
-        length: number,
-        tag: Tag,
-        kind: TokenKind,
-    ) {
+    static newInstance(begin: number, length: number, tag: Tag, kind: TokenKind) {
         return new this(begin, begin + length, tag, kind)
     }
 
     static unknown(begin: number, length: number): Token {
-        return new Token(
-            begin,
-            begin + length,
-            Token.UNKNOWN_TAG,
-            Token.UNKNOWN_KIND,
-        )
+        return new Token(begin, begin + length, Token.UNKNOWN_TAG, Token.UNKNOWN_KIND)
     }
 
     static isEditable(kind: TokenKind): boolean {
@@ -175,11 +164,7 @@ export class Token extends Span {
      * @param offset The active numeric cursor position.
      * @param bias Directional preference when cursor sits in a whitespace gap or between tokens.
      */
-    static findNearest(
-        tokens: Token[],
-        offset: number,
-        bias: Direction,
-    ): number {
+    static findNearest(tokens: Token[], offset: number, bias: Direction): number {
         if (tokens.length === 0) {
             return -1
         }
@@ -198,11 +183,7 @@ export class Token extends Span {
                 ) {
                     return bias === 'left' ? mid : mid + 1
                 }
-                if (
-                    offset === token.begin &&
-                    mid > 0 &&
-                    tokens[mid - 1].end === offset
-                ) {
+                if (offset === token.begin && mid > 0 && tokens[mid - 1].end === offset) {
                     return bias === 'left' ? mid - 1 : mid
                 }
                 return mid // internal hit
@@ -304,16 +285,12 @@ export class Language {
         this.tagsForKinds = new Map<TokenKind, Tag>([
             ...[...keywords].map(([kind, kword]) => [kind, kword.tag] as const),
             ...[...strings].map(([kind, text]) => [kind, text.tag] as const),
-            ...[...patterns].map(
-                ([kind, pattern]) => [kind, pattern.tag] as const,
-            ),
+            ...[...patterns].map(([kind, pattern]) => [kind, pattern.tag] as const),
             [Token.UNKNOWN_KIND, Token.UNKNOWN_TAG],
         ])
 
         this.kindsForTags = new Map<Tag, TokenKind>([
-            ...[...this.tagsForKinds].map(
-                ([kind, tag]) => [tag, kind] as const,
-            ),
+            ...[...this.tagsForKinds].map(([kind, tag]) => [tag, kind] as const),
             [Token.UNKNOWN_TAG, Token.UNKNOWN_KIND],
         ])
         this.matchingCloseTags = new Map()
@@ -439,10 +416,7 @@ export class Language {
      * If `target` is a string, it is converted to a `Tape` with the `idRule` of the given language.
      */
     tokenize(target: string | Tape, buf: Token[] = []): Token[] {
-        const tape =
-            typeof target === 'string'
-                ? Tape.over(target, 0, this.idRule)
-                : target
+        const tape = typeof target === 'string' ? Tape.over(target, 0, this.idRule) : target
         this.skip(tape)
         while (!tape.isExhausted()) {
             const start = tape.pos
@@ -453,9 +427,7 @@ export class Language {
                 if (tape.isAtIdentifier(value)) {
                     // Execute check for letter on both ends,
                     // as some keywords contain leading/trailing symbols
-                    buf.push(
-                        Token.newInstance(tape.pos, value.length, tag, kind),
-                    )
+                    buf.push(Token.newInstance(tape.pos, value.length, tag, kind))
                     tape.pos += value.length
                     break
                 }
@@ -469,9 +441,7 @@ export class Language {
             for (const [kind, text] of this.strings.entries()) {
                 const { tag, value } = text
                 if (tape.isAt(value)) {
-                    buf.push(
-                        Token.newInstance(tape.pos, value.length, tag, kind),
-                    )
+                    buf.push(Token.newInstance(tape.pos, value.length, tag, kind))
                     tape.pos += value.length
                 }
             }
@@ -486,14 +456,7 @@ export class Language {
                 value.lastIndex = tape.pos
                 if (value.test(tape.raw)) {
                     const length = value.lastIndex - tape.pos
-                    buf.push(
-                        Token.newInstance(
-                            tape.pos,
-                            length,
-                            tag,
-                            kind as TokenKind,
-                        ),
-                    )
+                    buf.push(Token.newInstance(tape.pos, length, tag, kind as TokenKind))
                     tape.pos += length
                     break
                 }
@@ -508,14 +471,7 @@ export class Language {
                 const { tag, value } = resolver
                 const match = value(tape)
                 if (match.length !== 0) {
-                    buf.push(
-                        Token.newInstance(
-                            tape.pos,
-                            match.length,
-                            tag,
-                            kind as TokenKind,
-                        ),
-                    )
+                    buf.push(Token.newInstance(tape.pos, match.length, tag, kind as TokenKind))
                     break
                 }
             }

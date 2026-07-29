@@ -42,6 +42,7 @@ const processDocument = (text: string): Tokens => { ... };
 ### Maps vs. Records
 
 - Use `Record` objects for inputs/configurations
+- Use `Readonly<Record>` for static key-value mappings known at compile-time
 - Use `Map` objects for internal state, persistence, and output collections
 
 ### Regular Expressions Performance

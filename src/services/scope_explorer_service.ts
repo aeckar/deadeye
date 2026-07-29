@@ -90,10 +90,7 @@ class ScopeTreeDataProvider implements TreeDataProvider<ScopeTreeItem> {
     }
 
     revealActiveItem(editor: TextEditor) {
-        if (
-            !this.treeView ||
-            !Language.isSupported(editor.document.languageId)
-        ) {
+        if (!this.treeView || !Language.isSupported(editor.document.languageId)) {
             return
         }
         const offset = editor.document.offsetAt(editor.selection.active)
@@ -112,15 +109,10 @@ class ScopeTreeDataProvider implements TreeDataProvider<ScopeTreeItem> {
             return []
         }
         const docInfo = DocumentInfoService.get(document)
-        return ScopeTreeDataProvider.buildItemTree(
-            docInfo.scopes.items.map(e => e.value),
-        )
+        return ScopeTreeDataProvider.buildItemTree(docInfo.scopes.items.map(e => e.value))
     }
 
-    private findDeepestItem(
-        items: ScopeTreeItem[],
-        offset: number,
-    ): ScopeTreeItem | undefined {
+    private findDeepestItem(items: ScopeTreeItem[], offset: number): ScopeTreeItem | undefined {
         for (const item of items) {
             if (offset >= item.scope.begin && offset < item.scope.end) {
                 return this.findDeepestItem(item.children, offset) ?? item
@@ -130,21 +122,14 @@ class ScopeTreeDataProvider implements TreeDataProvider<ScopeTreeItem> {
     }
 
     /** Transforms a flat, properly-nested interval list into a tree via a stack sweep. */
-    private static buildItemTree<K extends string>(
-        scopes: Scope<K>[],
-    ): ScopeTreeItem[] {
-        const sorted = [...scopes].sort(
-            (a, b) => a.begin - b.begin || b.end - a.end,
-        )
+    private static buildItemTree<K extends string>(scopes: Scope<K>[]): ScopeTreeItem[] {
+        const sorted = [...scopes].sort((a, b) => a.begin - b.begin || b.end - a.end)
         const roots: ScopeTreeItem[] = []
         const stack: ScopeTreeItem[] = []
         const document = window.activeTextEditor!.document
         const docInfo = DocumentInfoService.get(document)
         for (const scope of sorted) {
-            while (
-                stack.length &&
-                stack[stack.length - 1].scope.end <= scope.begin
-            ) {
+            while (stack.length && stack[stack.length - 1].scope.end <= scope.begin) {
                 stack.pop()
             }
             const parentNode = stack[stack.length - 1]
@@ -189,20 +174,17 @@ export class ScopeExplorerService {
             treeView,
 
             // Jump to scope in active document
-            commands.registerCommand(
-                'deadeye.scopeExplorer.jumpTo',
-                (scope: Scope<string>) => {
-                    const editor = window.activeTextEditor
-                    if (!editor) {
-                        return
-                    }
-                    const rel = DocumentContext.newInstance(editor.document)
-                    const begin = rel.pos(scope.begin)
-                    const end = rel.pos(scope.end)
-                    editor.selection = new Selection(begin, end)
-                    editor.revealRange(new Range(begin, end))
-                },
-            ),
+            commands.registerCommand('deadeye.scopeExplorer.jumpTo', (scope: Scope<string>) => {
+                const editor = window.activeTextEditor
+                if (!editor) {
+                    return
+                }
+                const rel = DocumentContext.newInstance(editor.document)
+                const begin = rel.pos(scope.begin)
+                const end = rel.pos(scope.end)
+                editor.selection = new Selection(begin, end)
+                editor.revealRange(new Range(begin, end))
+            }),
 
             // Refresh on edits in active document
             workspace.onDidChangeTextDocument(event => {
@@ -212,9 +194,7 @@ export class ScopeExplorerService {
             }),
 
             // Refresh on editor change
-            window.onDidChangeActiveTextEditor(() =>
-                this.treeDataProvider.refresh(),
-            ),
+            window.onDidChangeActiveTextEditor(() => this.treeDataProvider.refresh()),
 
             // Follow the cursor: Expand and select the innermost active scope
             window.onDidChangeTextEditorSelection(event =>

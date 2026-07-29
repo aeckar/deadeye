@@ -1,19 +1,14 @@
 import { Tag, Token } from '../../languages'
 import rustVocab from './language'
 
-const STOP = ['EQUALS', 'COMMA', 'OPEN_CURLY', 'CLOSE_CURLY', 'SEMICOLON'].map(
-    e => rustVocab.tagForKind(e as Uppercase<string>)!,
+const STOP = ['EQUALS', 'COMMA', 'OPEN_CURLY', 'CLOSE_CURLY', 'SEMICOLON'].map(e =>
+    rustVocab.tagForKind(e as Uppercase<string>)!,
 )
 const SIGIL = ['AND', 'ASTERISK', 'BANG', 'PLUS', 'MINUS'].map(e =>
     rustVocab.tagForKind(e as Uppercase<string>)!,
 )
 
-function skipBalanced(
-    tokens: readonly Token[],
-    begin: number,
-    open: Tag,
-    close: Tag,
-): number {
+function skipBalanced(tokens: readonly Token[], begin: number, open: Tag, close: Tag): number {
     let depth = 0
     for (let idx = begin; idx < tokens.length; ++idx) {
         if (tokens[idx].tag === open) {
@@ -64,11 +59,7 @@ function skipBalancedReverse(
  *
  * @todo Check for edge cases: `->` in fn pointers, lifetimes (`'a`), `impl`/`dyn` bounds
  */
-export function extractTarget(
-    docText: string,
-    tokens: readonly Token[],
-    begin: number,
-): string {
+export function extractTarget(docText: string, tokens: readonly Token[], begin: number): string {
     let idx = begin
     for (; idx < tokens.length; ++idx) {
         const tag = tokens[idx].tag

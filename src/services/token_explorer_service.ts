@@ -135,20 +135,17 @@ export class TokenExplorerService {
             treeView,
 
             // Jump to token in active document
-            commands.registerCommand(
-                'deadeye.tokenExplorer.jumpTo',
-                (token: Token) => {
-                    const editor = window.activeTextEditor
-                    if (!editor) {
-                        return
-                    }
-                    const rel = DocumentContext.newInstance(editor.document)
-                    const begin = rel.pos(token.begin)
-                    const end = rel.pos(token.end)
-                    editor.selection = new Selection(begin, end)
-                    editor.revealRange(new Range(begin, end))
-                },
-            ),
+            commands.registerCommand('deadeye.tokenExplorer.jumpTo', (token: Token) => {
+                const editor = window.activeTextEditor
+                if (!editor) {
+                    return
+                }
+                const rel = DocumentContext.newInstance(editor.document)
+                const begin = rel.pos(token.begin)
+                const end = rel.pos(token.end)
+                editor.selection = new Selection(begin, end)
+                editor.revealRange(new Range(begin, end))
+            }),
 
             // Refresh on edits in active document
             workspace.onDidChangeTextDocument(event => {
@@ -158,9 +155,7 @@ export class TokenExplorerService {
             }),
 
             // Refresh on editor change
-            window.onDidChangeActiveTextEditor(() =>
-                this.treeDataProvider.refresh(),
-            ),
+            window.onDidChangeActiveTextEditor(() => this.treeDataProvider.refresh()),
 
             // Follow the cursor: select the active token
             window.onDidChangeTextEditorSelection(event =>

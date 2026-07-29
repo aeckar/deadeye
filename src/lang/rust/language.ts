@@ -10,17 +10,7 @@ export const { openClosureParams, closeClosureParams } = (() => {
 
     // Heuristic: tokens/keywords after which `|` starts a new expression
     // (and therefore opens params) rather than continuing one as bitwise-or.
-    const EXPR_START_SYMBOLS = [
-        '=>',
-        '&&',
-        '||',
-        '=',
-        '(',
-        ',',
-        '{',
-        ';',
-        ':',
-    ] as const
+    const EXPR_START_SYMBOLS = ['=>', '&&', '||', '=', '(', ',', '{', ';', ':'] as const
     const EXPR_START_KEYWORDS = ['return', 'move'] as const
 
     function expectsExpr(tape: Tape): boolean {
@@ -191,8 +181,7 @@ export const rustLanguage = Language.newInstance({
         RAW_BYTE_STRING: /r?b#{0,8}"[\s\S]*?"#{0,8}/y,
 
         // Hex/Binary/Octal checked BEFORE base-10 to prevent early '0' cutoff
-        INTEGER:
-            /(?:0x[0-9a-fA-F_]+|0b[01_]+|0o[0-7_]+|[0-9_]+)(?:[iu](?:8|16|32|64|128))?/y,
+        INTEGER: /(?:0x[0-9a-fA-F_]+|0b[01_]+|0o[0-7_]+|[0-9_]+)(?:[iu](?:8|16|32|64|128))?/y,
 
         OPEN_CLOSURE_PARAMS: openClosureParams,
         CLOSE_CLOSURE_PARAMS: closeClosureParams,

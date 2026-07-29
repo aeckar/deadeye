@@ -9,13 +9,8 @@
             "name": "Run Extension",
             "type": "extensionHost",
             "request": "launch",
-            "args": [
-                "--extensionDevelopmentPath=${workspaceFolder}",
-                "--disable-extensions"
-            ],
-            "outFiles": [
-                "${workspaceFolder}/dist/**/*.js"
-            ],
+            "args": ["--extensionDevelopmentPath=${workspaceFolder}", "--disable-extensions"],
+            "outFiles": ["${workspaceFolder}/dist/**/*.js"],
             "preLaunchTask": "${defaultBuildTask}"
         },
         {
@@ -27,9 +22,7 @@
                 "--extensionTestsPath=${workspaceFolder}/out/test",
                 "--disable-extensions"
             ],
-            "outFiles": [
-                "${workspaceFolder}/out/**/*.js"
-            ],
+            "outFiles": ["${workspaceFolder}/out/**/*.js"],
             "sourceMaps": true,
             "preLaunchTask": "npm: compile-tests"
         },
@@ -43,9 +36,7 @@
                 "--extensionTestsPath=${workspaceFolder}/out/test",
                 "--disable-extensions"
             ],
-            "outFiles": [
-                "${workspaceFolder}/out/**/*.js"
-            ],
+            "outFiles": ["${workspaceFolder}/out/**/*.js"],
             "sourceMaps": true, // enable breakpoints
             "preLaunchTask": "npm: compile-tests",
             "env": {

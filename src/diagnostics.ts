@@ -6,9 +6,9 @@ import { MarkdownString } from 'vscode'
 
 /**
  * Returns a Markdown string, which can be used for documentation.
-*
-* This function should be used as a raw string prefix (e.g. `md`text``).
-*/
+ *
+ * This function should be used as a raw string prefix (e.g. `md`text``).
+ */
 // ` = U+1FEF
 export function md(
     s: string | TemplateStringsArray,

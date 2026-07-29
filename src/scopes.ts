@@ -4,9 +4,7 @@
 import { Language, Tag, Token, UnknownTokenKind } from './languages'
 import { entries } from './misc'
 import { Scope } from './scope'
-import IntervalTreeService, {
-    IntervalTree,
-} from './services/interval_tree_service'
+import IntervalTreeService, { IntervalTree } from './services/interval_tree_service'
 
 // =============================================================================================
 // Scope Description
@@ -19,10 +17,7 @@ import IntervalTreeService, {
  */
 export type ScopeKind<T> = T extends ScopeRegistry<infer U> ? U : never
 
-export type BoundariesPool = (readonly [
-    UnknownTokenKind | null,
-    UnknownTokenKind,
-])[]
+export type BoundariesPool = (readonly [UnknownTokenKind | null, UnknownTokenKind])[]
 
 /** The boundaries of a scope. */
 export class Boundaries {
@@ -39,10 +34,7 @@ export class Boundaries {
         const boundaryMarkers: Boundaries[] = []
         for (const [open, close] of pool) {
             boundaryMarkers.push(
-                new Boundaries(
-                    open ? lang.tagForKind(open) : undefined,
-                    lang.tagForKind(close)!,
-                ),
+                new Boundaries(open ? lang.tagForKind(open) : undefined, lang.tagForKind(close)!),
             )
         }
         return boundaryMarkers
@@ -314,21 +306,9 @@ export class UnclosedScope<ScopeKind extends string> {
 
     close(end: number): Scope<ScopeKind> {
         if (this.begin !== undefined) {
-            return new Scope(
-                this.query.kind,
-                this.markerPos,
-                this.markerTokenPos,
-                this.begin!,
-                end,
-            )
+            return new Scope(this.query.kind, this.markerPos, this.markerTokenPos, this.begin!, end)
         }
-        return new Scope(
-            this.query.kind,
-            this.markerPos,
-            this.markerTokenPos,
-            this.markerPos,
-            end,
-        )
+        return new Scope(this.query.kind, this.markerPos, this.markerTokenPos, this.markerPos, end)
     }
 }
 
@@ -486,16 +466,9 @@ export class ScopeStream<ScopeKind extends string> {
             const scope = unclosed[idx]
             for (const boundaries of scope.query.boundariesPool) {
                 // Attempt to open scope by matching to opener
-                if (
-                    tag === boundaries.open &&
-                    (!scope.isOpen || !scope.isReopened)
-                ) {
+                if (tag === boundaries.open && (!scope.isOpen || !scope.isReopened)) {
                     scope.open(start.end, [boundaries.close])
-                    for (
-                        idx -= 1;
-                        idx >= 0 && unclosed[idx]?.query.flatten;
-                        --idx
-                    ) {
+                    for (idx -= 1; idx >= 0 && unclosed[idx]?.query.flatten; --idx) {
                         unclosed[idx].open(start.end, [boundaries.close])
                     }
                     modified = true
@@ -504,17 +477,10 @@ export class ScopeStream<ScopeKind extends string> {
 
                 // Attempt to close scope by matching to any closer
                 // Scope is always-open or always-primed
-                if (
-                    tag === boundaries.close &&
-                    (scope.isOpen || boundaries.open === undefined)
-                ) {
+                if (tag === boundaries.close && (scope.isOpen || boundaries.open === undefined)) {
                     const s = unclosed.pop()!.close(start.begin)
                     closed.insert(s.interval, s)
-                    for (
-                        idx -= 1;
-                        idx >= 0 && unclosed.at(-1)?.query.flatten;
-                        --idx
-                    ) {
+                    for (idx -= 1; idx >= 0 && unclosed.at(-1)?.query.flatten; --idx) {
                         const fs = unclosed.pop()!.close(start.begin)
                         closed.insert(fs.interval, fs)
                     }
@@ -528,11 +494,7 @@ export class ScopeStream<ScopeKind extends string> {
                     if (tag === terminator) {
                         const s = scope.close(start.begin)
                         closed.insert(s.interval, s)
-                        for (
-                            idx -= 1;
-                            idx >= 0 && unclosed.at(-1)?.query.flatten;
-                            --idx
-                        ) {
+                        for (idx -= 1; idx >= 0 && unclosed.at(-1)?.query.flatten; --idx) {
                             const fs = unclosed.pop()!.close(start.begin)
                             closed.insert(fs.interval, fs)
                         }

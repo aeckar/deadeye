@@ -55,8 +55,7 @@ class TextDeletionService {
         let foundOverlap = false
         for (let idx = begin; idx < tokens.length; ++idx) {
             const token = tokens[idx]
-            const overlaps =
-                token.begin < selectionEnd && token.end > selectionBegin
+            const overlaps = token.begin < selectionEnd && token.end > selectionBegin
             if (overlaps) {
                 foundOverlap = true
                 if (token.kind !== 'ID') {
@@ -83,10 +82,7 @@ class TextDeletionService {
         await rel.delete(minBegin, maxEnd, editor)
     }
 
-    static async applySmartCaretDelete(
-        editor: TextEditor,
-        direction: Direction,
-    ) {
+    static async applySmartCaretDelete(editor: TextEditor, direction: Direction) {
         const { document, selection } = editor
         const cursor = document.offsetAt(selection.active)
         const rel = DocumentContext.newInstance(document)

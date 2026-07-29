@@ -10,19 +10,15 @@ import {
     ThemeColor,
     window,
 } from 'vscode'
-import {
-    Completion,
-    CompletionContext,
-    CompletionStrategy,
-} from '../completions'
-import allCompletionRegistries from '../lang/all_completion_registries'
+import { Completion, CompletionContext, CompletionStrategy } from '../completions'
 import DocumentInfoService from './document_info_service'
+import LanguageInfoService from './language_info_service'
 
 /**
  * Provides an interface to the current completion strategy,
  * as well as methods to apply it when the associated completion is triggered.
  */
-class CompletionService {
+class TextInsertionService {
     private static isActive = false
     private static _curStrategy?: CompletionStrategy
 
@@ -35,10 +31,11 @@ class CompletionService {
             return
         }
         await DocumentInfoService.start(ctx)
+        await LanguageInfoService.start()
         ctx.subscriptions.push(
             // Cancel completion on selection change
             window.onDidChangeTextEditorSelection(event => {
-                CompletionService.cancelCompletion(event.textEditor)
+                TextInsertionService.cancelCompletion(event.textEditor)
             }),
 
             // Prepare completion on keystroke
@@ -68,20 +65,15 @@ class CompletionService {
                 commands.executeCommand('default:type', args) // manually perform insertion
                 this.updateCompletionStrategy(keyIn, editor)
                 if (strategy) {
-                    editor.setDecorations(this.decoration, [
-                        strategy.completion.target,
-                    ])
+                    editor.setDecorations(this.decoration, [strategy.completion.target])
                 }
             }),
 
             // Show documentation on hover
             languages.registerHoverProvider('rust', {
                 provideHover(_, position) {
-                    const strategy = CompletionService._curStrategy
-                    if (
-                        !strategy ||
-                        !strategy.completion.target.contains(position)
-                    ) {
+                    const strategy = TextInsertionService._curStrategy
+                    if (!strategy || !strategy.completion.target.contains(position)) {
                         return null
                     }
                     return new Hover(strategy.family.docs)
@@ -91,7 +83,7 @@ class CompletionService {
             // Show preview on hover
             languages.registerHoverProvider('rust', {
                 provideHover(_, position) {
-                    const strategy = CompletionService._curStrategy
+                    const strategy = TextInsertionService._curStrategy
                     const target = strategy?.completion.target
                     if (!strategy || !target?.contains(position)) {
                         return null
@@ -119,38 +111,27 @@ class CompletionService {
         const document = editor.document
         const active = editor.selection.active
         const cursor = new Position(active.line, active.character + 1) // adjust for key-in
-        const langId = document.languageId
         const ctx = new CompletionContext(document, keyIn, cursor)
-        for (const [trigger, families] of allCompletionRegistries[langId]) {
+        const { completions } = LanguageInfoService.get(document.languageId)
+        for (const [trigger, families] of completions) {
             for (const family of families) {
                 ctx.resetLine()
                 const completion = family.resolver(ctx)
                 if (!completion) {
                     continue
                 }
-                this._curStrategy = new CompletionStrategy(
-                    family,
-                    trigger,
-                    completion,
-                    cursor,
-                )
+                this._curStrategy = new CompletionStrategy(family, trigger, completion, cursor)
                 return
             }
         }
     }
 
     static async applyCompletion(editor: TextEditor, completion: Completion) {
-        await editor.insertSnippet(
-            new SnippetString(completion.snippet),
-            completion.target,
-        )
+        await editor.insertSnippet(new SnippetString(completion.snippet), completion.target)
         if (!completion.endCursorPos) {
             return
         }
-        editor.selection = new Selection(
-            completion.endCursorPos,
-            completion.endCursorPos,
-        )
+        editor.selection = new Selection(completion.endCursorPos, completion.endCursorPos)
     }
 
     static cancelCompletion(editor: TextEditor) {
@@ -164,4 +145,4 @@ class CompletionService {
     }
 }
 
-export default CompletionService
+export default TextInsertionService

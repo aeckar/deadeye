@@ -1,19 +1,11 @@
-import {
-    ExtensionContext,
-    StatusBarAlignment,
-    TextEditor,
-    window,
-} from 'vscode'
+import { ExtensionContext, StatusBarAlignment, TextEditor, window } from 'vscode'
 import { BREADCRUMB_SEP } from '../constants'
 import { Language } from '../languages'
 import DocumentInfoService from './document_info_service'
 
 export class ScopeBreadcrumbsService {
     private static isActive = false
-    private static statusBarItem = window.createStatusBarItem(
-        StatusBarAlignment.Left,
-        10000,
-    )
+    private static statusBarItem = window.createStatusBarItem(StatusBarAlignment.Left, 10000)
 
     static async start(ctx: ExtensionContext) {
         if (this.isActive) {
@@ -49,8 +41,7 @@ export class ScopeBreadcrumbsService {
             return
         }
         const offset = document.offsetAt(editor.selection.active)
-        const breadcrumbs =
-            DocumentInfoService.get(document).getScopeBreadcrumbs(offset)
+        const breadcrumbs = DocumentInfoService.get(document).getScopeBreadcrumbs(offset)
         if (breadcrumbs.length === 0) {
             this.statusBarItem.hide()
             return

@@ -1,9 +1,4 @@
-import {
-    Completion,
-    CompletionRegistry,
-    toScreamCase,
-    toSnakeCase,
-} from '../../completions'
+import { Completion, CompletionRegistry, toScreamCase, toSnakeCase } from '../../completions'
 import { MAX_LINE_SEEK } from '../../constants'
 import { md } from '../../diagnostics'
 import { after, joinValues, rangeBefore, reverse } from '../../misc'
@@ -293,9 +288,7 @@ const rustCompletions = CompletionRegistry.newInstance<ScopeKind<typeof rustScop
                 return undefined
             }
             const { language } = ctx.docInfo
-            const chunks = tape
-                .consumeChunks(language.idRule.isPart)
-                .map(reverse)
+            const chunks = tape.consumeChunks(language.idRule.isPart).map(reverse)
             if (chunks.length === 0) {
                 return undefined
             }
@@ -327,9 +320,7 @@ const rustCompletions = CompletionRegistry.newInstance<ScopeKind<typeof rustScop
             }
             const tape = ctx.left().reversed()
             const { language, tokens } = ctx.docInfo
-            const chunks = tape
-                .consumeChunks(language.idRule.isPart)
-                .map(reverse)
+            const chunks = tape.consumeChunks(language.idRule.isPart).map(reverse)
             if (chunks.length === 0) {
                 return undefined
             }
@@ -369,9 +360,7 @@ const rustCompletions = CompletionRegistry.newInstance<ScopeKind<typeof rustScop
             }
             const tape = ctx.left().reversed()
             const { language, tokens } = ctx.docInfo
-            const chunks = tape
-                .consumeChunks(language.idRule.isPart)
-                .map(reverse)
+            const chunks = tape.consumeChunks(language.idRule.isPart).map(reverse)
             if (chunks.length === 0 || chunks.at(-1)!.toLowerCase() !== 'is') {
                 return undefined
             }
@@ -632,9 +621,7 @@ const rustCompletions = CompletionRegistry.newInstance<ScopeKind<typeof rustScop
             }
             //todo
             return Completion.newInstance({
-                preview: md`
-                    Insert \`else\` block after current \`if\` block, then move there.
-                `,
+                preview: md`Insert \`else\` block after current \`if\` block, then move there.`,
                 target: rangeBefore(ctx.cursor), //todo include previous newline as well
                 insertAt: after(ctx.cursor),
                 snippet: includeIf ? ' else if {\n$0\n}' : ' else {\n$0\n}',
@@ -749,10 +736,7 @@ const rustCompletions = CompletionRegistry.newInstance<ScopeKind<typeof rustScop
                 preview: md`
 Wrap as slice type.
                 `,
-                target: rangeBefore(
-                    ctx.cursor,
-                    target.length + flags.size + '.s'.length,
-                ),
+                target: rangeBefore(ctx.cursor, target.length + flags.size + '.s'.length),
                 snippet: pre + '[' + target + ']',
             })
         },
@@ -804,10 +788,7 @@ Insert \`extern "\${1:C}" \`.
         trigger: ' ',
         resolver(ctx) {
             const tape = ctx.left().reversed()
-            if (
-                !tape.consumeAt('mrp') ||
-                (!tape.isExhausted() && !Tape.isWs(tape.cur() ?? '.'))
-            ) {
+            if (!tape.consumeAt('mrp') || (!tape.isExhausted() && !Tape.isWs(tape.cur() ?? '.'))) {
                 return undefined
             }
             return Completion.newInstance({

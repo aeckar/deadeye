@@ -26,32 +26,41 @@ graph TD
     end
 
     subgraph DeleteText["Delete Text"]
-        TextDeletionSvc["Text Deletion Service"] --> SmartDelete(["Smart Delete"])
+        TextDeletionSvc["Text Deletion Service"]
+        InterceptDeletions(["Intercept Deletions"])
+        SmartDelete(["Smart Delete"])
+
+        TextDeletionSvc --> InterceptDeletions
+        InterceptDeletions --> SmartDelete
     end
 
     subgraph EditorUI["Editor UI"]
         ScopeBreadcrumbsSvc["Scope Breadcrumbs Service"]
         ScopeExplorerSvc["Scope Explorer Service"]
         TokenExplorerSvc["Token Explorer Service"]
-        
+
         ScopeBreadcrumbs(["Scope Breadcrumbs"])
         ScopeExplorer(["Scope Explorer"])
         TokenExplorer(["Token Explorer"])
     end
 
-    subgraph CompletionEngine["Completion Engine"]
-        CompletionSvc["Completion Service"]
+    subgraph CompletionEngine["Insert Text"]
+        TextInsertionSvc["Text Insertion Service"]
+        InterceptKeystrokes(["Intercept Keystrokes"])
         CompletionContext["Completion Context"]
         CompletionAPI{{"Completion API"}}
         Completion["Completion"]
         CompletionStrategy["Completion Strategy"]
         RunCompletion(["Run Completion"])
+
+        TextInsertionSvc --> InterceptKeystrokes
+        InterceptKeystrokes --> CompletionContext
     end
 
     %% Connections inside Static Analysis
     Text --> LangAPI
     LangAPI --> Tokens
-    
+
     Tokens --> ScopeAPI
     ScopeAPI --> Scopes
     IntervalTreeSvc --> IntervalTree
@@ -71,15 +80,17 @@ graph TD
     TokenExplorerSvc --> TokenExplorer
 
     %% Internal Completion Pipeline Flow
-    CompletionSvc --> CompletionContext
     CompletionContext --> CompletionAPI
     CompletionAPI -.->|"Success?"| Completion
     Completion --> CompletionStrategy
     CompletionStrategy -.->|"Triggered?"| RunCompletion
 
     %% Services with dotted outlines
-    class IntervalTreeSvc,DocInfoSvc,ScopeBreadcrumbsSvc,ScopeExplorerSvc,TokenExplorerSvc,CompletionSvc,TextDeletionSvc serviceStyle;
+    class IntervalTreeSvc,DocInfoSvc,ScopeBreadcrumbsSvc,ScopeExplorerSvc,TokenExplorerSvc,TextInsertionSvc,TextDeletionSvc serviceStyle;
+
 ```
+
+````
 
 ## Folder Structure
 
@@ -102,10 +113,7 @@ src/
             language.ts
             scope_registry.ts
             <...HELPERS>
-        all_completion_registries.ts
-        all_languages.ts
-        all_scope_registries.ts
-```
+````
 
 ### `tape.ts` — Cursor Data Structure
 
@@ -159,10 +167,12 @@ graph TD
 
 ### `services/` — Services
 
-**Services** are classes that implement the singleton pattern through their static instance. All services provide a `start` function, declare a private constructor, and contain no functions returning an instance of that class. After `start` is called, a feature is added to the editor environment for as long as the extension is active.
+**Services** are classes that implement the singleton pattern through their static instance. All services provide a `start` function, declare a private constructor, and contain no functions returning an instance of that class. After `start` is called, a feature is added to the editor environment for as long as the extension is active. Services have no public properties.
 
 ```ts
 class BasicService {
+    // No public properties
+
     private constructor() {}
 
     static start(ctx: ExtensionContext) {
@@ -174,6 +184,18 @@ class BasicService {
 `start` is `async`, and can expect either no arguments or a single `vscode.ExtensionContext`. The only time that the initializer should be called is once within `activate`.
 
 Although all services are initialized at extension activation, some services may depend on other services. Therefore, `start` for any immediate dependencies should be called in a service's own initializer. Because multiple instances of the same dependency may exist, `start` is made to be idempotent.
+
+```ts
+    // text_insertion_service.ts
+    static async start(ctx: ExtensionContext) {
+        if (this.isActive) {
+            return
+        }
+        await DocumentInfoService.start(ctx)
+        await LanguageInfoService.start()
+        // ...
+    }
+```
 
 Service classes can also contain static mutable fields to be used by the various static utility functions provided by that service. Though it is tempting to declare a common service `interface`, static object are not permitted to extend interfaces. Therefore, compliance to the service pattern cannot be strictly enforced without transferring responsibility to a class instance. To make things simple, we have decided not to pursue this pattern.
 
@@ -195,7 +217,3 @@ When writing unit tests, favor testing `Tape` parsing logic and scope resolution
 In the folder for each [language ID](https://code.visualstudio.com/docs/languages/identifiers), the completion registry, `Language`, and scope registry for that language is declared. These are top-level objects declared by configuring an instance for each Pipeline API.
 
 This directory may contain various helper classes and utilities to be used by any of the three API implementations.
-
-### `lang/all_*.ts` —  Aggregation of Pipeline API Implementations
-
-All completion registries, `Language`s, and scope registries are aggregated to a single `Record` per item type, where each key is the ID of a supported language.

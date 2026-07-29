@@ -7,9 +7,7 @@ import { md } from './diagnostics'
 import { Token } from './languages'
 import { rangeBefore, reverse } from './misc'
 import { Scope } from './scope'
-import DocumentInfoService, {
-    DocumentInfo,
-} from './services/document_info_service'
+import DocumentInfoService, { DocumentInfo } from './services/document_info_service'
 import { itemsAt } from './services/interval_tree_service'
 import Tape from './tape'
 
@@ -97,9 +95,7 @@ export function toSnakeCase(chunks: string[]): string {
 
 /** Concatenates the strings and applies camelCase. */
 export function toCamelCase(chunks: string[]): string {
-    return chunks
-        .map((s, idx) => (idx === 0 ? s.toLowerCase() : capitalize(s)))
-        .join('')
+    return chunks.map((s, idx) => (idx === 0 ? s.toLowerCase() : capitalize(s))).join('')
 }
 
 /** Concatenates the strings and applies kebab-case. */
@@ -261,9 +257,7 @@ export class CompletionFamily<ScopeKind extends string> {
         readonly resolver: CompletionResolver<ScopeKind>,
     ) {}
 
-    static newInstance<ScopeKind extends string>(
-        cfg: CompletionFamilyCfg<ScopeKind>,
-    ) {
+    static newInstance<ScopeKind extends string>(cfg: CompletionFamilyCfg<ScopeKind>) {
         return new this(cfg.docs, cfg.minLookbehind, cfg.trigger, cfg.resolver)
     }
 }
@@ -359,9 +353,7 @@ export class Completion {
                             `(${e.start.line},${e.start.character}:${e.end.line},${e.end.character})`,
                     )
                     .join(', ')
-                window.showWarningMessage(
-                    `Deadeye: Error range(s) outside of target: [${strings}]`,
-                )
+                window.showWarningMessage(`Deadeye: Error range(s) outside of target: [${strings}]`)
                 errors = cfg.errors.filter(e => cfg.target.contains(e))
             } else {
                 errors = cfg.errors
@@ -402,9 +394,9 @@ export class CompletionContext<ScopeKind extends string> {
         const idx = document.offsetAt(this.cursor)
         this._line = this.newLineBuffer()
         this.docInfo = DocumentInfoService.get(document)
-        this.scopesAtCursor = (
-            itemsAt(this.docInfo.scopes, idx) as Scope<ScopeKind>[]
-        ).sort((a, b) => a.begin - b.begin)
+        this.scopesAtCursor = (itemsAt(this.docInfo.scopes, idx) as Scope<ScopeKind>[]).sort(
+            (a, b) => a.begin - b.begin,
+        )
         this.tokenPos = Token.findNearest(this.docInfo.tokens, idx, 'right')
     }
 

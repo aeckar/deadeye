@@ -41,13 +41,7 @@ export const rustScopes = ScopeRegistry.newInstance(() => rustVocab, {
     closure: {
         markerPool: ['CLOSE_CLOSURE_PARAMS'],
         boundariesPool: [CURLIES],
-        terminatorPool: [
-            'SEMICOLON',
-            'COMMA',
-            'CLOSE_CURLY',
-            'CLOSE_PAREN',
-            'CLOSE_BRAC',
-        ],
+        terminatorPool: ['SEMICOLON', 'COMMA', 'CLOSE_CURLY', 'CLOSE_PAREN', 'CLOSE_BRAC'],
     },
     enum: {
         boundariesPool: [CURLIES],
@@ -103,7 +97,6 @@ export const rustScopes = ScopeRegistry.newInstance(() => rustVocab, {
     assignment: {
         markerPool: ['LET', 'CONST', 'STATIC'],
         boundariesPool: [[null, 'SEMICOLON']],
-        
     },
     typeAnno: {
         markerPool: ['COLON'],

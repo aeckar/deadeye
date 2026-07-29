@@ -1,7 +1,7 @@
 //! Scope data structure.
 //!
 //! Common dependency to both `completions.ts` and `scopes.ts`.
-import { Span } from "./misc"
+import { Span } from './misc'
 
 /**
  * A member in the scope tree at a particular position in a file.

@@ -202,17 +202,13 @@ suite('Rust Tokenizer', () => {
     // =============================================================================================
 
     test('line comment is a single LINE_COMMENT token', () => {
-        const kinds = extractKinds(
-            rustLanguage.tokenize('// this is a comment'),
-        )
+        const kinds = extractKinds(rustLanguage.tokenize('// this is a comment'))
         assert.deepStrictEqual(kinds, ['LINE_COMMENT'])
     })
 
     test('code after line comment on same line is not tokenized', () => {
         // Everything after `//` until newline belongs to the comment
-        const kinds = extractKinds(
-            rustLanguage.tokenize('let x; // comment\nlet y;'),
-        )
+        const kinds = extractKinds(rustLanguage.tokenize('let x; // comment\nlet y;'))
         assert.ok(kinds.includes('LINE_COMMENT'))
         // After the newline, let y; is tokenized normally
         const yIdx = kinds.lastIndexOf('LET')
@@ -278,7 +274,7 @@ suite('Rust Tokenizer', () => {
     })
 
     // =============================================================================================
-    // Complex expression 
+    // Complex expression
     // =============================================================================================
 
     test('complex function signature tokenizes correctly', () => {
@@ -400,10 +396,7 @@ suite('Rust Scope Stream', () => {
         // Position right after impl's `{` but before `fn`
         const implOpen = src.indexOf('{')
         const inside = itemsAt(tree, implOpen + 1)
-        assert.ok(
-            !inside.find(s => s.kind === 'fn'),
-            'fn scope should not cover impl opener',
-        )
+        assert.ok(!inside.find(s => s.kind === 'fn'), 'fn scope should not cover impl opener')
     })
 
     // ========================================================================
@@ -420,16 +413,8 @@ suite('Rust Scope Stream', () => {
         assert.ok(asyncScope, 'async scope should exist')
         assert.ok(fnScope, 'fn scope should exist')
         // Both should share the same begin (right after the single `{`)
-        assert.strictEqual(
-            asyncScope.begin,
-            fnScope!.begin,
-            'async and fn scopes share begin',
-        )
-        assert.strictEqual(
-            asyncScope.end,
-            fnScope!.end,
-            'async and fn scopes share end',
-        )
+        assert.strictEqual(asyncScope.begin, fnScope!.begin, 'async and fn scopes share begin')
+        assert.strictEqual(asyncScope.end, fnScope!.end, 'async and fn scopes share end')
     })
 
     test('const fn: const scope flattens onto fn scope', async () => {

@@ -1,12 +1,13 @@
 //! Extension entry point.
 import { ExtensionContext, window } from 'vscode'
 
-import CompletionService from './services/completion_service'
 import IntervalTreeService from './services/interval_tree_service'
 import ScopeBreadcrumbsService from './services/scope_breadcrumbs_service'
-import TextDeletionService from './services/text_deletion_service'
-import TokenExplorerService from './services/token_explorer_service'
 import ScopeExplorerService from './services/scope_explorer_service'
+import TextDeletionService from './services/text_deletion_service'
+import TextInsertionService from './services/text_insertion_service'
+import TokenExplorerService from './services/token_explorer_service'
+import LanguageInfoService from './services/language_info_service'
 
 const logger = window.createOutputChannel('Your Extension Name')
 
@@ -20,7 +21,8 @@ export async function activate(context: ExtensionContext) {
     try {
         await Promise.all([
             IntervalTreeService.start(),
-            CompletionService.start(context),
+            LanguageInfoService.start(),
+            TextInsertionService.start(context),
             TextDeletionService.start(context),
             ScopeBreadcrumbsService.start(context),
             TokenExplorerService.start(context),

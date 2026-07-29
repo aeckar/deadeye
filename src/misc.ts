@@ -1,12 +1,5 @@
 //! Miscellaneous utilities.
-import {
-    Position,
-    Range,
-    Selection,
-    TextDocument,
-    TextEditor,
-    TextEditorEdit,
-} from 'vscode'
+import { Position, Range, Selection, TextDocument, TextEditor, TextEditorEdit } from 'vscode'
 import { Interval } from './services/interval_tree_service'
 
 // =============================================================================================
@@ -81,19 +74,13 @@ export type RemovePrefix<
  *
  * Strips "__" from members marked as internal.
  */
-export type Member<T> = RemovePrefix<
-    '__',
-    Exclude<keyof T, 'prototype'> & string
->
+export type Member<T> = RemovePrefix<'__', Exclude<keyof T, 'prototype'> & string>
 
 // =============================================================================================
 // VS Code API
 // =============================================================================================
 
-export function insert(
-    pos: Position,
-    text: string,
-): (editBuilder: TextEditorEdit) => void {
+export function insert(pos: Position, text: string): (editBuilder: TextEditorEdit) => void {
     return editBuilder => {
         editBuilder.insert(pos, text)
     }
@@ -137,11 +124,7 @@ export class DocumentContext {
      *
      * Returns true if the operation succeeded.
      */
-    async insert(
-        offset: number,
-        text: string,
-        editor: TextEditor,
-    ): Promise<boolean> {
+    async insert(offset: number, text: string, editor: TextEditor): Promise<boolean> {
         return editor.edit(editBuilder => {
             editBuilder.insert(this.pos(offset), text)
         })
@@ -152,11 +135,7 @@ export class DocumentContext {
      *
      * Returns true if the operation succeeded.
      */
-    async delete(
-        begin: number,
-        end: number,
-        editor: TextEditor,
-    ): Promise<boolean> {
+    async delete(begin: number, end: number, editor: TextEditor): Promise<boolean> {
         return editor.edit(editBuilder => {
             editBuilder.delete(this.selection(begin, end))
         })
@@ -171,10 +150,7 @@ export class DocumentContext {
  * Omitting `from` gives the entire line before the cursor,
  * and passing zero gives a zero-length selection at the cursor.
  */
-export function rangeBefore(
-    cursor: Position,
-    from: number = cursor.character,
-): Range {
+export function rangeBefore(cursor: Position, from: number = cursor.character): Range {
     if (from < 0) {
         // handle to prevent silent failure
         throw new RangeError(`'from' must be non-negative, got ${from}`)
@@ -223,9 +199,7 @@ export function enumerate<K extends number | string | symbol, V>(
 ): [number, [K, V]][] {
     // Object.entries returns [string, unknown][], so cast to the expected types
     const entries = Object.entries(o) as unknown as [K, V][]
-    return entries.map(
-        ([key, val], idx) => [idx, [key, val]] as [number, [K, V]],
-    )
+    return entries.map(([key, val], idx) => [idx, [key, val]] as [number, [K, V]])
 }
 
 /**

@@ -1,16 +1,10 @@
-import {
-    ExtensionContext,
-    TextDocument,
-    TextDocumentContentChangeEvent,
-    workspace,
-} from 'vscode'
-import allLanguages from '../lang/all_languages'
-import allScopeRegistries from '../lang/all_scope_registries'
+import { ExtensionContext, TextDocument, TextDocumentContentChangeEvent, workspace } from 'vscode'
 import { Language, Token } from '../languages'
 import { Scope } from '../scope'
 import { ScopeRegistry } from '../scopes'
 import Tape from '../tape'
 import IntervalTreeService, { IntervalTree, itemsAt } from './interval_tree_service'
+import LanguageInfoService from './language_info_service'
 
 /** Contains a cache of useful information for a given text document. */
 export class DocumentInfo<ScopeKind extends string> {
@@ -95,21 +89,19 @@ class DocumentInfoService {
     private static isActive = false
     private static files = new Map<string, DocumentInfo<string>>()
 
-    private constructor() { }
+    private constructor() {}
 
     static async start(ctx: ExtensionContext) {
         if (this.isActive) {
             return
         }
         await IntervalTreeService.start()
+        await LanguageInfoService.start()
         ctx.subscriptions.push(
             // Listen for text buffer edits
             workspace.onDidChangeTextDocument(event => {
                 const document = event.document
-                if (
-                    event.contentChanges.length === 0 ||
-                    document.uri.scheme !== 'file'
-                ) {
+                if (event.contentChanges.length === 0 || document.uri.scheme !== 'file') {
                     return
                 }
                 this.get(document).registerChanges(event.contentChanges)
@@ -128,17 +120,11 @@ class DocumentInfoService {
      *
      * It is the responsibility of the caller to ensure the correct type for `ScopeKind`.
      */
-    static get<ScopeKind extends string>(
-        document: TextDocument,
-    ): DocumentInfo<ScopeKind> {
+    static get<ScopeKind extends string>(document: TextDocument): DocumentInfo<ScopeKind> {
         const uri = document.uri.toString()
         if (!this.files.has(uri)) {
-            const langId = document.languageId
-            const file = new DocumentInfo(
-                document,
-                allLanguages[langId],
-                allScopeRegistries[langId],
-            )
+            const { language, scopes } = LanguageInfoService.get(document.languageId)
+            const file = new DocumentInfo(document, language, scopes)
             this.files.set(uri, file)
             return file as DocumentInfo<ScopeKind>
         }
