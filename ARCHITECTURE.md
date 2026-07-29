@@ -135,9 +135,9 @@ function deactivate() {
 }
 ```
 
-## `api/` — Pipeline API
+## `api/` — Language Configuration APIs
 
-Three pipeline APIs are implemented, each providing information about a document depending on the language it is written in. Each comprises of a variety of classes and utilities that perform related functions. They each provide robust configurations for declaring how a language should behave.
+Three configuration APIs are implemented, each providing information about a document depending on the language it is written in. Each comprises of a variety of classes and utilities that perform related functions. They each provide robust configurations for declaring how a language should behave.
 
 The Language API, defined in `language.ts`, permits declaring what tokens exist within a language. This enables the integrated lexer to tokenize any document in that language. Tokens can be any of the following: string, keyword (whole string), regex, matcher on `Tape`.
 
@@ -203,7 +203,7 @@ When writing unit tests, favor testing `Tape` parsing logic and scope resolution
 
 ## `lang/` — Language Targets
 
-Declares the completion registry, `Language`, and scope registry for each supported language, organized by their [identifier](https://code.visualstudio.com/docs/languages/identifiers). These are top-level objects declared by configuring an instance for each pipeline API.
+Declares the completion registry, `Language`, and scope registry for each supported language, organized by their [identifier](https://code.visualstudio.com/docs/languages/identifiers). These are top-level objects declared by configuring an instance for each configuration API.
 
 This directory may contain domain-specific utilities to be used by any of the three API implementations.
 
