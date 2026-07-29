@@ -8,7 +8,11 @@ graph TD
     %% Styling for dotted outline services
     classDef serviceStyle stroke-dasharray: 5 5;
 
-    %% Subgraphs
+    %% Top Level Subgraphs
+    subgraph LanguageTargets["Language Targets"]
+        LangInfoSvc["Language Info Service"]
+    end
+
     subgraph StaticAnalysis["Static Analysis"]
         Text["Text"]
         Tokens["Token Array"]
@@ -25,15 +29,7 @@ graph TD
         DocInfoSvc --> DocInfo
     end
 
-    subgraph DeleteText["Delete Text"]
-        TextDeletionSvc["Text Deletion Service"]
-        InterceptDeletions(["Intercept Deletions"])
-        SmartDelete(["Smart Delete"])
-
-        TextDeletionSvc --> InterceptDeletions
-        InterceptDeletions --> SmartDelete
-    end
-
+    %% Lower Flow Subgraphs
     subgraph EditorUI["Editor UI"]
         ScopeBreadcrumbsSvc["Scope Breadcrumbs Service"]
         ScopeExplorerSvc["Scope Explorer Service"]
@@ -44,7 +40,7 @@ graph TD
         TokenExplorer(["Token Explorer"])
     end
 
-    subgraph CompletionEngine["Insert Text"]
+    subgraph InsertText["Insert Text"]
         TextInsertionSvc["Text Insertion Service"]
         InterceptKeystrokes(["Intercept Keystrokes"])
         CompletionContext["Completion Context"]
@@ -57,42 +53,58 @@ graph TD
         InterceptKeystrokes --> CompletionContext
     end
 
-    %% Connections inside Static Analysis
+    subgraph DeleteText["Delete Text"]
+        TextDeletionSvc["Text Deletion Service"]
+        InterceptDeletions(["Intercept Deletions"])
+        SmartDelete(["Smart Delete"])
+
+        TextDeletionSvc --> InterceptDeletions
+        InterceptDeletions --> SmartDelete
+    end
+
+    %% Dependencies from Language Targets
+    LanguageTargets --> DocumentState
+    LanguageTargets --> InsertText
+
+    %% Internal Static Analysis Flow
     Text --> LangAPI
     LangAPI --> Tokens
-
     Tokens --> ScopeAPI
     ScopeAPI --> Scopes
     IntervalTreeSvc --> IntervalTree
     IntervalTree --> ScopeAPI
 
-    %% Flow out of Static Analysis
-    StaticAnalysis -.->|"Document Change?"| DocumentState
+    %% Flow between Analysis & State
+    StaticAnalysis --> DocumentState
+    DocInfo -.->|"Document Change?"| Text
 
-    %% On Request connections from Document State
+    %% Event Dispatching from Document State
     DocumentState -.->|"Document Change?"| EditorUI
-    DocumentState -.->|"Keystroke?"| CompletionEngine
+    DocumentState -.->|"Keystroke?"| InsertText
     DocumentState -.->|"Deletion?"| DeleteText
 
-    %% UI Services to Final Ovals
+    %% UI Services Output
     ScopeBreadcrumbsSvc --> ScopeBreadcrumbs
     ScopeExplorerSvc --> ScopeExplorer
     TokenExplorerSvc --> TokenExplorer
 
-    %% Internal Completion Pipeline Flow
+    %% Completion Pipeline Flow
     CompletionContext --> CompletionAPI
     CompletionAPI -.->|"Success?"| Completion
     Completion --> CompletionStrategy
     CompletionStrategy -.->|"Triggered?"| RunCompletion
 
     %% Services with dotted outlines
-    class IntervalTreeSvc,DocInfoSvc,ScopeBreadcrumbsSvc,ScopeExplorerSvc,TokenExplorerSvc,TextInsertionSvc,TextDeletionSvc serviceStyle;
-
+    class IntervalTreeSvc,DocInfoSvc,ScopeBreadcrumbsSvc,ScopeExplorerSvc,TokenExplorerSvc,TextInsertionSvc,TextDeletionSvc,LangInfoSvc serviceStyle;
 ```
 
-````
+## `scope.ts` — Scope Span
 
-### `tape.ts` — Cursor Data Structure
+Provides a simple data structure to denote a scope as the start and end indices of a substring.
+
+This file is a common dependency to both the Completion API and Scope API.
+
+## `tape.ts` — Cursor
 
 `Tape` is the most fundamental data structure used by this extension. It is a cursor over string, and provides many utilities for procedural parsing of substrings.
 
@@ -100,7 +112,7 @@ Unlike similar extensions, such as [HyperSnips](https://marketplace.visualstudio
 
 The downside of using a cursor is that parsing logic must largely be written by hand. Although parsing primitives are provided (e.g. `consume`, `seek`, `isAt`), combining them to recognize complex syntax must still be done by the user. In our experience, this is worth the performance gain, and it has made finding parsing logic errors much easier to find.
 
-### `extension.ts` — Startup/Shutdown
+## `extension.ts` — Startup/Shutdown
 
 The entry point, like for all other extensions, is the `activate` function. This function should have no other purpose than to activate all services and handle errors during activation.
 
@@ -123,7 +135,7 @@ function deactivate() {
 }
 ```
 
-### `api/` — Pipeline API Definitions
+## `api/` — Pipeline API
 
 Three pipeline APIs are implemented, each providing information about a document depending on the language it is written in. Each comprises of a variety of classes and utilities that perform related functions. They each provide robust configurations for declaring how a language should behave.
 
@@ -142,7 +154,7 @@ graph TD
     ScopeAPI --> CompletionAPI
 ```
 
-### `services/` — Services
+## `services/` — Services
 
 **Services** are classes that implement the singleton pattern through their static instance. All services provide a `start` function, declare a private constructor, and contain no functions returning an instance of that class. After `start` is called, a feature is added to the editor environment for as long as the extension is active. Services have no public properties.
 
@@ -178,7 +190,7 @@ Service classes can also contain static mutable fields to be used by the various
 
 Files declaring services end in `_service.ts`. The service class declared in each of these files is the default export. These files may also contain utilities and other classes that are tightly coupled to the service (e.g. `IntervalTree` for `IntervalTreeService`).
 
-### `test/` — Unit Testing
+## `test/` — Unit Tests
 
 The testing suite relies on VS Code's extension testing runner (`@vscode/test-electron`) to execute tests inside an actual instance of the editor environment.
 
@@ -189,8 +201,12 @@ Unit tests are dispatched and synced using [Mocha](https://mochajs.org/).
 
 When writing unit tests, favor testing `Tape` parsing logic and scope resolution over simulating user input streams, since unit-level cursor assertions execute significantly faster and yield clearer stack traces.
 
-### `lang/` — Language Support Implementation
+## `lang/` — Language Targets
 
-In the folder for each [language ID](https://code.visualstudio.com/docs/languages/identifiers), the completion registry, `Language`, and scope registry for that language is declared. These are top-level objects declared by configuring an instance for each Pipeline API.
+Declares the completion registry, `Language`, and scope registry for each supported language, organized by their [identifier](https://code.visualstudio.com/docs/languages/identifiers). These are top-level objects declared by configuring an instance for each pipeline API.
 
-This directory may contain various helper classes and utilities to be used by any of the three API implementations.
+This directory may contain domain-specific utilities to be used by any of the three API implementations.
+
+## `utils/` — Domain-Agnostic Utilities
+
+Contains many small, domain-agnostic utilities.

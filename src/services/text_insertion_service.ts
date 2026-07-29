@@ -58,12 +58,12 @@ class TextInsertionService {
                         })
                         return
                     }
-                    this.applyCompletion(editor, strategy.completion)
+                    this.runCompletion(editor, strategy.completion)
                     this._curStrategy = undefined
                     return
                 }
                 commands.executeCommand('default:type', args) // manually perform insertion
-                this.updateCompletionStrategy(keyIn, editor)
+                this.attemptCompletionResolution(keyIn, editor)
                 if (strategy) {
                     editor.setDecorations(this.decoration, [strategy.completion.target])
                 }
@@ -107,7 +107,7 @@ class TextInsertionService {
      * If a `Completion` is returned, it is stored in a `CompletionStrategy` and
      * that completion is sent once the trigger is pressed.
      */
-    static updateCompletionStrategy(keyIn: string, editor: TextEditor) {
+    static attemptCompletionResolution(keyIn: string, editor: TextEditor) {
         const document = editor.document
         const active = editor.selection.active
         const cursor = new Position(active.line, active.character + 1) // adjust for key-in
@@ -126,7 +126,7 @@ class TextInsertionService {
         }
     }
 
-    static async applyCompletion(editor: TextEditor, completion: Completion) {
+    static async runCompletion(editor: TextEditor, completion: Completion) {
         await editor.insertSnippet(new SnippetString(completion.snippet), completion.target)
         if (!completion.endCursorPos) {
             return
