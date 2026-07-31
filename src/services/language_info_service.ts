@@ -16,6 +16,7 @@ export class LanguageInfo {
         readonly completions: CompletionRegistry<string>,
         readonly language: Language,
         readonly scopes: ScopeRegistry<string>,
+        readonly asi: AsiResolver | undefined
     ) {}
 
     get openBrackets(): Language {
@@ -31,7 +32,7 @@ export class LanguageInfo {
         scopes: ScopeRegistry<ScopeKind>,
         asi?: AsiResolver
     ): LanguageInfo {
-        return new this(completions as CompletionRegistry<string>, language, scopes)
+        return new this(completions as CompletionRegistry<string>, language, scopes, asi)
     }
 }
 

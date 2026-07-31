@@ -4,7 +4,7 @@ import Scope from '@/scope'
 import Tape from '@/tape'
 import { ExtensionContext, TextDocument, TextDocumentContentChangeEvent, workspace } from 'vscode'
 import IntervalTreeService, { IntervalTree } from './interval_tree_service'
-import LanguageInfoService from './language_info_service'
+import LanguageInfoService, { AsiResolver } from './language_info_service'
 
 /** Contains a cache of useful information for a given text document. */
 export class DocumentInfo<ScopeKind extends string> {
@@ -13,13 +13,22 @@ export class DocumentInfo<ScopeKind extends string> {
     private _text?: string
     private _version: number
 
-    //todo make factory
-    constructor(
+    private constructor(
         readonly document: TextDocument,
         readonly language: Language,
         readonly scopeRegistry: ScopeRegistry<ScopeKind>,
+        private readonly asi: AsiResolver | undefined,
     ) {
         this._version = document.version
+    }
+
+    static newInstance<ScopeKind extends string>(
+        document: TextDocument,
+        language: Language,
+        scopeRegistry: ScopeRegistry<ScopeKind>,
+        asi: AsiResolver | undefined,
+    ): DocumentInfo<ScopeKind> {
+        return new this<ScopeKind>(document, language, scopeRegistry, asi)
     }
 
     /** The exact version of the content buffer, including undo/redo. */
@@ -39,6 +48,9 @@ export class DocumentInfo<ScopeKind extends string> {
     get tokens(): readonly Token[] {
         if (!this._tokens) {
             this._tokens = this.language.tokenize(this.text)
+            if (this.asi) {
+                this.asi(this.text, this._tokens)
+            }
         }
         return this._tokens!
     }
@@ -123,8 +135,8 @@ class DocumentInfoService {
     static get<ScopeKind extends string>(document: TextDocument): DocumentInfo<ScopeKind> {
         const uri = document.uri.toString()
         if (!this.files.has(uri)) {
-            const { language, scopes } = LanguageInfoService.get(document.languageId)
-            const file = new DocumentInfo(document, language, scopes)
+            const { language, scopes, asi } = LanguageInfoService.get(document.languageId)
+            const file = DocumentInfo.newInstance(document, language, scopes, asi)
             this.files.set(uri, file)
             return file as DocumentInfo<ScopeKind>
         }
