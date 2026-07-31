@@ -65,6 +65,7 @@ const processDocument = (text: string): Tokens => { ... };
 
 - **Flat Naming:** Keep names flat and unnested where possible to reduce code duplication and simplify imports across the codebase.
 - Indexes should use the `idx` naming convention
+- Tokens should use `tok`
 
 ### Booleans vs. Indices
 

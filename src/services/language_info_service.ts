@@ -1,11 +1,13 @@
 import { CompletionRegistry } from '@/api/completion_api'
-import { Language } from '@/api/language_api'
+import { Language, Token } from '@/api/language_api'
 import { ScopeRegistry } from '@/api/scope_api'
 import rustCompletions from '@/lang/rust/completion_registry'
 import rustLanguage from '@/lang/rust/language'
 import rustScopes from '@/lang/rust/scope_registry'
 import { select } from '@/utils/collections'
 import { escapeRegex } from '@/utils/strings'
+
+export type AsiResolver = (text: string, tokens: Token[]) => void
 
 export class LanguageInfo {
     private _openBrackets: Language | undefined
@@ -27,6 +29,7 @@ export class LanguageInfo {
         completions: CompletionRegistry<ScopeKind>,
         language: Language,
         scopes: ScopeRegistry<ScopeKind>,
+        asi?: AsiResolver
     ): LanguageInfo {
         return new this(completions as CompletionRegistry<string>, language, scopes)
     }

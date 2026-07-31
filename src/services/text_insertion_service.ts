@@ -110,10 +110,10 @@ class TextInsertionService {
 
     static async insertText(editor: TextEditor, keyIn: string) {
         const { document } = editor
-        const token = LanguageInfoService.get(document.languageId)
+        const tok = LanguageInfoService.get(document.languageId)
             .openBrackets.tokenize(keyIn)
             .at(0)
-        if (!token || !token.isOpenBracket()) {
+        if (!tok || !tok.isOpenBracket()) {
             await insertRawText()
             return
         }
@@ -136,7 +136,7 @@ class TextInsertionService {
             offset += tokens[idx].length
             idx += 1
         }
-        if (token.findCloseBracket(scopeTokens)) {
+        if (tok.findCloseBracket(scopeTokens)) {
             await insertRawText()
             return
         }

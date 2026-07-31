@@ -163,6 +163,8 @@ export const tsLanguage = Language.newInstance({
     declare: {
         ...declareKeywords,
 
+        INC: '++',
+        DEC: '--',
         FAT_ARROW: '=>',
         OPTIONAL_CHAIN: '?.',
         NULLISH_COALESCING: '??',

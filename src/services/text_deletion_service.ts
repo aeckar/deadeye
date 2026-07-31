@@ -59,23 +59,23 @@ class TextDeletionService {
             return
         }
         for (let idx = begin; idx < tokens.length; ++idx) {
-            const token = tokens[idx]
-            const overlaps = token.begin < selectionEnd && token.end > selectionBegin
+            const tok = tokens[idx]
+            const overlaps = tok.begin < selectionEnd && tok.end > selectionBegin
             if (overlaps) {
                 foundOverlap = true
-                if (!Token.isEditable(token.kind)) {
-                    if (token.begin < minBegin) {
-                        minBegin = token.begin
+                if (!Token.isEditable(tok.kind)) {
+                    if (tok.begin < minBegin) {
+                        minBegin = tok.begin
                     }
-                    if (token.end > maxEnd) {
-                        maxEnd = token.end
+                    if (tok.end > maxEnd) {
+                        maxEnd = tok.end
                     }
                 } else {
                     // cut through identifier
-                    if (token.begin < minBegin) {
+                    if (tok.begin < minBegin) {
                         minBegin = selectionBegin
                     }
-                    if (token.end > maxEnd) {
+                    if (tok.end > maxEnd) {
                         maxEnd = selectionEnd
                     }
                 }

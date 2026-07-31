@@ -102,12 +102,12 @@ class TokenTreeDataProvider implements TreeDataProvider<TokenTreeItem> {
         let hi = this.items.length - 1
         while (lo <= hi) {
             const mid = (lo + hi) >> 1
-            const token = this.items[mid].token
-            if (offset < token.begin) {
+            const tok = this.items[mid].token
+            if (offset < tok.begin) {
                 hi = mid - 1
                 continue
             }
-            if (offset >= token.end) {
+            if (offset >= tok.end) {
                 lo = mid + 1
                 continue
             }

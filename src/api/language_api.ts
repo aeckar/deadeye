@@ -97,7 +97,7 @@ export class Tagged<T> {
  *
  * Invalid source code is assigned a token of `UNKNOWN`.
  */
-export type TokenKind = string & { __brand: 'TokenName' }
+export type TokenKind = Uppercase<string> & { __brand: 'TokenName' }
 
 /**
  * Newtype over `string` to denote that the value should be equal to a valid `TokenKind`,
@@ -166,13 +166,13 @@ export class Token extends Span {
         const closeHash = ~this
         let depth = 0
         for (let idx = start; idx < tokens.length; ++idx) {
-            const token = tokens[idx]
-            if (depth === 0 && token.bracketHash === closeHash) {
-                return token
+            const tok = tokens[idx]
+            if (depth === 0 && tok.bracketHash === closeHash) {
+                return tok
             }
-            if (token.isOpenBracket()) {
+            if (tok.isOpenBracket()) {
                 depth += 1
-            } else if (token.isCloseBracket()) {
+            } else if (tok.isCloseBracket()) {
                 depth -= 1
             }
         }
@@ -192,13 +192,13 @@ export class Token extends Span {
         const openHash = ~this.bracketHash
         let depth = 0
         for (let idx = start; idx >= 0; --idx) {
-            const token = tokens[idx]
-            if (depth === 0 && token.bracketHash === openHash) {
-                return token
+            const tok = tokens[idx]
+            if (depth === 0 && tok.bracketHash === openHash) {
+                return tok
             }
-            if (token.isCloseBracket()) {
+            if (tok.isCloseBracket()) {
                 depth += 1
-            } else if (token.isOpenBracket()) {
+            } else if (tok.isOpenBracket()) {
                 depth -= 1
             }
         }
@@ -250,21 +250,21 @@ export class Token extends Span {
         // 1. Biased binary search to find exact overlap or the tightest containing bounds
         while (low <= high) {
             const mid = (low + high) >> 1 // fast floor division
-            const token = tokens[mid]
-            if (offset >= token.begin && offset <= token.end) {
+            const tok = tokens[mid]
+            if (offset >= tok.begin && offset <= tok.end) {
                 if (
-                    offset === token.end &&
+                    offset === tok.end &&
                     mid < tokens.length - 1 &&
                     tokens[mid + 1].begin === offset
                 ) {
                     return bias === 'left' ? mid : mid + 1
                 }
-                if (offset === token.begin && mid > 0 && tokens[mid - 1].end === offset) {
+                if (offset === tok.begin && mid > 0 && tokens[mid - 1].end === offset) {
                     return bias === 'left' ? mid - 1 : mid
                 }
                 return mid // internal hit
             }
-            if (offset < token.begin) {
+            if (offset < tok.begin) {
                 high = mid - 1
             } else {
                 low = mid + 1

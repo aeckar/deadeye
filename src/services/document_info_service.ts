@@ -13,6 +13,7 @@ export class DocumentInfo<ScopeKind extends string> {
     private _text?: string
     private _version: number
 
+    //todo make factory
     constructor(
         readonly document: TextDocument,
         readonly language: Language,
