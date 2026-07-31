@@ -19,10 +19,9 @@ To further empower developers in the areas where AI fails, we have engineered a 
 **Benefits**
 
 - **Maximum Ergonomics:** Users need not take their hands off the keyboard
-- **Maximum Responsiveness:** Users need not switch modes or navigate menus 
+- **Maximum Responsiveness:** Users need not switch modes or navigate menus
 
 **Obstacles**
 
 - **Performance Constraints:** Stuttering is unacceptable
 - **Learning Curve:** Keystroke-level refactorings require precision and familiarity
-

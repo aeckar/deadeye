@@ -1,5 +1,5 @@
-import { ALPHA, DIGIT } from "./utils/constants"
-import { Member } from "./utils/types"
+import { ALPHA, DIGIT } from './utils/constants'
+import { Member } from './utils/types'
 
 /** Any input to {@link IdRule.resolve}. */
 export type IdRuleResolvable = IdRule | Member<typeof IdRulePreset> | [string, string]

@@ -2,7 +2,7 @@
 import { CompletionRegistry } from '@/api/completion_api'
 import { Language } from '@/api/language_api'
 import { ScopeRegistry } from '@/api/scope_api'
-import { AsiResolver } from './document_info'
+import { AsiResolver } from '@/document_info'
 
 class LanguageInfo {
     private _openBrackets: Language | undefined

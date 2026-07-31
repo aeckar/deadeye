@@ -3,7 +3,7 @@
 //! Also provides algorithms and data structures used to parse completion shorthands.
 import { MarkdownString, Position, Range, TextDocument, window } from 'vscode'
 
-import  DocumentInfo  from '@/document_info'
+import DocumentInfo from '@/document_info'
 import Scope from '@/scope'
 import DocumentInfoService from '@/services/document_info_service'
 import Tape from '@/tape'
