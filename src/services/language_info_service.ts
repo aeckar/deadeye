@@ -7,7 +7,7 @@ import rustScopes from '@/lang/rust/scope_registry'
 import { select } from '@/utils/collections'
 import { escapeRegex } from '@/utils/strings'
 
-export type AsiResolver = (text: string, tokens: Token[]) => void
+export type AsiResolver = (tokens: Token[]) => void
 
 export class LanguageInfo {
     private _openBrackets: Language | undefined
@@ -16,7 +16,7 @@ export class LanguageInfo {
         readonly completions: CompletionRegistry<string>,
         readonly language: Language,
         readonly scopes: ScopeRegistry<string>,
-        readonly asi: AsiResolver | undefined
+        readonly asi: AsiResolver | undefined,
     ) {}
 
     get openBrackets(): Language {
@@ -30,7 +30,7 @@ export class LanguageInfo {
         completions: CompletionRegistry<ScopeKind>,
         language: Language,
         scopes: ScopeRegistry<ScopeKind>,
-        asi?: AsiResolver
+        asi?: AsiResolver,
     ): LanguageInfo {
         return new this(completions as CompletionRegistry<string>, language, scopes, asi)
     }

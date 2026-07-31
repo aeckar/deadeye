@@ -13,7 +13,7 @@ import {
 } from 'vscode'
 import DocumentInfoService from './document_info_service'
 import LanguageInfoService from './language_info_service'
-import { logger } from '@/extension'
+import { logger } from '@/logger'
 import { Token } from '@/api/language_api'
 import { CLOSE_BRACKETS } from '@/utils/constants'
 

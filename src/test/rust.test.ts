@@ -408,7 +408,7 @@ suite('Rust Scope Stream', () => {
         const tree = await parse(src)
         const inside = itemsAt(tree, src.indexOf('{') + 1)
 
-        const asyncScope = inside.find(s => s.kind === 'async')
+        const asyncScope = inside.find(s => s.kind === 'asyncBlock')
         const fnScope = inside.find(s => s.kind === 'fn')
         assert.ok(asyncScope, 'async scope should exist')
         assert.ok(fnScope, 'fn scope should exist')
@@ -422,7 +422,7 @@ suite('Rust Scope Stream', () => {
         const tree = await parse(src)
         const inside = itemsAt(tree, src.indexOf('{') + 1)
 
-        const constScope = inside.find(s => s.kind === 'const')
+        const constScope = inside.find(s => s.kind === 'constBlock')
         const fnScope = inside.find(s => s.kind === 'fn')
         assert.ok(constScope, 'const scope should exist')
         assert.ok(fnScope, 'fn scope should exist')

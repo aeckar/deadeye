@@ -49,7 +49,7 @@ export class DocumentInfo<ScopeKind extends string> {
         if (!this._tokens) {
             this._tokens = this.language.tokenize(this.text)
             if (this.asi) {
-                this.asi(this.text, this._tokens)
+                this.asi(this._tokens)
             }
         }
         return this._tokens!

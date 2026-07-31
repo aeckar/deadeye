@@ -7,6 +7,7 @@ export default defineConfig({
     // Pipe logs back to terminal
     mocha: {
         ui: 'tdd',
+        require: ['./scripts/register-paths.cjs'],
     },
     launchArgs: ['--attach-argv', '--enable-logging'],
 })

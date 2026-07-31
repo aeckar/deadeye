@@ -1,4 +1,5 @@
-import { IdRule, Language } from '@/api/language_api'
+import { IdRule } from '@/id_rule'
+import { Language } from '@/api/language_api'
 import Tape from '@/tape'
 
 /**
@@ -159,10 +160,11 @@ const declareKeywords: Record<string, (tape: Tape) => string> = {}
 
 export const tsLanguage = Language.newInstance({
     $idRule: [IdRule.resolve('C_LIKE').startPool + '$', IdRule.resolve('C_LIKE').partPool + '$'],
-    $ignore: /\s*/y,
+    $ignore: /[ \t]*/y,
     declare: {
         ...declareKeywords,
 
+        NL: '\n', // pruned during ASI
         INC: '++',
         DEC: '--',
         FAT_ARROW: '=>',

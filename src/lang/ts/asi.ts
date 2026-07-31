@@ -1,6 +1,6 @@
 import { Token, TokenKind } from '@/api/language_api'
-import tsLanguage from './language'
 import { AsiResolver } from '@/services/language_info_service'
+import tsLanguage from './language'
 
 type BraceRole = 'block' | 'object'
 
@@ -110,39 +110,43 @@ function braceRole(prevKind: string | undefined): BraceRole {
     return 'block'
 }
 
-/**
- * Checks for a newline in the given range without instantiating an intermediate string.
- *
- * Assumes `end` is less than or equal to `text.length`.
- */
-function hasNewlineBetween(text: string, start: number, end: number): boolean {
-    for (let idx = start; idx < end; ++idx) {
-        if (text[idx] === '\n') {
-            return true
-        }
-    }
-    return false
-}
-
-const tsAsi: AsiResolver = (text, tokens) => {
+const tsAsi: AsiResolver = tokens => {
     const out: Token[] = []
-    const braceStack: BraceRole[] = []
-    for (let i = 0; i < tokens.length; i++) {
-        const tok = tokens[i]
+    const braces: BraceRole[] = []
+    for (let idx = 0; idx < tokens.length; ++idx) {
+        const tok = tokens[idx]
+        if (tok.kind === 'NEWLINE') {
+            // prune newline
+            continue
+        }
         if (tok.kind === 'OPEN_CURLY') {
-            const prev = out[out.length - 1]
-            braceStack.push(braceRole(prev?.kind))
+            let prev: Token | undefined
+            for (let j = out.length - 1; j >= 0; j--) {
+                if (out[j].kind !== 'NEWLINE') {
+                    prev = out[j]
+                    break
+                }
+            }
+            braces.push(braceRole(prev?.kind))
         }
         out.push(tok)
-        const next = tokens[i + 1]
         if (tok.kind === 'CLOSE_CURLY') {
-            braceStack.pop()
+            braces.pop()
         }
         const semicolon = 'SEMICOLON' as TokenKind
         const tag = tsLanguage.tagForKind(semicolon)!
         if (tok.kind === semicolon) {
             continue
         }
+
+        // Look ahead for newlines and grab the next significant token
+        let nl = false
+        let nextIdx = idx + 1
+        while (nextIdx < tokens.length && tokens[nextIdx].kind === 'NEWLINE') {
+            nl = true
+            nextIdx += 1
+        }
+        const next = tokens[nextIdx]
         if (!next) {
             if (STATEMENT_END_KINDS.has(tok.kind)) {
                 out.push(Token.newInstance(tok.end, 0, tag, semicolon))
@@ -152,7 +156,6 @@ const tsAsi: AsiResolver = (text, tokens) => {
         if (next.kind === semicolon) {
             continue
         }
-        const nl = hasNewlineBetween(text, tok.end, next.begin)
         if (['RETURN', 'THROW', 'BREAK', 'CONTINUE', 'YIELD'].includes(tok.kind) && nl) {
             out.push(Token.newInstance(tok.end, 0, tag, semicolon))
             continue
@@ -164,7 +167,7 @@ const tsAsi: AsiResolver = (text, tokens) => {
         // `}` closing an actual block always ends the statement before it, newline or not
         if (
             next.kind === 'CLOSE_CURLY' &&
-            braceStack[braceStack.length - 1] === 'block' &&
+            braces[braces.length - 1] === 'block' &&
             STATEMENT_END_KINDS.has(tok.kind)
         ) {
             out.push(Token.newInstance(tok.end, 0, tag, semicolon))
@@ -174,6 +177,7 @@ const tsAsi: AsiResolver = (text, tokens) => {
             out.push(Token.newInstance(tok.end, 0, tag, semicolon))
         }
     }
+
     return out
 }
 

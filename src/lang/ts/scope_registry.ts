@@ -1,80 +1,103 @@
-import { ScopeRegistry } from '@/api/scope_api'
+import { at, before, open, ScopeRegistry } from '@/api/scope_api'
 import { CURLIES } from '@/utils/constants'
 import tsVocab from './language'
 
+/**
+ * Completion resolvers should treat `function` and `method` scopes as the same,
+ * since their separation exists only as a parser quirk.
+ */
 const tsScopes = ScopeRegistry.newInstance(() => tsVocab, {
-    typeAlias: {
-        markerPool: ['KW_TYPE'],
-        boundariesPool: [[null, 'SEMICOLON']],
+    type: {
+        require: [at('KW_TYPE')],
+        boundaries: ['SEMICOLON'],
     },
     namespace: {
-        markerPool: ['KW_NAMESPACE', 'KW_MODULE'],
-        boundariesPool: [CURLIES],
+        require: [at('KW_NAMESPACE', 'KW_MODULE')],
+        boundaries: [CURLIES],
     },
     interface: {
-        markerPool: ['KW_INTERFACE'],
-        boundariesPool: [CURLIES],
+        require: [at('KW_INTERFACE')],
+        boundaries: [CURLIES],
     },
+    // colon = label
+    // default scope (lowest) -> colon = assignment
+    // in assignment before = -> colon = typeAnno
+    // in assignment after = -> colon = assignment
     class: {
-        markerPool: ['KW_CLASS'],
-        boundariesPool: [CURLIES],
+        require: [at('KW_CLASS')],
+        boundaries: [CURLIES],
     },
     function: {
-        markerPool: ['KW_FUNCTION', 'KW_GET', 'KW_SET', 'KW_CONSTRUCTOR'],
-        boundariesPool: [CURLIES],
-        
+        require: [at('KW_FUNCTION', 'KW_GET', 'KW_SET', 'KW_CONSTRUCTOR')],
+        boundaries: [CURLIES],
     },
-    //todo methods
+    binding: {
+        require: [at('KW_VAR', 'KW_LET', 'KW_CONST')],
+        boundaries: ['SEMICOLON'],
+    },
     assignment: {
-        markerPool: ['KW_VAR', 'KW_LET', 'KW_CONST'],
-        boundariesPool: [[null, 'SEMICOLON']],
+        require: [at('EQUALS'), open('binding')],
+        boundaries: ['SEMICOLON'],
+        flatten: ['binding'],
+        once: true,
     },
     conditional: {
-        markerPool: ['KW_IF'],
-        boundariesPool: [CURLIES],
+        require: [at('KW_IF')],
+        boundaries: [CURLIES],
     },
     else: {
-        markerPool: ['KW_ELSE'],
-        boundariesPool: [CURLIES],
+        require: [at('KW_ELSE')],
+        boundaries: [CURLIES],
         flatten: ['conditional'],
     },
-    
     typeAnno: {
-        markerPool: ['COLON'],
-        boundariesPool: [
-            [null, 'CLOSE_PAREN'],
-            [null, 'CLOSE_CURLY'],
-            [null, 'CLOSE_ANGLE'],
-            [null, 'COMMA'],
-            [null, 'EQUALS'],
-            [null, 'SEMICOLON'],
-        ],
+        require: [at('COLON')],
+        boundaries: ['CLOSE_PAREN', 'CLOSE_CURLY', 'CLOSE_ANGLE', 'COMMA', 'EQUALS', 'SEMICOLON'],
+    },
+    objectType: {},
+    objectLiteral: {
+        require: [at('OPEN_CURLY')],
+        boundaries: ['CLOSE_CURLY'],
+        openPool: ['!type'],
+        parentPool: ['assignment', 'function', 'method', '*'],
+    },
+    field: {
+        require: [at('ID')],
+        boundaries: ['SEMICOLON'],
+        parentPool: ['class', 'interface', 'objectLiteral'],
+        require: before('COLON', 'SEMICOLON', 'EQUALS'),
+    },
+    method: {
+        require: [at('ID')],
+        boundaries: [CURLIES],
+        parentPool: ['class', 'interface', 'objectLiteral'],
+        require: before('OPEN_ANGLE', 'OPEN_PAREN'),
     },
     async: {
-        markerPool: ['KW_ASYNC'],
-        boundariesPool: [CURLIES],
+        require: [at('KW_ASYNC')],
+        boundaries: [CURLIES],
         flatten: ['function'],
     },
     loop: {
-        markerPool: ['KW_FOR', 'KW_DO'],
-        boundariesPool: [CURLIES],
-        terminatorPool: ['SEMICOLON'],
+        require: [at('KW_FOR', 'KW_DO')],
+        boundaries: [CURLIES],
+        terminators: ['SEMICOLON'],
     },
     enum: {
-        markerPool: ['KW_ENUM'],
-        boundariesPool: [CURLIES],
+        require: [at('KW_ENUM')],
+        boundaries: [CURLIES],
     },
     switch: {
-        markerPool: ['KW_SWITCH'],
-        boundariesPool: [CURLIES],
+        require: [at('KW_SWITCH')],
+        boundaries: [CURLIES],
     },
     try: {
-        markerPool: ['KW_TRY'],
-        boundariesPool: [CURLIES],
+        require: [at('KW_TRY')],
+        boundaries: [CURLIES],
     },
     catch: {
-        markerPool: ['KW_CATCH', 'KW_FINALLY'],
-        boundariesPool: [CURLIES],
+        require: [at('KW_CATCH', 'KW_FINALLY')],
+        boundaries: [CURLIES],
     },
 })
 

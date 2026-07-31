@@ -1,14 +1,123 @@
 //! Scope API and utilities.
 //!
 //! Unlike `scope_utils.ts`, contains logic for scope analysis.
+import { logger } from '@/logger'
 import { Scope } from '@/scope'
 import IntervalTreeService, { IntervalTree } from '@/services/interval_tree_service'
 import { entries } from '@/utils/collections'
+import { TRIVIA } from '@/utils/constants'
 import { Language, Tag, Token, UnknownTokenKind } from './language_api'
+
+// =============================================================================================
+// Scope Predicates
+// =============================================================================================
+
+export type ScopePredicate = (
+    tokens: readonly Token[],
+    pos: number,
+    stream: ScopeStream<UnknownScopeKind>,
+    info: ScopeInfo<UnknownScopeKind>,
+) => boolean
+
+/** Satisfied when any of the given tokens are the current one being pointed to. */
+export function at(...pool: readonly UnknownTokenKind[]): ScopePredicate {
+    return (tokens, pos) => {
+        return pool.includes(tokens[pos].kind)
+    }
+}
+
+/**
+ * Satisfied when any of the given tokens
+ * is the next non-trivial token (not ending in '_COMMENT').
+ */
+export function before(...pool: readonly UnknownTokenKind[]): ScopePredicate {
+    return (tokens, pos) => {
+        let idx = pos + 1
+        while (idx < tokens.length) {
+            // skip trivia
+            if ((TRIVIA as readonly string[]).includes(tokens[idx].kind)) {
+                idx += 1
+                continue
+            }
+            break
+        }
+        return pool.includes(tokens[idx].kind)
+    }
+}
+
+/** Satisfied when any one of the given scopes is primed. */
+export function primed(...pool: readonly UnknownScopeKind[]): ScopePredicate {
+    return (_, __, stream, info) => {
+        const target = stream.unclosed.find(u => !u.isOpen && pool.some(p => p === u.query.kind))
+        const result =
+            target !== undefined && !(info.once && target.deactivated.includes(info.kind))
+        if (info.once) {
+            stream.constrainOnce(target)
+        }
+        return result
+    }
+}
+
+/** Satisfied when all of the given scopes are not primed. */
+export function excludePrimed(...scopes: readonly UnknownScopeKind[]): ScopePredicate {
+    return (_, __, stream) => {
+        const target = stream.unclosed.find(u => !u.isOpen && scopes.some(p => p === u.query.kind))
+        return target === undefined
+    }
+}
+
+/** Satisfied when any one of the given scopes is open. */
+export function open(...pool: readonly UnknownScopeKind[]): ScopePredicate {
+    return (_, __, stream, info) => {
+        const target = stream.unclosed.find(u => u.isOpen && pool.some(p => p === u.query.kind))
+        const result =
+            target !== undefined && !(info.once && target.deactivated.includes(info.kind))
+        if (info.once) {
+            stream.constrainOnce(target)
+        }
+        return result
+    }
+}
+
+/** Satisfied when all of the given scopes are not open. */
+export function excludeOpen(...scopes: readonly UnknownScopeKind[]): ScopePredicate {
+    return (_, __, stream) => {
+        const target = stream.unclosed.find(u => u.isOpen && scopes.some(p => p === u.query.kind))
+        return target === undefined
+    }
+}
+
+/**
+ * Satisfied when any of the given scopes is the most previous unclosed scope.
+ *
+ * A scope of `'*'` signifies top-level.
+ */
+export function parent(...pool: readonly UnknownScopeKind[]): ScopePredicate {
+    return (_, __, stream, info) => {
+        const top = stream.unclosed.at(-1)
+        if (!top) {
+            return pool.includes('*')
+        }
+        if (info.once) {
+            stream.constrainOnce(top)
+        }
+        return pool.some(e => e === top.query.kind)
+    }
+}
+
+/** Satisfied when none of the given scopes are the most previous unclosed scope. */
+export function excludeParent(...scopes: readonly UnknownScopeKind[]): ScopePredicate {
+    return (_, __, stream) => {
+        const top = stream.unclosed.at(-1)
+        return top !== undefined && !scopes.some(e => e === top.query.kind)
+    }
+}
 
 // =============================================================================================
 // Scope Description
 // =============================================================================================
+
+export type UnknownScopeKind = string
 
 /**
  * Extracts the string union containing all scope kinds from the scope registry type.
@@ -17,7 +126,7 @@ import { Language, Tag, Token, UnknownTokenKind } from './language_api'
  */
 export type ScopeKind<T> = T extends ScopeRegistry<infer U> ? U : never
 
-export type BoundariesPool = (readonly [UnknownTokenKind | null, UnknownTokenKind])[]
+export type BoundariesPool = (readonly [UnknownTokenKind, UnknownTokenKind] | UnknownTokenKind)[]
 
 /** The boundaries of a scope. */
 export class Boundaries {
@@ -32,24 +141,37 @@ export class Boundaries {
 
     static newInstancePool(lang: Language, pool: BoundariesPool): Boundaries[] {
         const boundaryMarkers: Boundaries[] = []
-        for (const [open, close] of pool) {
-            boundaryMarkers.push(
-                new Boundaries(open ? lang.tagForKind(open) : undefined, lang.tagForKind(close)!),
-            )
+        for (const entry of pool) {
+            if (typeof entry === 'string') {
+                let tag: Tag
+                try {
+                    tag = lang.tagForKind(entry)!
+                } catch (e) {
+                    logger.appendLine(`[Error] Language does not contain token '${entry}'`)
+                    throw e
+                }
+                boundaryMarkers.push(new Boundaries(tag, tag))
+            } else {
+                const [open, close] = entry
+                boundaryMarkers.push(
+                    new Boundaries(
+                        open ? lang.tagForKind(open) : undefined,
+                        lang.tagForKind(close)!,
+                    ),
+                )
+            }
         }
         return boundaryMarkers
     }
 }
 
+/** Assumes automatic semicolon insertion (ASI) has already been processed. */
 export type ScopeInfoConfig<ScopeKind extends string> = {
     /** @see {@link ScopeInfo.boundariesPool} */
-    readonly boundariesPool: BoundariesPool
-
-    /** @see {@link ScopeInfo.markerPool} */
-    readonly markerPool?: readonly UnknownTokenKind[]
+    readonly boundaries: BoundariesPool
 
     /** @see {@link ScopeInfo.terminatorPool} */
-    readonly terminatorPool?: readonly UnknownTokenKind[]
+    readonly terminators?: readonly UnknownTokenKind[]
 
     /** @see {@link ScopeInfo.flatten} */
     readonly flatten?: ScopeKind[]
@@ -57,11 +179,8 @@ export type ScopeInfoConfig<ScopeKind extends string> = {
     /** @see {@link ScopeInfo.once} */
     readonly once?: boolean
 
-    /** @see {@link ScopeInfo.openScopePool} */
-    readonly openScopePool?: ScopeKind[]
-
-    /** @see {@link ScopeInfo.primedScopePool} */
-    readonly primedScopePool?: ScopeKind[]
+    /** @see {@link ScopeInfo.predicates} */
+    readonly require: ScopePredicate[]
 }
 
 /**
@@ -75,9 +194,6 @@ export class ScopeInfo<ScopeKind extends string> {
     private constructor(
         /** The scope ID. */
         readonly kind: ScopeKind,
-
-        /** Tags of marker tokens that can be matched as the start of this scope. */
-        readonly markerPool: readonly Tag[],
 
         /**
          * The tags of the tokens that can be matched to open and close a scope, respectively.
@@ -102,37 +218,22 @@ export class ScopeInfo<ScopeKind extends string> {
          * Additionally, opening any subsequent scope also opens
          * this one, and so on for other scopes where `flatten` is true.
          */
-        readonly flatten: ScopeKind[] | undefined,
+        readonly flatten: readonly ScopeKind[] | undefined,
 
         /**
-         * If true, the outer primed or open scope can only be used to permit a match to the
-         * marker token once, respectively.
-         *
-         * @see {@link primedScopePool}
-         * @see {@link openScopePool}
+         * If true, a scope dependency (e.g. `open`, `primed`, `parent` predicates)
+         * can only be used to recognize this scope once for a given instance of that scope.
          */
         readonly once: boolean,
 
-        /**
-         * If defined, this scope must be open when the scope marker is matched
-         * for the scope to be recognized.
-         *
-         * @see {@link primedScopePool}
-         * @see {@link once}
-         */
-        readonly openScopePool?: ScopeKind[],
-
-        /**
-         * If defined, this scope must be primed when the scope marker is matched
-         * for the scope to be recognized.
-         *
-         * @see {@link openScopePool}
-         * @see {@link once}
-         */
-        readonly primedScopePool?: ScopeKind[],
-
         /** Closing token kinds, cached for easy access if open by default. */
-        readonly closeKinds?: readonly Tag[],
+        readonly closeKinds: readonly Tag[] | undefined,
+
+        /**
+         * Guards whether the scope can be recognized,
+         * even if all other constraints are satisfied.
+         */
+        readonly predicates: ScopePredicate[],
     ) {}
 
     get isOpenByDefault(): boolean {
@@ -148,20 +249,16 @@ export class ScopeInfo<ScopeKind extends string> {
         scopeKind: ScopeKind,
         cfg: ScopeInfoConfig<ScopeKind>,
     ): ScopeInfo<ScopeKind> {
-        const boundaries = Boundaries.newInstancePool(lang, cfg.boundariesPool)
+        const boundaries = Boundaries.newInstancePool(lang, cfg.boundaries)
         const isOpenByDefault = boundaries.find(e => e.open === undefined)
         return new this(
             scopeKind,
-            cfg.markerPool?.map(e => lang.tagForKind(e)!) ?? [
-                lang.tagForKind(scopeKind.toUpperCase() as Uppercase<string>)!,
-            ],
             boundaries,
-            cfg.terminatorPool?.map(e => lang.tagForKind(e)!) ?? [],
+            cfg.terminators?.map(e => lang.tagForKind(e)!) ?? [],
             cfg.flatten,
             cfg.once ?? false,
-            cfg.openScopePool,
-            cfg.primedScopePool,
             isOpenByDefault ? boundaries.map(e => e.close) : undefined,
+            cfg.require,
         )
     }
 }
@@ -335,8 +432,11 @@ export class UnclosedScope<ScopeKind extends string> {
  */
 export class ScopeStream<ScopeKind extends string> {
     readonly closed: IntervalTree<Scope<ScopeKind>>
-    private readonly unclosed: UnclosedScope<ScopeKind>[]
     private _pos = 0
+    private readonly deactivationQueue: UnclosedScope<ScopeKind>[] = []
+
+    /** Permitted to be mutable when passed to predicates. */
+    readonly unclosed: UnclosedScope<ScopeKind>[]
 
     constructor(readonly tokens: readonly Token[]) {
         this.closed = IntervalTreeService.newInstance<Scope<ScopeKind>>()
@@ -350,6 +450,13 @@ export class ScopeStream<ScopeKind extends string> {
 
     get pos(): number {
         return this._pos
+    }
+
+    constrainOnce(target: UnclosedScope<ScopeKind> | undefined) {
+        if (!target) {
+            return
+        }
+        this.deactivationQueue.push(target)
     }
 
     /** The token currently being pointed to. */
@@ -380,39 +487,25 @@ export class ScopeStream<ScopeKind extends string> {
      *
      * @returns `true` if the scope signature was matched.
      */
-    parse(query: ScopeInfo<ScopeKind>): boolean {
+    parse(info: ScopeInfo<ScopeKind>): boolean {
         if (this.isExhausted()) {
             return false
         }
-        const { markerPool, openScopePool, primedScopePool } = query
-        const { unclosed } = this
+        const { predicates } = info
         const cur = this.tokens[this.pos]
-        if (
-            !markerPool.includes(cur.tag) ||
-            !isSatisfied(primedScopePool) ||
-            !isSatisfied(openScopePool)
-        ) {
-            return false
-        }
-        const scope = UnclosedScope.newInstance(query, cur, this.pos)
-        this.unclosed.push(scope)
-        return true
-
-        function isSatisfied(scopePool: ScopeKind[] | undefined): boolean {
-            if (scopePool !== undefined) {
-                const outer = unclosed.find(scope => scopePool.some(e => e === scope.query.kind))
-                if (!outer) {
-                    return false
-                }
-                if (query.once) {
-                    if (outer.deactivated.includes(query.kind)) {
-                        return false
-                    }
-                    outer.deactivate(query.kind)
-                }
+        for (const pred of predicates) {
+            if (!pred(this.tokens, this.pos, this, info)) {
+                return false
             }
-            return true
         }
+        const scope = UnclosedScope.newInstance(info, cur, this.pos)
+        this.unclosed.push(scope)
+        if (info.once) {
+            for (const target of this.deactivationQueue) {
+                target.deactivate(info.kind)
+            }
+        }
+        return true
     }
 
     /**  Closes all opened scopes and discards all primed scopes. */
@@ -428,7 +521,7 @@ export class ScopeStream<ScopeKind extends string> {
     }
 
     /**
-     * Opens or closes the current scope (as well as any flattened scopes)
+     * Opens or closes the topmost scope (as well as any flattened scopes)
      * depending on the current token.
      *
      * This function should be called at the end of every iteration
@@ -498,7 +591,7 @@ export class ScopeStream<ScopeKind extends string> {
                     const s = unclosed.pop()!.close(start.begin)
                     closed.insert(s.interval, s)
                     for (idx -= 1; idx >= 0; --idx) {
-                        if (!unclosed.at(-1)?.query.flatten?.includes()) {
+                        if (!unclosed.at(-1)?.query.flatten?.includes(s.kind)) {
                             break
                         }
                         const fs = unclosed.pop()!.close(start.begin)
@@ -514,7 +607,10 @@ export class ScopeStream<ScopeKind extends string> {
                     if (tag === terminator) {
                         const s = scope.close(start.begin)
                         closed.insert(s.interval, s)
-                        for (idx -= 1; idx >= 0 && unclosed.at(-1)?.query.flatten; --idx) {
+                        for (idx -= 1; idx >= 0; --idx) {
+                            if (!unclosed.at(-1)?.query.flatten?.includes(s.kind)) {
+                                break
+                            }
                             const fs = unclosed.pop()!.close(start.begin)
                             closed.insert(fs.interval, fs)
                         }

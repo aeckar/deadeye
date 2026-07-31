@@ -1,4 +1,4 @@
-import { Completion, CompletionRegistry, toScreamCase, toSnakeCase } from '@/api/completion_api'
+import { Completion, CompletionRegistry } from '@/api/completion_api'
 import { ScopeKind } from '@/api/scope_api'
 import Tape from '@/tape'
 import { joinValues } from '@/utils/collections'
@@ -8,6 +8,7 @@ import { after, rangeBefore } from '@/utils/vscode'
 import { extractRustTargetReversed } from './extract_target'
 import { inferType } from './infer_type'
 import rustScopes from './scope_registry'
+import { toScreamCase, toSnakeCase } from '@/utils/char_type'
 
 // optimizing docs should add proper punctation, capitalization
 // toggle mode for automatic tab-out by delimiter
@@ -264,7 +265,7 @@ grey squiggly when left of scope marker to show help
 // todo dont hassle over rule starts when collecting ID chunks, not worth it
 //todo cursor in word + tab = indent line (should alr exist but alright)
 //todo vecof id one, id two,
-//todo configuration for type preferences, also docs for thee 
+//todo configuration for type preferences, also docs for thee
 
 const rustCompletions = CompletionRegistry.newInstance<ScopeKind<typeof rustScopes>>(
     {
@@ -591,24 +592,27 @@ const rustCompletions = CompletionRegistry.newInstance<ScopeKind<typeof rustScop
         docs: md`
             Inserts an \`else\` block or \`else if\` block after the enclosing \`if\` statement.
 
-            \`\`\`
+            ~~~
             if {
                 ...
                 elif//← press trigger to expand!
             }
-            \`\`\`
+            ~~~
+
             →
-            \`\`\`
+
+            ~~~
             if {
                 ...
             } else if {
                 //← stop here
             }
-            \`\`\`
+            ~~~
 
             **Basic forms:** \`else\`, \`elif\`
 
             **Constraints:**
+
             - In an if-statement
             - \`if\` keyword not farther than \`MAX_LINE_SEEK\` lines away
         `,

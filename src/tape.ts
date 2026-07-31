@@ -1,11 +1,12 @@
 //! Cursor data structure.
 import { Position, Range } from 'vscode'
 
-import { Flag, FlagMatch, isLetter, isLowerLetter, isUpperLetter } from '@/api/completion_api'
-import { IdRule } from '@/api/language_api'
+import { Flag, FlagMatch } from '@/utils/char_type'
+import { IdRule } from '@/id_rule'
 import { enumerate } from '@/utils/collections'
 import { reverse } from '@/utils/strings'
 import { RecordSubset } from '@/utils/types'
+import { isLowerLetter, isUpperLetter, isLetter } from '@/utils/char_type'
 
 /**
  * A lightweight cursor over a string for non-linear parsing.
@@ -103,7 +104,7 @@ export default class Tape {
     /**
      * Returns a new instance over the original string,
      * reversed and with the position reset to zero (the last position in the original sequence).
-     * 
+     *
      * @see {@link pinReversed}
      */
     reversed(): Tape {
@@ -112,9 +113,9 @@ export default class Tape {
 
     /**
      * Returns a new instance over the remaining string, reversed.
-     * 
+     *
      * Preserves the character pointed to in the returned instance.
-     * 
+     *
      * @see {@link reversed}
      */
     pinReversed(): Tape {

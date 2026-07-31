@@ -8,8 +8,7 @@ import ScopeExplorerService from '@/services/scope_explorer_service'
 import TextDeletionService from '@/services/text_deletion_service'
 import TextInsertionService from '@/services/text_insertion_service'
 import TokenExplorerService from '@/services/token_explorer_service'
-
-export const logger = window.createOutputChannel('Your Extension Name')
+import { logger } from './logger'
 
 /**
  * Extension initializer.

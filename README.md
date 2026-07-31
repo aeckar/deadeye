@@ -4,6 +4,15 @@
 - use rimraf for `npm run clean`
 - test: `npm run test`
 
+update path w/o restarting by
+`$env:Path = [System.Environment]::GetEnvironmentVariable("Path","User") + ";" + [System.Environment]::GetEnvironmentVariable("Path","Machine")`
+
+find circular module deps:
+`pnpm dlx dpdm --no-warning ./src/extension.ts`
+
+resolve @ imports:
+`pnpm dlx relative-to-alias -s ./src -a '@' --ap ./src`
+
 remember to right click and press `debug tests` instead of `run tests`
 types if ai chats:
 research
