@@ -1,40 +1,7 @@
-import { CompletionRegistry } from '@/api/completion_api'
-import { Language, Token } from '@/api/language_api'
-import { ScopeRegistry } from '@/api/scope_api'
-import rustCompletions from '@/lang/rust/completion_registry'
-import rustLanguage from '@/lang/rust/language'
-import rustScopes from '@/lang/rust/scope_registry'
 import { select } from '@/utils/collections'
 import { escapeRegex } from '@/utils/strings'
-
-export type AsiResolver = (tokens: Token[]) => void
-
-export class LanguageInfo {
-    private _openBrackets: Language | undefined
-
-    private constructor(
-        readonly completions: CompletionRegistry<string>,
-        readonly language: Language,
-        readonly scopes: ScopeRegistry<string>,
-        readonly asi: AsiResolver | undefined,
-    ) {}
-
-    get openBrackets(): Language {
-        if (!this._openBrackets) {
-            this._openBrackets = this.language.select(/OPEN_.*/g)
-        }
-        return this._openBrackets
-    }
-
-    static newInstance<ScopeKind extends string>(
-        completions: CompletionRegistry<ScopeKind>,
-        language: Language,
-        scopes: ScopeRegistry<ScopeKind>,
-        asi?: AsiResolver,
-    ): LanguageInfo {
-        return new this(completions as CompletionRegistry<string>, language, scopes, asi)
-    }
-}
+import LanguageInfo from '@/language_info'
+import { logger } from '@/logger'
 
 class LanguageInfoService {
     /** Must be populated in service initializer */
@@ -42,11 +9,14 @@ class LanguageInfoService {
 
     private constructor() {}
 
-    static async start() {
-        this._languages.set(
-            'rust',
-            LanguageInfo.newInstance(rustCompletions, rustLanguage, rustScopes),
-        )
+    static async start() {}
+
+    /** Declares a supported language. */
+    static set(langId: string, info: LanguageInfo) {
+        if (this._languages.has(langId)) {
+            logger.appendLine(`[Warn] Support for language '${langId}' declared again`)
+        }
+        this._languages.set(langId, info)
     }
 
     /** Returns information pertaining to all supported languages. */

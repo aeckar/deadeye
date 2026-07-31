@@ -35,7 +35,7 @@ export function before(...pool: readonly UnknownTokenKind[]): ScopePredicate {
         let idx = pos + 1
         while (idx < tokens.length) {
             // skip trivia
-            if ((TRIVIA as readonly string[]).includes(tokens[idx].kind)) {
+            if ((TRIVIA as readonly UnknownTokenKind[]).includes(tokens[idx].kind)) {
                 idx += 1
                 continue
             }

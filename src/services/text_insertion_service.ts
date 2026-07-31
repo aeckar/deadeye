@@ -1,4 +1,7 @@
 import { Completion, CompletionContext, CompletionStrategy } from '@/api/completion_api'
+import { Token } from '@/api/language_api'
+import { logger } from '@/logger'
+import { CLOSE_BRACKETS } from '@/utils/constants'
 import {
     commands,
     ExtensionContext,
@@ -13,9 +16,6 @@ import {
 } from 'vscode'
 import DocumentInfoService from './document_info_service'
 import LanguageInfoService from './language_info_service'
-import { logger } from '@/logger'
-import { Token } from '@/api/language_api'
-import { CLOSE_BRACKETS } from '@/utils/constants'
 
 /**
  * Provides an interface to the current completion strategy,
@@ -110,9 +110,7 @@ class TextInsertionService {
 
     static async insertText(editor: TextEditor, keyIn: string) {
         const { document } = editor
-        const tok = LanguageInfoService.get(document.languageId)
-            .openBrackets.tokenize(keyIn)
-            .at(0)
+        const tok = LanguageInfoService.get(document.languageId).openBrackets.tokenize(keyIn).at(0)
         if (!tok || !tok.isOpenBracket()) {
             await insertRawText()
             return

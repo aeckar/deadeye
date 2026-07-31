@@ -3,14 +3,15 @@
 //! Also provides algorithms and data structures used to parse completion shorthands.
 import { MarkdownString, Position, Range, TextDocument, window } from 'vscode'
 
+import  DocumentInfo  from '@/document_info'
 import Scope from '@/scope'
-import DocumentInfoService, { DocumentInfo } from '@/services/document_info_service'
+import DocumentInfoService from '@/services/document_info_service'
 import Tape from '@/tape'
+import { Trigger } from '@/utils/char_type'
 import { md } from '@/utils/diagnostics'
 import { reverse } from '@/utils/strings'
 import { rangeBefore } from '@/utils/vscode'
 import { Token } from './language_api'
-import { Trigger } from '@/utils/char_type'
 
 /** Contains all completion families for a given language, grouped by trigger. */
 export class CompletionRegistry<ScopeKind extends string> extends Map<

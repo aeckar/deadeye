@@ -1,6 +1,7 @@
-import { isLetter } from '@/api/completion_api'
-import { IdRule, Language } from '@/api/language_api'
+import { Language } from '@/api/language_api'
+import { IdRule } from '@/id_rule'
 import Tape from '@/tape'
+import { isLetter } from '@/utils/char_type'
 
 // Shared nesting state for `|params|` — a single depth flag is sufficient because
 // Rust's grammar never lets one closure's parameter list contain another bare `|`

@@ -16,7 +16,8 @@ import {
     window,
     workspace,
 } from 'vscode'
-import DocumentInfoService, { DocumentInfo } from './document_info_service'
+import DocumentInfo from '../document_info'
+import DocumentInfoService from './document_info_service'
 
 /**
  * # Implementation

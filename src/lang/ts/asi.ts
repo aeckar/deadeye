@@ -1,6 +1,6 @@
 import { Token, TokenKind } from '@/api/language_api'
-import { AsiResolver } from '@/services/language_info_service'
 import tsLanguage from './language'
+import { AsiResolver } from '@/document_info'
 
 type BraceRole = 'block' | 'object'
 

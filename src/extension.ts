@@ -9,6 +9,10 @@ import TextDeletionService from '@/services/text_deletion_service'
 import TextInsertionService from '@/services/text_insertion_service'
 import TokenExplorerService from '@/services/token_explorer_service'
 import { logger } from './logger'
+import LanguageInfo from './language_info'
+import rustCompletions from './lang/rust/completion_registry'
+import rustLanguage from './lang/rust/language'
+import rustScopes from './lang/rust/scope_registry'
 
 /**
  * Extension initializer.
@@ -27,6 +31,10 @@ export async function activate(context: ExtensionContext) {
             TokenExplorerService.start(context),
             ScopeExplorerService.start(context),
         ])
+        LanguageInfoService.set(
+            'rust',
+            LanguageInfo.newInstance(rustCompletions, rustLanguage, rustScopes),
+        )
         logger.appendLine('[Info] Extension activated successfully.')
     } catch (e) {
         console.error('Activation Error:', e)

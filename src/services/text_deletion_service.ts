@@ -97,43 +97,43 @@ class TextDeletionService {
             await rel.delete(0, text.length, editor)
             return
         }
-        let token = tokens[idx]
+        let tok = tokens[idx]
         if (direction === 'left') {
-            if (offset === token.begin && idx !== 0) {
+            if (offset === tok.begin && idx !== 0) {
                 // cursor directly before token; backspace should target previous token
                 idx -= 1
-                token = tokens[idx]
+                tok = tokens[idx]
             }
-        } else if (token.end < offset) {
+        } else if (tok.end < offset) {
             // no tokens right of cursor; delete trailing whitespace
             const tape = Tape.over(text, offset)
             tape.putBack(ch => ch === '\n' || ch === '\r' || Tape.isWs(ch))
             await rel.delete(tape.pos + 1, text.length, editor)
             return
         }
-        if (direction === 'left' && token.begin > offset) {
+        if (direction === 'left' && tok.begin > offset) {
             // no tokens left of cursor; delete leading whitespace
             const tape = Tape.over(text, offset)
             tape.consume(ch => ch === '\n' || ch === '\r' || Tape.isWs(ch))
             await rel.delete(0, tape.pos, editor)
             return
         }
-        if (Token.isEditable(token.kind)) {
+        if (Token.isEditable(tok.kind)) {
             this.applyCaretDelete(editor, direction)
             return
         }
         // between tokens; perform deletion between lines also
         if (direction === 'left') {
             // preserve leading whitespace for indentation
-            if (token.isOpenBracket()) {
-                const close = token.findCloseBracket(tokens, idx + 1)
+            if (tok.isOpenBracket()) {
+                const close = tokens[tok.findCloseBracket(tokens, idx + 1)]
                 if (close) {
-                    await rel.delete(token.begin, close.end, editor)
+                    await rel.delete(tok.begin, close.end, editor)
                     return
                 }
             }
-            if (token.isCloseBracket()) {
-                const open = token.findOpenBracket(tokens, idx - 1)
+            if (tok.isCloseBracket()) {
+                const open = tokens[tok.findOpenBracket(tokens, idx - 1)]
                 if (open) {
                     await rel.delete(open.begin, offset, editor)
                     return
@@ -143,34 +143,34 @@ class TextDeletionService {
             const ws = tape.consumeWs().length
             if (tape.isAtLineSep()) {
                 // no tokens right of cursor in current line; delete trailing whitespace
-                await rel.delete(token.begin, offset + ws, editor)
+                await rel.delete(tok.begin, offset + ws, editor)
                 return
             }
-            await rel.delete(token.begin, offset, editor)
+            await rel.delete(tok.begin, offset, editor)
             return
         }
-        if (token.isOpenBracket()) {
-            const close = token.findCloseBracket(tokens, idx + 1)
+        if (tok.isOpenBracket()) {
+            const close = tokens[tok.findCloseBracket(tokens, idx + 1)]
             if (close) {
                 await rel.delete(offset, close.end, editor)
                 return
             }
         }
-        if (token.isCloseBracket()) {
-            const open = token.findOpenBracket(tokens, idx - 1)
+        if (tok.isCloseBracket()) {
+            const open = tokens[tok.findOpenBracket(tokens, idx - 1)]
             if (open) {
-                await rel.delete(open.begin, token.end, editor)
+                await rel.delete(open.begin, tok.end, editor)
                 return
             }
         }
-        const tape = Tape.over(text, token.end)
+        const tape = Tape.over(text, tok.end)
         const ws = tape.consumeWs().length
         if (tape.isAtLineSep()) {
             // deleting token leaves cursor at end of line; strip leading whitespace
-            await rel.delete(offset, token.end + ws, editor)
+            await rel.delete(offset, tok.end + ws, editor)
             return
         }
-        await rel.delete(offset, token.end, editor)
+        await rel.delete(offset, tok.end, editor)
     }
 
     /**

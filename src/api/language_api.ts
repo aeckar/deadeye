@@ -102,18 +102,18 @@ export class Token extends Span {
      * Searches the array linearly starting at the given index
      * for the matching close bracket.
      *
-     * Returns the token, or `undefined` if none is found or this is not an open bracket.
+     * Returns the index of the token, or -1 if none is found or this is not an open bracket.
      */
-    findCloseBracket(tokens: readonly Token[], start: number = 0): Token | undefined {
+    findCloseBracket(tokens: readonly Token[], start: number = 0): number {
         if (!this.isOpenBracket()) {
-            return undefined
+            return -1
         }
         const closeHash = ~this
         let depth = 0
         for (let idx = start; idx < tokens.length; ++idx) {
             const tok = tokens[idx]
             if (depth === 0 && tok.bracketHash === closeHash) {
-                return tok
+                return idx
             }
             if (tok.isOpenBracket()) {
                 depth += 1
@@ -121,25 +121,25 @@ export class Token extends Span {
                 depth -= 1
             }
         }
-        return undefined
+        return -1
     }
 
     /**
      * Searches the array linearly backwards starting at the given index
      * for the matching open bracket.
      *
-     * Returns the token, or `undefined` if none is found or this is not a close bracket.
+     * Returns the index of the token, or -1 if none is found or this is not a close bracket.
      */
-    findOpenBracket(tokens: readonly Token[], start: number = tokens.length - 1): Token | undefined {
+    findOpenBracket(tokens: readonly Token[], start: number = tokens.length - 1): number {
         if (!this.isCloseBracket()) {
-            return undefined
+            return -1
         }
         const openHash = ~this.bracketHash
         let depth = 0
         for (let idx = start; idx >= 0; --idx) {
             const tok = tokens[idx]
             if (depth === 0 && tok.bracketHash === openHash) {
-                return tok
+                return idx
             }
             if (tok.isCloseBracket()) {
                 depth += 1
@@ -147,7 +147,7 @@ export class Token extends Span {
                 depth -= 1
             }
         }
-        return undefined
+        return -1
     }
 
     static newInstance(begin: number, length: number, tag: Tag, kind: TokenKind) {
