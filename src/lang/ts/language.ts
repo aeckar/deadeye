@@ -28,6 +28,7 @@ const STRICT_KEYWORDS = [
     'import',
     'in',
     'instanceof',
+    'let',
     'new',
     'null',
     'return',
@@ -149,10 +150,10 @@ const declareKeywords: Record<string, (tape: Tape) => string> = {}
 
 {
     for (const kword of STRICT_KEYWORDS) {
-        declareKeywords[`KW_${kword.toUpperCase()}`] = newStrictKeywordMatcher(kword)
+        declareKeywords[kword.toUpperCase()] = newStrictKeywordMatcher(kword)
     }
     for (const kword of SOFT_KEYWORDS) {
-        declareKeywords[`SOFT_${kword.toUpperCase()}`] = newSoftKeywordMatcher(kword)
+        declareKeywords[kword.toUpperCase()] = newSoftKeywordMatcher(kword)
     }
 }
 
@@ -162,7 +163,6 @@ export const tsLanguage = Language.newInstance({
     declare: {
         ...declareKeywords,
 
-        // Operators & Structural Punctuation
         FAT_ARROW: '=>',
         OPTIONAL_CHAIN: '?.',
         NULLISH_COALESCING: '??',
@@ -178,8 +178,6 @@ export const tsLanguage = Language.newInstance({
         STRING_DOUBLE: /"(?:[^"\\]|\\.)*"/y,
         NUMBER: /(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9_]+(?:\.[0-9_]+)?(?:[eE][-+]?[0-9_]+)?n?)/y,
     },
-    // Category 3: Anything not matched by strict or soft closures automatically
-    // falls back to standard C_ID identifier lexing via inheritance.
     inherit: [
         'BRACKETS',
         'ARITH_ASSIGN',

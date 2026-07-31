@@ -43,15 +43,15 @@ export const rustScopes = ScopeRegistry.newInstance(() => rustVocab, {
     },
     extern: {
         boundariesPool: [CURLIES],
-        flatten: true,
+        flatten: ['fn'],
     },
     async: {
         boundariesPool: [CURLIES],
-        flatten: true,
+        flatten: ['fn'],
     },
     const: {
         boundariesPool: [CURLIES],
-        flatten: true,
+        flatten: ['fn'],
     },
     macro: {
         markerPool: ['MACRO_RULES'],
@@ -86,6 +86,10 @@ export const rustScopes = ScopeRegistry.newInstance(() => rustVocab, {
         markerPool: ['LET', 'CONST', 'STATIC'],
         boundariesPool: [[null, 'SEMICOLON']],
     },
+    // colon = label
+    // default scope (lowest) -> colon = assignment
+    // in assignment before = -> colon = typeAnno
+    // in assignment after = -> colon = assignment
     typeAnno: {
         markerPool: ['COLON'],
         boundariesPool: [
@@ -103,7 +107,7 @@ export const rustScopes = ScopeRegistry.newInstance(() => rustVocab, {
     },
     else: {
         boundariesPool: [CURLIES],
-        flatten: true,
+        flatten: ['conditional'],
     },
     loop: {
         markerPool: ['LOOP', 'FOR', 'WHILE'],

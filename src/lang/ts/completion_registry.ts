@@ -199,3 +199,16 @@
 
 // Class Modifier Chord Consolidation: TypeScript class syntax can cause high physical keystroke overhead due to long access modifiers like protected static async. Bundling them into tight, non-overlapping chords (prf, pvs) targets the explicit structural locations where your scope manager detects a 'class' context.
 // */
+
+// pp public
+// pv private
+// pr readonly
+// pvr, ppr, etc...
+
+// single p prefix chunk allowed, but no letters after
+
+// `pv c |` in class is `private constructor(|)`
+// then `pv| kind is| tok[TAB]  |pr| next is|`
+
+// pvs is active is false
+// pvs tree data provider is token tree data provider xn

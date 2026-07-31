@@ -32,6 +32,7 @@ const processDocument = (text: string): Tokens => { ... };
 - Prefer `class` definitions over `type` aliases unless creating a simple type alias or a configuration type that is never persists as a property
 - Configuration objects should be passed whenever a function expects a complex argument array with many slots, a variable number of slots, or nested objects that should be instantiated at the call site
 - Configuration types should be derived from `Record` (or any other plain JS object) and end in `Config`
+- Types that are exported as the `default` should not be exported themselves
 
 ### Branding & Private Properties
 

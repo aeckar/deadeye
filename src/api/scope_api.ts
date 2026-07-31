@@ -52,7 +52,7 @@ export type ScopeInfoConfig<ScopeKind extends string> = {
     readonly terminatorPool?: readonly UnknownTokenKind[]
 
     /** @see {@link ScopeInfo.flatten} */
-    readonly flatten?: boolean
+    readonly flatten?: ScopeKind[]
 
     /** @see {@link ScopeInfo.once} */
     readonly once?: boolean
@@ -99,8 +99,10 @@ export class ScopeInfo<ScopeKind extends string> {
         /**
          * If true, while this scope is not closed, closing any subsequent scope also closes
          * this one, and so on for other scopes where `flatten` is true.
+         * Additionally, opening any subsequent scope also opens
+         * this one, and so on for other scopes where `flatten` is true.
          */
-        readonly flatten: boolean,
+        readonly flatten: ScopeKind[] | undefined,
 
         /**
          * If true, the outer primed or open scope can only be used to permit a match to the
@@ -155,7 +157,7 @@ export class ScopeInfo<ScopeKind extends string> {
             ],
             boundaries,
             cfg.terminatorPool?.map(e => lang.tagForKind(e)!) ?? [],
-            cfg.flatten ?? false,
+            cfg.flatten,
             cfg.once ?? false,
             cfg.openScopePool,
             cfg.primedScopePool,
@@ -192,7 +194,7 @@ export class ScopeRegistry<ScopeKind extends string> {
      * order issues.
      *
      * Scopes are evaluated in the order they are declared.
-     * 
+     *
      * # Type Parameter
      *
      * Callers should always infer `Config`.
@@ -308,9 +310,21 @@ export class UnclosedScope<ScopeKind extends string> {
 
     close(end: number): Scope<ScopeKind> {
         if (this.begin !== undefined) {
-            return new Scope(this.query.kind, this.markerPos, this.markerTokenPos, this.begin!, end)
+            return Scope.newInstance(
+                this.query.kind,
+                this.markerPos,
+                this.markerTokenPos,
+                this.begin!,
+                end,
+            )
         }
-        return new Scope(this.query.kind, this.markerPos, this.markerTokenPos, this.markerPos, end)
+        return Scope.newInstance(
+            this.query.kind,
+            this.markerPos,
+            this.markerTokenPos,
+            this.markerPos,
+            end,
+        )
     }
 }
 
@@ -468,7 +482,10 @@ export class ScopeStream<ScopeKind extends string> {
                 // Attempt to open scope by matching to opener
                 if (tag === boundaries.open && (!scope.isOpen || !scope.isReopened)) {
                     scope.open(start.end, [boundaries.close])
-                    for (idx -= 1; idx >= 0 && unclosed[idx]?.query.flatten; --idx) {
+                    for (idx -= 1; idx >= 0; --idx) {
+                        if (!unclosed.at(idx)?.query.flatten?.includes(scope.query.kind)) {
+                            break
+                        }
                         unclosed[idx].open(start.end, [boundaries.close])
                     }
                     modified = true
@@ -480,7 +497,10 @@ export class ScopeStream<ScopeKind extends string> {
                 if (tag === boundaries.close && (scope.isOpen || boundaries.open === undefined)) {
                     const s = unclosed.pop()!.close(start.begin)
                     closed.insert(s.interval, s)
-                    for (idx -= 1; idx >= 0 && unclosed.at(-1)?.query.flatten; --idx) {
+                    for (idx -= 1; idx >= 0; --idx) {
+                        if (!unclosed.at(-1)?.query.flatten?.includes()) {
+                            break
+                        }
                         const fs = unclosed.pop()!.close(start.begin)
                         closed.insert(fs.interval, fs)
                     }

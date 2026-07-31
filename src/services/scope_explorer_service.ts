@@ -159,7 +159,8 @@ class ScopeTreeDataProvider implements TreeDataProvider<ScopeTreeItem> {
         return roots
     }
 }
-export class ScopeExplorerService {
+
+class ScopeExplorerService {
     private static isActive = false
     private static treeDataProvider = new ScopeTreeDataProvider()
 

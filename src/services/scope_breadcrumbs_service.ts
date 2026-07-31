@@ -3,7 +3,7 @@ import { BREADCRUMB_SEP } from '@/utils/constants'
 import { ExtensionContext, StatusBarAlignment, TextEditor, window } from 'vscode'
 import DocumentInfoService from './document_info_service'
 
-export class ScopeBreadcrumbsService {
+class ScopeBreadcrumbsService {
     private static isActive = false
     private static statusBarItem = window.createStatusBarItem(StatusBarAlignment.Left, 10000)
 

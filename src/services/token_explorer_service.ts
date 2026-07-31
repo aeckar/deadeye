@@ -117,7 +117,7 @@ class TokenTreeDataProvider implements TreeDataProvider<TokenTreeItem> {
     }
 }
 
-export class TokenExplorerService {
+class TokenExplorerService {
     private static isActive = false
     private static treeDataProvider = new TokenTreeDataProvider()
 

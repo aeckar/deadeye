@@ -11,7 +11,7 @@ import { Span } from '@/utils/strings'
  * 2. Scope language is enforced at compile-time
  */
 export class Scope<ScopeKind extends string> extends Span {
-    constructor(
+    private constructor(
         /** The type of scope, as defined in `lang/<langId>/scopes.ts`. */
         readonly kind: ScopeKind,
 
@@ -39,6 +39,16 @@ export class Scope<ScopeKind extends string> extends Span {
 
     toString(): string {
         return `${this.kind}(${this.markerPos},${super.toString()})`
+    }
+
+    static newInstance<ScopeKind extends string>(
+        kind: ScopeKind,
+        markerPos: number,
+        markerTokenPos: number,
+        begin: number,
+        end: number,
+    ): Scope<ScopeKind> {
+        return new this(kind, markerPos, markerTokenPos, begin, end)
     }
 }
 
