@@ -34,7 +34,7 @@ export class ScopeBreadcrumbsService {
             this.statusBarItem.hide()
             return
         }
-        const document = editor.document
+        const { document } = editor
         if (!Language.isSupported(document.languageId)) {
             // unsupported language
             this.statusBarItem.hide()

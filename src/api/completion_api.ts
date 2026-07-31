@@ -149,7 +149,7 @@ export class CompletionRegistry<ScopeKind extends string> extends Map<
      * then stores each in a map, grouped by trigger.
      */
     static newInstance<ScopeKind extends string>(
-        ...families: CompletionFamilyCfg<ScopeKind>[]
+        ...families: CompletionFamilyConfig<ScopeKind>[]
     ): CompletionRegistry<ScopeKind> {
         const self = new this<ScopeKind>()
         for (const cfg of families) {
@@ -167,7 +167,7 @@ export class CompletionRegistry<ScopeKind extends string> extends Map<
 export function substitute<ScopeKind extends string>(
     target: string,
     replacement: string,
-): CompletionFamilyCfg<ScopeKind> {
+): CompletionFamilyConfig<ScopeKind> {
     const length = target.length
     return {
         docs: md`
@@ -204,7 +204,7 @@ export type CompletionResolver<ScopeKind extends string> = (
  * Configuration parameter for {@link CompletionFamily}.
  * @see {@link CompletionFamily.newInstance}
  */
-export type CompletionFamilyCfg<ScopeKind extends string> = {
+export type CompletionFamilyConfig<ScopeKind extends string> = {
     /** @see {@link CompletionFamily.docs} */
     readonly docs: MarkdownString
 
@@ -257,7 +257,7 @@ export class CompletionFamily<ScopeKind extends string> {
         readonly resolver: CompletionResolver<ScopeKind>,
     ) {}
 
-    static newInstance<ScopeKind extends string>(cfg: CompletionFamilyCfg<ScopeKind>) {
+    static newInstance<ScopeKind extends string>(cfg: CompletionFamilyConfig<ScopeKind>) {
         return new this(cfg.docs, cfg.minLookbehind, cfg.trigger, cfg.resolver)
     }
 }
@@ -266,7 +266,7 @@ export class CompletionFamily<ScopeKind extends string> {
  * Configuration parameter for {@link Completion}.
  * @see {@link Completion.newInstance}
  */
-export type CompletionCfg = {
+export type CompletionConfig = {
     /** @see {@link Completion.preview} */
     readonly preview: MarkdownString
 
@@ -342,7 +342,7 @@ export class Completion {
         readonly endCursorPos?: Position,
     ) {}
 
-    static newInstance(cfg: CompletionCfg) {
+    static newInstance(cfg: CompletionConfig) {
         let errors: readonly Range[] | undefined
         if (cfg.errors) {
             const invalid = cfg.errors.filter(e => !cfg.target.contains(e))

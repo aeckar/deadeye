@@ -88,3 +88,17 @@ export function rebindToMap<K extends JsKey, V>(
 export function compareBy<T>(keyMap: (entry: T) => number): Comparator<T> {
     return (cur, next) => keyMap(cur) - keyMap(next)
 }
+
+/** Returns the sub-map with entries where the predicate is true. */
+export function select<K extends JsKey, V>(
+    map: ReadonlyMap<K, V>,
+    predicate: (k: K, v: V) => boolean,
+): Map<K, V> {
+    const filtered = new Map<K, V>()
+    for (const [k, v] of map.entries()) {
+        if (predicate(k, v)) {
+            filtered.set(k, v)
+        }
+    }
+    return filtered
+}

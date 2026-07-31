@@ -3,33 +3,20 @@ import { CURLIES } from '@/utils/constants'
 import rustVocab from './language'
 
 // | 'condition' // IMPOSSIBLE IN RUST bc no (); completions must infer scope
-// | 'typeParams' // $id < .. > //leave generocs out of lexer, defer to local ctx resolution
-// | 'typeArgs' // ${$ty $id | fn} < .. >
-
-/*
-    scopeKind: ScopeKind;
-    markers?: string[];
-    possibleBoundaries: BoundariesCfg;
-    flatten?: boolean;
-    startOpen?: boolean;
-    outerOpenScope?: ScopeKind;
-    outerPrimedScope?: ScopeKind;
-*/
-
-//I was tempted to make whitespace into tokens so that I could understand the
-// context of whether there was a whitespace between an identifier and a less-than
-//  sign to determine whether it is a boolean operation or a generics operation.
-// I think I'm just going to leave that to the completions, and I will leave
-//  whitespace out of the token stream to improve performance.
-// condition: {
-//     possibleMarkers: ['OPEN_PAREN'],
-//     possibleBoundaries: [[null, 'OPEN_PAREN']],
-//     outerPrimedScope: 'conditional'
-// },
-
-// struct init is also too complex to parse at scope time, defer to completions
+//same for struct-init
 
 export const rustScopes = ScopeRegistry.newInstance(() => rustVocab, {
+    typeParams: {
+        markerPool: ['OPEN_ANGLE'],
+        boundariesPool: [[null, 'CLOSE_ANGLE']],
+        primedScopePool: ['struct', 'impl', 'trait', 'type', 'fn', 'enum'],
+        once: true,
+    },
+    typeArgs: {
+        markerPool: ['OPEN_ANGLE'],
+        boundariesPool: [[null, 'CLOSE_ANGLE']],
+        openScopePool: ['fn', 'assignment'],
+    },
     struct: {
         markerPool: ['STRUCT', 'UNION'],
         boundariesPool: [CURLIES],
@@ -74,22 +61,23 @@ export const rustScopes = ScopeRegistry.newInstance(() => rustVocab, {
         markerPool: ['FAT_ARROW'],
         boundariesPool: [CURLIES],
         terminatorPool: ['SEMICOLON'],
-        outerOpenScope: 'macro',
+        openScopePool: ['macro'],
     },
     macroArmParams: {
         markerPool: ['OPEN_PAREN'],
         boundariesPool: [[null, 'CLOSE_PAREN']],
-        outerOpenScope: 'macro',
+        openScopePool: ['macro'],
     },
     fnParams: {
         markerPool: ['OPEN_PAREN'],
         boundariesPool: [[null, 'CLOSE_PAREN']],
-        outerPrimedScope: 'fn',
+        primedScopePool: ['fn'],
         once: true,
     },
     closureParams: {
         markerPool: ['OPEN_CLOSURE_PARAMS'],
         boundariesPool: [[null, 'CLOSE_CLOSURE_PARAMS']],
+        once: true,
     },
     impl: {
         boundariesPool: [CURLIES],
@@ -103,7 +91,10 @@ export const rustScopes = ScopeRegistry.newInstance(() => rustVocab, {
         boundariesPool: [
             [null, 'CLOSE_PAREN'],
             [null, 'CLOSE_CURLY'],
+            [null, 'CLOSE_ANGLE'],
             [null, 'COMMA'],
+            [null, 'EQUALS'],
+            [null, 'SEMICOLON'],
         ],
     },
     conditional: {
@@ -125,7 +116,7 @@ export const rustScopes = ScopeRegistry.newInstance(() => rustVocab, {
         markerPool: ['FAT_ARROW'],
         boundariesPool: [CURLIES],
         terminatorPool: ['COMMA'],
-        outerOpenScope: 'match',
+        openScopePool: ['match'],
     },
 })
 

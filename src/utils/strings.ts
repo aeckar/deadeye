@@ -55,3 +55,8 @@ export function hashCode(s: string): number {
     }
     return hash >>> 0 // convert to unsigned 32-bit integer
 }
+
+/** Returns the string with regex special characters replaced as escapes. */
+export function escapeRegex(s: string): string {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}

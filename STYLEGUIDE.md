@@ -17,7 +17,7 @@ const processDocument = (text: string): Tokens => { ... };
 - **Arrow Functions:** Reserve arrow functions for closures capturing scope variables, callback parameters, or implementing inline closure types
 - **Internal Helper Functions:** Place inner/nested helper functions at the very end of the containing function body to keep the primary logic prominent for readability
 - **Closure Arguments:** Arguments passed to closures for basic functional operations (e.g. `map`, `find`, `filter`) should be named a single letter. This includes destructured arguments, but does not apply when arguments are of different types
-- **Return Types:** All functions should have an explicit return type, except for `void`
+- **Return Types:** All functions should have an explicit return type, except for generator functions and those returning `void`
 - **Unbound Closures:** Class methods should never be passed as closures, to prevent bugs where the closure expects a `this` argument
 
 ## 2. Object-Oriented Patterns & Types
@@ -31,7 +31,7 @@ const processDocument = (text: string): Tokens => { ... };
 
 - Prefer `class` definitions over `type` aliases unless creating a simple type alias or a configuration type that is never persists as a property
 - Configuration objects should be passed whenever a function expects a complex argument array with many slots, a variable number of slots, or nested objects that should be instantiated at the call site
-- Configuration types should be derived from `Record` (or any other plain JS object) and end in `Cfg`
+- Configuration types should be derived from `Record` (or any other plain JS object) and end in `Config`
 
 ### Branding & Private Properties
 

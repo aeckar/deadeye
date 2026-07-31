@@ -2,9 +2,9 @@
 //!
 //! For general utilities related to text manipulation, refer to `text_utils.ts`.
 import Tape from '@/tape'
-import { compareBy, rebindToMap } from '@/utils/collections'
+import { compareBy, rebindToMap, select } from '@/utils/collections'
 import { ALPHA, DIGIT } from '@/utils/constants'
-import { Direction, hashCode, Span } from '@/utils/strings'
+import { Direction, escapeRegex, hashCode, Span } from '@/utils/strings'
 import { Member } from '@/utils/types'
 
 // =============================================================================================
@@ -159,7 +159,7 @@ export class Token extends Span {
      *
      * Returns the token, or `undefined` if none is found or this is not an open bracket.
      */
-    findCloseBracket(tokens: Token[], start: number): Token | undefined {
+    findCloseBracket(tokens: readonly Token[], start: number = 0): Token | undefined {
         if (!this.isOpenBracket()) {
             return undefined
         }
@@ -185,7 +185,7 @@ export class Token extends Span {
      *
      * Returns the token, or `undefined` if none is found or this is not a close bracket.
      */
-    findOpenBracket(tokens: Token[], start: number): Token | undefined {
+    findOpenBracket(tokens: readonly Token[], start: number = tokens.length - 1): Token | undefined {
         if (!this.isCloseBracket()) {
             return undefined
         }
@@ -240,7 +240,7 @@ export class Token extends Span {
      * @param offset The active numeric cursor position.
      * @param bias Directional preference when cursor sits in a whitespace gap or between tokens.
      */
-    static findNearest(tokens: Token[], offset: number, bias: Direction): number {
+    static findNearest(tokens: readonly Token[], offset: number, bias: Direction): number {
         if (tokens.length === 0) {
             return -1
         }
@@ -307,7 +307,7 @@ export type TokenResolver = (tape: Tape) => string
  * Configuration parameter for {@link Language}.
  * @see {@link Language.newInstance}
  */
-export type LanguageCfg = {
+export type LanguageConfig = {
     /** Each item supplied becomes a string or pattern token in this language. */
     readonly declare: Record<string, string | RegExp | TokenResolver>
 
@@ -338,8 +338,6 @@ export type LanguageResolvable = Language | Member<typeof LanguagePreset>
 export class Language {
     private readonly tagsForKinds: Map<TokenKind, Tag>
     private readonly kindsForTags: Map<Tag, TokenKind>
-    private readonly matchingCloseTags: Map<Tag, Tag>
-    private readonly matchingOpenTags: Map<Tag, Tag>
 
     private constructor(
         /**
@@ -381,18 +379,6 @@ export class Language {
             ...[...this.tagsForKinds].map(([kind, tag]) => [tag, kind] as const),
             [Token.UNKNOWN_TAG, Token.UNKNOWN_KIND],
         ])
-        this.matchingCloseTags = new Map()
-        this.matchingOpenTags = new Map()
-        for (const [kind, tag] of this.tagsForKinds) {
-            if (kind.includes('OPEN')) {
-                const closeKind = kind.replace('OPEN', 'CLOSE') as TokenKind
-                const closeTag = this.tagsForKinds.get(closeKind)
-                if (closeTag !== undefined) {
-                    this.matchingCloseTags.set(tag, closeTag)
-                    this.matchingOpenTags.set(closeTag, tag)
-                }
-            }
-        }
     }
 
     tagForKind(kind: UnknownTokenKind): Tag | undefined {
@@ -403,12 +389,19 @@ export class Language {
         return this.kindsForTags.get(tag)
     }
 
-    matchingOpenTag(close: Tag): Tag | undefined {
-        return this.matchingOpenTags.get(close)
-    }
-
-    matchingCloseTag(open: Tag): Tag | undefined {
-        return this.matchingCloseTags.get(open)
+    /** Returns the sub-language from the tokens whose kinds match the pattern. */
+    select(pattern: string | RegExp): Language {
+        if (typeof pattern === 'string') {
+            pattern = new RegExp(escapeRegex(pattern))
+        }
+        return new Language(
+            select(this.keywords, k => pattern.test(k)),
+            select(this.strings, k => pattern.test(k)),
+            select(this.patterns, k => pattern.test(k)),
+            select(this.resolvers, k => pattern.test(k)),
+            this.ignore,
+            this.idRule,
+        )
     }
 
     /**
@@ -446,7 +439,7 @@ export class Language {
      *
      * `declare` combines both string and pattern tokens to discourage clashing token names.
      */
-    static newInstance(cfg: LanguageCfg): Language {
+    static newInstance(cfg: LanguageConfig): Language {
         const tagger = new Tagger()
         const kwords = [...(cfg.keywords ?? [])].map(kword => tagger.tag(kword))
         const strings: Record<TokenKind, Tagged<string>> = {}

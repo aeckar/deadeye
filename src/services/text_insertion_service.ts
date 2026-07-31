@@ -14,6 +14,8 @@ import {
 import DocumentInfoService from './document_info_service'
 import LanguageInfoService from './language_info_service'
 import { logger } from '@/extension'
+import { Token } from '@/api/language_api'
+import { CLOSE_BRACKETS } from '@/utils/constants'
 
 /**
  * Provides an interface to the current completion strategy,
@@ -56,6 +58,13 @@ class TextInsertionService {
                     return
                 }
                 const keyIn = (args.text as string).replace(/^ +$/g, '') // trim trailing spaces
+                if (keyIn.length > 1) {
+                    // bulk insertion, usually paste
+                    editor.edit(editBuilder => {
+                        editBuilder.insert(editor.selection.active, keyIn)
+                    })
+                    return
+                }
                 const strategy = this._strategy
                 const trigger = strategy?.trigger
                 if (
@@ -66,51 +75,84 @@ class TextInsertionService {
                     this._strategy = undefined
                     return
                 }
-                const { selection } = editor
-                if (selection.anchor.isEqual(selection.active)) {
-                    // no text currently selected
-                    if (this.updateStrategy(editor, keyIn)) {
-                        this.applyInsertion(editor, keyIn)
-                    }
-                    return
-                }
-                this.applyOverwrite(editor, keyIn)
-            }),
-
-            // Show documentation on hover
-            languages.registerHoverProvider('rust', {
-                provideHover(_, position) {
-                    const strategy = TextInsertionService._strategy
-                    if (!strategy || !strategy.completion.target.contains(position)) {
-                        return null
-                    }
-                    return new Hover(strategy.family.docs)
-                },
-            }),
-
-            // Show preview on hover
-            languages.registerHoverProvider('rust', {
-                provideHover(_, position) {
-                    const strategy = TextInsertionService._strategy
-                    const target = strategy?.completion.target
-                    if (!strategy || !target?.contains(position)) {
-                        return null
-                    }
-                    return new Hover(strategy.preview())
-                },
+                await this.insertText(editor, keyIn || ' ')
             }),
         )
+
+        for (const [langId] of LanguageInfoService.select(/.*/g)) {
+            ctx.subscriptions.push(
+                // Show documentation on hover
+                languages.registerHoverProvider(langId, {
+                    provideHover(_, position) {
+                        const strategy = TextInsertionService._strategy
+                        if (!strategy || !strategy.completion.target.contains(position)) {
+                            return null
+                        }
+                        return new Hover(strategy.family.docs)
+                    },
+                }),
+
+                // Show preview on hover
+                languages.registerHoverProvider(langId, {
+                    provideHover(_, position) {
+                        const strategy = TextInsertionService._strategy
+                        const target = strategy?.completion.target
+                        if (!strategy || !target?.contains(position)) {
+                            return null
+                        }
+                        return new Hover(strategy.preview())
+                    },
+                }),
+            )
+        }
     }
 
-    static applyInsertion(editor: TextEditor, keyIn: string) {
-        editor.edit(editBuilder => {
-            //todo figure out if need closing bracket or not (found open ==y; found close ==n; else ==y)<balanced>
-            editBuilder.insert(editor.selection.active, keyIn)
+    static async insertText(editor: TextEditor, keyIn: string) {
+        const { document } = editor
+        const token = LanguageInfoService.get(document.languageId)
+            .openBrackets.tokenize(keyIn)
+            .at(0)
+        if (!token || !token.isOpenBracket()) {
+            await insertRawText()
+            return
+        }
+        const docInfo = DocumentInfoService.get(document)
+        let offset = document.offsetAt(editor.selection.active)
+        const nearestScope = docInfo.selectScopes(offset).at(-1)
+        if (!nearestScope) {
+            await insertRawText()
+            return
+        }
+        const { tokens } = docInfo
+        const scopeTokens: Token[] = []
+        let idx = Token.findNearest(tokens, offset, 'right')
+        if (idx === -1) {
+            await insertRawText()
+            return
+        }
+        while (idx < tokens.length && offset < nearestScope.end) {
+            scopeTokens.push(tokens[idx])
+            offset += tokens[idx].length
+            idx += 1
+        }
+        if (token.findCloseBracket(scopeTokens)) {
+            await insertRawText()
+            return
+        }
+        await editor.edit(editBuilder => {
+            editBuilder.insert(
+                editor.selection.active,
+                keyIn + document.getText(editor.selection) + CLOSE_BRACKETS[keyIn[0]],
+            )
         })
-    }
+        const pos = editor.selection.active.translate(0, -1)
+        editor.selection = new Selection(pos, pos)
 
-    static applyOverwrite(editor: TextEditor, keyIn: string) {
-        
+        async function insertRawText() {
+            await editor.edit(editBuilder => {
+                editBuilder.insert(editor.selection.active, keyIn)
+            })
+        }
     }
 
     /**
@@ -118,7 +160,7 @@ class TextInsertionService {
      * If a `Completion` is returned, it is stored in a `CompletionStrategy` and recorded.
      *
      * On success, applies target decorations.
-     * 
+     *
      * This function is guaranteed to never throw an exception so that in the case that
      * one is thrown, the user is not prevented from editing the docuoment.
      *
@@ -127,7 +169,7 @@ class TextInsertionService {
      */
     static updateStrategy(editor: TextEditor, keyIn: string): boolean {
         try {
-            const document = editor.document
+            const { document } = editor
             const active = editor.selection.active
             const cursor = new Position(active.line, active.character + 1) // adjust for key-in
             const ctx = CompletionContext.newInstance(document, keyIn, cursor)

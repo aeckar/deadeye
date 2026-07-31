@@ -34,8 +34,8 @@ export class DocumentInfo<ScopeKind extends string> {
         return this._text!
     }
 
-    /** To easily get the head token, use `this.tokens[0][0]`. */
-    get tokens(): Token[] {
+    /** Returns an array of every token in this file. */
+    get tokens(): readonly Token[] {
         if (!this._tokens) {
             this._tokens = this.language.tokenize(this.text)
         }
@@ -63,7 +63,7 @@ export class DocumentInfo<ScopeKind extends string> {
         }
         let resumeIdx = 0
         let resumeOffset = 0
-        const tokens = this.tokens // stale
+        const tokens = this._tokens! // stale
         for (let idx = 0; idx < tokens.length; ++idx) {
             if (tokens[idx].end >= minEditStart) {
                 resumeIdx = idx

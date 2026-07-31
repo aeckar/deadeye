@@ -41,7 +41,7 @@ export class Boundaries {
     }
 }
 
-export type ScopeInfoCfg<ScopeKind extends string> = {
+export type ScopeInfoConfig<ScopeKind extends string> = {
     /** @see {@link ScopeInfo.boundariesPool} */
     readonly boundariesPool: BoundariesPool
 
@@ -57,11 +57,11 @@ export type ScopeInfoCfg<ScopeKind extends string> = {
     /** @see {@link ScopeInfo.once} */
     readonly once?: boolean
 
-    /** @see {@link ScopeInfo.outerOpenScope} */
-    readonly outerOpenScope?: ScopeKind
+    /** @see {@link ScopeInfo.openScopePool} */
+    readonly openScopePool?: ScopeKind[]
 
-    /** @see {@link ScopeInfo.outerPrimedScope} */
-    readonly outerPrimedScope?: ScopeKind
+    /** @see {@link ScopeInfo.primedScopePool} */
+    readonly primedScopePool?: ScopeKind[]
 }
 
 /**
@@ -106,8 +106,8 @@ export class ScopeInfo<ScopeKind extends string> {
          * If true, the outer primed or open scope can only be used to permit a match to the
          * marker token once, respectively.
          *
-         * @see {@link outerPrimedScope}
-         * @see {@link outerOpenScope}
+         * @see {@link primedScopePool}
+         * @see {@link openScopePool}
          */
         readonly once: boolean,
 
@@ -115,19 +115,19 @@ export class ScopeInfo<ScopeKind extends string> {
          * If defined, this scope must be open when the scope marker is matched
          * for the scope to be recognized.
          *
-         * @see {@link outerPrimedScope}
+         * @see {@link primedScopePool}
          * @see {@link once}
          */
-        readonly outerOpenScope?: ScopeKind,
+        readonly openScopePool?: ScopeKind[],
 
         /**
          * If defined, this scope must be primed when the scope marker is matched
          * for the scope to be recognized.
          *
-         * @see {@link outerOpenScope}
+         * @see {@link openScopePool}
          * @see {@link once}
          */
-        readonly outerPrimedScope?: ScopeKind,
+        readonly primedScopePool?: ScopeKind[],
 
         /** Closing token kinds, cached for easy access if open by default. */
         readonly closeKinds?: readonly Tag[],
@@ -144,7 +144,7 @@ export class ScopeInfo<ScopeKind extends string> {
     static newInstance<ScopeKind extends string>(
         lang: Language,
         scopeKind: ScopeKind,
-        cfg: ScopeInfoCfg<ScopeKind>,
+        cfg: ScopeInfoConfig<ScopeKind>,
     ): ScopeInfo<ScopeKind> {
         const boundaries = Boundaries.newInstancePool(lang, cfg.boundariesPool)
         const isOpenByDefault = boundaries.find(e => e.open === undefined)
@@ -157,8 +157,8 @@ export class ScopeInfo<ScopeKind extends string> {
             cfg.terminatorPool?.map(e => lang.tagForKind(e)!) ?? [],
             cfg.flatten ?? false,
             cfg.once ?? false,
-            cfg.outerOpenScope,
-            cfg.outerPrimedScope,
+            cfg.openScopePool,
+            cfg.primedScopePool,
             isOpenByDefault ? boundaries.map(e => e.close) : undefined,
         )
     }
@@ -168,8 +168,8 @@ export class ScopeInfo<ScopeKind extends string> {
  * Configuration parameter for {@link ScopeRegistry}.
  * @see {@link ScopeRegistry.newInstance}
  */
-export type ScopeRegistryCfg<ScopeKind extends string> = {
-    readonly [K in ScopeKind]: ScopeInfoCfg<ScopeKind>
+export type ScopeRegistryConfig<ScopeKind extends string> = {
+    readonly [K in ScopeKind]: ScopeInfoConfig<ScopeKind>
 }
 
 /**
@@ -184,25 +184,27 @@ export class ScopeRegistry<ScopeKind extends string> {
 
     private constructor(
         private readonly langCallback: () => Language,
-        private readonly cfg: ScopeRegistryCfg<ScopeKind>,
+        private readonly cfg: ScopeRegistryConfig<ScopeKind>,
     ) {}
 
     /**
      * The corresponding `Language` is passed as a callback to circumvent JavaScript module loading
      * order issues.
      *
+     * Scopes are evaluated in the order they are declared.
+     * 
      * # Type Parameter
      *
-     * Callers should always infer `Cfg`.
+     * Callers should always infer `Config`.
      *
      * Extraction of the congifuration object type to a type parameter enables automatic extraction of
      * the key string union type. This allows callers to define a scope registry without first
      * defining a string union of the keys (`ScopeKind` variants).
      */
-    static newInstance<Cfg extends ScopeRegistryCfg<string>>(
+    static newInstance<Config extends ScopeRegistryConfig<string>>(
         langCallback: () => Language,
-        cfg: Cfg,
-    ): ScopeRegistry<keyof Cfg & string> {
+        cfg: Config,
+    ): ScopeRegistry<keyof Config & string> {
         return new this(langCallback, cfg)
     }
 
@@ -368,13 +370,13 @@ export class ScopeStream<ScopeKind extends string> {
         if (this.isExhausted()) {
             return false
         }
-        const { markerPool, outerOpenScope, outerPrimedScope } = query
+        const { markerPool, openScopePool, primedScopePool } = query
         const { unclosed } = this
         const cur = this.tokens[this.pos]
         if (
             !markerPool.includes(cur.tag) ||
-            !isSatisfied(outerPrimedScope) ||
-            !isSatisfied(outerOpenScope)
+            !isSatisfied(primedScopePool) ||
+            !isSatisfied(openScopePool)
         ) {
             return false
         }
@@ -382,11 +384,9 @@ export class ScopeStream<ScopeKind extends string> {
         this.unclosed.push(scope)
         return true
 
-        function isSatisfied(outerScope: ScopeKind | undefined): boolean {
-            if (outerScope !== undefined) {
-                const outer = unclosed.find(
-                    scope => !scope.isOpen && scope.query.kind === outerScope,
-                )
+        function isSatisfied(scopePool: ScopeKind[] | undefined): boolean {
+            if (scopePool !== undefined) {
+                const outer = unclosed.find(scope => scopePool.some(e => e === scope.query.kind))
                 if (!outer) {
                     return false
                 }

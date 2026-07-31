@@ -2,7 +2,6 @@ import { Completion, CompletionRegistry, toScreamCase, toSnakeCase } from '@/api
 import { ScopeKind } from '@/api/scope_api'
 import Tape from '@/tape'
 import { joinValues } from '@/utils/collections'
-import { MAX_LINE_SEEK } from '@/utils/constants'
 import { md } from '@/utils/diagnostics'
 import { reverse } from '@/utils/strings'
 import { after, rangeBefore } from '@/utils/vscode'
@@ -265,7 +264,7 @@ grey squiggly when left of scope marker to show help
 // todo dont hassle over rule starts when collecting ID chunks, not worth it
 //todo cursor in word + tab = indent line (should alr exist but alright)
 //todo vecof id one, id two,
-//todo configuration for type preferences, also docs for thee
+//todo configuration for type preferences, also docs for thee 
 
 const rustCompletions = CompletionRegistry.newInstance<ScopeKind<typeof rustScopes>>(
     {
@@ -611,7 +610,7 @@ const rustCompletions = CompletionRegistry.newInstance<ScopeKind<typeof rustScop
 
             **Constraints:**
             - In an if-statement
-            - \`if\` keyword not farther than \`${MAX_LINE_SEEK}\` lines away
+            - \`if\` keyword not farther than \`MAX_LINE_SEEK\` lines away
         `,
         minLookbehind: 4,
         trigger: ' ',
