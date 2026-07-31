@@ -3,14 +3,14 @@
 //! Also provides algorithms and data structures used to parse completion shorthands.
 import { MarkdownString, Position, Range, TextDocument, window } from 'vscode'
 
+import DocumentInfo from '@/document_info'
+import { Token } from '@/api/language_api'
 import Scope from '@/scope'
 import Tape from '@/tape'
 import { Trigger } from '@/utils/char_type'
 import { md } from '@/utils/diagnostics'
 import { reverse } from '@/utils/strings'
 import { rangeBefore } from '@/utils/vscode'
-import { Token } from './language_api'
-import DocumentInfo from '@/document_info'
 
 /** Contains all completion families for a given language, grouped by trigger. */
 export class CompletionRegistry<ScopeKind extends string> extends Map<
@@ -261,12 +261,12 @@ export class CompletionContext<ScopeKind extends string> {
     private readonly scopesAtCursor: readonly Scope<ScopeKind>[]
 
     readonly tokenPos: number
-    
+
     private constructor(
         document: TextDocument,
         protected readonly keyIn: string,
         readonly cursor: Position,
-        readonly docInfo: DocumentInfo<ScopeKind>
+        readonly docInfo: DocumentInfo<ScopeKind>,
     ) {
         const offset = document.offsetAt(this.cursor)
         this.scopesAtCursor = this.docInfo.selectScopes(offset)

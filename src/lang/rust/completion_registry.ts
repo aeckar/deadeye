@@ -1,14 +1,14 @@
 import { Completion, CompletionRegistry } from '@/api/completion_api'
 import { ScopeKind } from '@/api/scope_api'
+import { extractRustTargetReversed } from '@/lang/rust/extract_target'
+import { inferType } from '@/lang/rust/infer_type'
+import rustScopes from '@/lang/rust/scope_registry'
 import Tape from '@/tape'
+import { toScreamCase, toSnakeCase } from '@/utils/char_type'
 import { joinValues } from '@/utils/collections'
 import { md } from '@/utils/diagnostics'
 import { reverse } from '@/utils/strings'
 import { after, rangeBefore } from '@/utils/vscode'
-import { inferType } from './infer_type'
-import rustScopes from './scope_registry'
-import { toScreamCase, toSnakeCase } from '@/utils/char_type'
-import { extractRustTargetReversed } from './extract_target'
 
 // optimizing docs should add proper punctation, capitalization
 // toggle mode for automatic tab-out by delimiter

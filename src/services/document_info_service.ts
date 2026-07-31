@@ -1,7 +1,7 @@
+import DocumentInfo from '@/document_info'
+import IntervalTreeService from '@/services/interval_tree_service'
+import LanguageInfoService from '@/services/language_info_service'
 import { ExtensionContext, TextDocument, workspace } from 'vscode'
-import DocumentInfo from '../document_info'
-import IntervalTreeService from './interval_tree_service'
-import LanguageInfoService from './language_info_service'
 
 class DocumentInfoService {
     private static isActive = false

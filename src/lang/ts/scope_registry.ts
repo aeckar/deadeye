@@ -1,12 +1,12 @@
 import { at, before, open, ScopeRegistry } from '@/api/scope_api'
+import tsLanguage from '@/lang/ts/language'
 import { CURLIES } from '@/utils/constants'
-import tsVocab from './language'
 
 /**
  * Completion resolvers should treat `function` and `method` scopes as the same,
  * since their separation exists only as a parser quirk.
  */
-const tsScopes = ScopeRegistry.newInstance(() => tsVocab, {
+const tsScopes = ScopeRegistry.newInstance(() => tsLanguage, {
     type: {
         require: [at('KW_TYPE')],
         boundaries: ['SEMICOLON'],

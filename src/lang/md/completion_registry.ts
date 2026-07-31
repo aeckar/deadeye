@@ -1,6 +1,6 @@
-// import { CompletionRegistry, substitute } from '../../completions'
-// import { ScopeKind } from '../../scopes'
-// // import { isLowerLetter, toMarkdown as md } from '../../text_utils'
+// import { CompletionRegistry, substitute } from '@/../completions'
+// import { ScopeKind } from '@/../scopes'
+// // import { isLowerLetter, toMarkdown as md } from '@/../text_utils'
 
 // // do not highlight hot shorthand - 1
 // //dont use tm, rarely ever used by devs and writers

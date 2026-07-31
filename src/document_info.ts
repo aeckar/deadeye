@@ -1,9 +1,9 @@
 import { Language, Token } from '@/api/language_api'
 import { ScopeRegistry } from '@/api/scope_api'
 import Scope from '@/scope'
+import { IntervalTree } from '@/services/interval_tree_service'
 import Tape from '@/tape'
 import { TextDocument, TextDocumentContentChangeEvent } from 'vscode'
-import { IntervalTree } from './services/interval_tree_service'
 
 export type AsiResolver = (tokens: Token[]) => void
 

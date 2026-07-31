@@ -1,5 +1,7 @@
 import { Language } from '@/api/language_api'
+import DocumentInfo from '@/document_info'
 import { Scope } from '@/scope'
+import DocumentInfoService from '@/services/document_info_service'
 import { DocumentContext } from '@/utils/vscode'
 import {
     Event,
@@ -17,8 +19,6 @@ import {
     window,
     workspace,
 } from 'vscode'
-import { DocumentInfo } from '../document_info'
-import DocumentInfoService from './document_info_service'
 
 /**
  * # Implementation

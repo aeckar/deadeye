@@ -1,12 +1,12 @@
 //! Scope API and utilities.
 //!
 //! Unlike `scope_utils.ts`, contains logic for scope analysis.
+import { Language, Tag, Token, UnknownTokenKind } from '@/api/language_api'
 import { logger } from '@/logger'
 import { Scope } from '@/scope'
 import IntervalTreeService, { IntervalTree } from '@/services/interval_tree_service'
 import { entries } from '@/utils/collections'
 import { TRIVIA } from '@/utils/constants'
-import { Language, Tag, Token, UnknownTokenKind } from './language_api'
 
 // =============================================================================================
 // Scope Predicates

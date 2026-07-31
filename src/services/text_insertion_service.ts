@@ -1,6 +1,8 @@
 import { Completion, CompletionContext, CompletionStrategy } from '@/api/completion_api'
 import { Token } from '@/api/language_api'
 import { logger } from '@/logger'
+import DocumentInfoService from '@/services/document_info_service'
+import LanguageInfoService from '@/services/language_info_service'
 import { CLOSE_BRACKETS } from '@/utils/constants'
 import {
     commands,
@@ -14,8 +16,6 @@ import {
     ThemeColor,
     window,
 } from 'vscode'
-import DocumentInfoService from './document_info_service'
-import LanguageInfoService from './language_info_service'
 
 /**
  * Provides an interface to the current completion strategy,

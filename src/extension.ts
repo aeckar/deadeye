@@ -1,6 +1,11 @@
 //! Extension entry point.
 import { ExtensionContext, window } from 'vscode'
 
+import rustCompletions from '@/lang/rust/completion_registry'
+import rustLanguage from '@/lang/rust/language'
+import rustScopes from '@/lang/rust/scope_registry'
+import LanguageInfo from '@/language_info'
+import { logger } from '@/logger'
 import IntervalTreeService from '@/services/interval_tree_service'
 import LanguageInfoService from '@/services/language_info_service'
 import ScopeBreadcrumbsService from '@/services/scope_breadcrumbs_service'
@@ -8,11 +13,6 @@ import ScopeExplorerService from '@/services/scope_explorer_service'
 import TextDeletionService from '@/services/text_deletion_service'
 import TextInsertionService from '@/services/text_insertion_service'
 import TokenExplorerService from '@/services/token_explorer_service'
-import { logger } from './logger'
-import LanguageInfo from './language_info'
-import rustCompletions from './lang/rust/completion_registry'
-import rustLanguage from './lang/rust/language'
-import rustScopes from './lang/rust/scope_registry'
 
 /**
  * Extension initializer.

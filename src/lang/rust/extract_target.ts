@@ -1,5 +1,5 @@
 import { Token, UnknownTokenKind } from '@/api/language_api'
-import rustLanguage from './language'
+import rustLanguage from '@/lang/rust/language'
 
 // Must defer these due to circular dependency!
 // @\services\language_info_service -> @\api\completion_api -> @\services\document_info_service
@@ -7,14 +7,14 @@ let STOP: number[] | undefined
 let SIGIL: number[] | undefined
 
 function getStopTokens(): number[] {
-    return (STOP ??= ['EQUALS', 'COMMA', 'OPEN_CURLY', 'CLOSE_CURLY', 'SEMICOLON'].map(e =>
-        rustLanguage.tagForKind(e as UnknownTokenKind)!,
+    return (STOP ??= ['EQUALS', 'COMMA', 'OPEN_CURLY', 'CLOSE_CURLY', 'SEMICOLON'].map(
+        e => rustLanguage.tagForKind(e as UnknownTokenKind)!,
     ))
 }
 
 function getSigilTokens(): number[] {
-    return (SIGIL ??= ['AND', 'ASTERISK', 'BANG', 'PLUS', 'MINUS'].map(e =>
-        rustLanguage.tagForKind(e as UnknownTokenKind)!,
+    return (SIGIL ??= ['AND', 'ASTERISK', 'BANG', 'PLUS', 'MINUS'].map(
+        e => rustLanguage.tagForKind(e as UnknownTokenKind)!,
     ))
 }
 

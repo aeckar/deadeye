@@ -1,7 +1,7 @@
 import { Language } from '@/api/language_api'
+import DocumentInfoService from '@/services/document_info_service'
 import { BREADCRUMB_SEP } from '@/utils/constants'
 import { ExtensionContext, StatusBarAlignment, TextEditor, window } from 'vscode'
-import DocumentInfoService from './document_info_service'
 
 class ScopeBreadcrumbsService {
     private static isActive = false

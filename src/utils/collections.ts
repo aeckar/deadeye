@@ -1,4 +1,4 @@
-import { JsKey, RecordSubset } from './types'
+import { JsKey, RecordSubset } from '@/types'
 
 /**
  * Collects each key-value pair in the given object and yields each preceded by its index.

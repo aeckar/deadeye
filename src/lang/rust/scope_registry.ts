@@ -8,8 +8,8 @@ import {
     primed,
     ScopeRegistry,
 } from '@/api/scope_api'
+import rustVocab from '@/lang/rust/language'
 import { ANGLES, CURLIES } from '@/utils/constants'
-import rustVocab from './language'
 
 /**
  * Completion resolvers must themselves check if in condition,
