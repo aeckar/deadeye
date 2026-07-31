@@ -57,7 +57,7 @@ class TextInsertionService {
                 if (!editor) {
                     return
                 }
-                const keyIn = (args.text as string).replace(/^ +$/g, '') // trim trailing spaces
+                const keyIn = (args.text as string).replace(/^ +$/g, '') || ' '
                 if (keyIn.length > 1) {
                     // bulk insertion, usually paste
                     editor.edit(editBuilder => {
@@ -67,15 +67,16 @@ class TextInsertionService {
                 }
                 const strategy = this._strategy
                 const trigger = strategy?.trigger
-                if (
-                    strategy &&
-                    (trigger === '' || trigger === keyIn || (trigger === ' ' && keyIn === ''))
-                ) {
+                if (strategy && (trigger === '' || trigger === keyIn)) {
                     this.runCompletion(editor, strategy.completion)
                     this._strategy = undefined
                     return
                 }
-                await this.insertText(editor, keyIn || ' ')
+                const updated = this.updateStrategy(editor, keyIn)
+                await this.insertText(editor, keyIn)
+                if (updated) {
+                    editor.setDecorations(this.targetDecoration, [this.strategy.completion.target])
+                }
             }),
         )
 
@@ -159,8 +160,6 @@ class TextInsertionService {
      * Tests every completion resolver for the completion family of the current language.
      * If a `Completion` is returned, it is stored in a `CompletionStrategy` and recorded.
      *
-     * On success, applies target decorations.
-     *
      * This function is guaranteed to never throw an exception so that in the case that
      * one is thrown, the user is not prevented from editing the docuoment.
      *
@@ -192,7 +191,6 @@ class TextInsertionService {
                         completion,
                         cursor,
                     )
-                    editor.setDecorations(this.targetDecoration, [this.strategy.completion.target])
                     return true
                 }
             }
