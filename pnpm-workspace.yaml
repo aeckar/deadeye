@@ -1,5 +1,7 @@
 packages:
-    # Include all packages in subdirectories
-    - 'packages/*'
-    # Exclude documentation or specific folders if needed
-    - '!**/test/**'
+  # Include all packages in subdirectories
+  - 'packages/*'
+  # Exclude documentation or specific folders if needed
+  - '!**/test/**'
+allowBuilds:
+  unrs-resolver: true

@@ -3,15 +3,14 @@
 //! Also provides algorithms and data structures used to parse completion shorthands.
 import { MarkdownString, Position, Range, TextDocument, window } from 'vscode'
 
-import DocumentInfo from '@/document_info'
 import Scope from '@/scope'
-import DocumentInfoService from '@/services/document_info_service'
 import Tape from '@/tape'
 import { Trigger } from '@/utils/char_type'
 import { md } from '@/utils/diagnostics'
 import { reverse } from '@/utils/strings'
 import { rangeBefore } from '@/utils/vscode'
 import { Token } from './language_api'
+import DocumentInfo from '@/document_info'
 
 /** Contains all completion families for a given language, grouped by trigger. */
 export class CompletionRegistry<ScopeKind extends string> extends Map<
@@ -261,27 +260,27 @@ export class CompletionContext<ScopeKind extends string> {
     /** All scopes found at the cursor, ordered from farthest to nearest. */
     private readonly scopesAtCursor: readonly Scope<ScopeKind>[]
 
-    readonly docInfo: DocumentInfo<ScopeKind>
     readonly tokenPos: number
-
+    
     private constructor(
         document: TextDocument,
         protected readonly keyIn: string,
         readonly cursor: Position,
+        readonly docInfo: DocumentInfo<ScopeKind>
     ) {
         const offset = document.offsetAt(this.cursor)
-        this.docInfo = DocumentInfoService.get(document)
         this.scopesAtCursor = this.docInfo.selectScopes(offset)
         this.tokenPos = Token.findNearest(this.docInfo.tokens, offset, 'right')
         this._line = this.newLineBuffer() // initialize last
     }
 
-    static newInstance(
+    static newInstance<ScopeKind extends string>(
         document: TextDocument,
         keyIn: string,
         cursor: Position,
-    ): CompletionContext<string> {
-        return new this(document, keyIn, cursor)
+        docInfo: DocumentInfo<ScopeKind>, // pass here to prevent circular dependency
+    ): CompletionContext<ScopeKind> {
+        return new this(document, keyIn, cursor, docInfo)
     }
 
     get line(): Tape {

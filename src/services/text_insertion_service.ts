@@ -169,7 +169,12 @@ class TextInsertionService {
             const { document } = editor
             const active = editor.selection.active
             const cursor = new Position(active.line, active.character + 1) // adjust for key-in
-            const ctx = CompletionContext.newInstance(document, keyIn, cursor)
+            const ctx = CompletionContext.newInstance(
+                document,
+                keyIn,
+                cursor,
+                DocumentInfoService.get(document),
+            )
             const { completions } = LanguageInfoService.get(document.languageId)
             for (const [trigger, families] of completions) {
                 for (const family of families) {
