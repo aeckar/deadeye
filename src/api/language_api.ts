@@ -2,9 +2,9 @@
 //!
 //! For general utilities related to text manipulation, refer to `text_utils.ts`.
 import Tape from '@/tape'
-import { rebindToMap, sortBy } from '@/utils/collections'
+import { compareBy, rebindToMap } from '@/utils/collections'
 import { ALPHA, DIGIT } from '@/utils/constants'
-import { Direction, Span } from '@/utils/strings'
+import { Direction, hashCode, Span } from '@/utils/strings'
 import { Member } from '@/utils/types'
 
 // =============================================================================================
@@ -129,6 +129,15 @@ export class Token extends Span {
         end: number,
         readonly tag: Tag,
         readonly kind: TokenKind,
+
+        /**
+         * A unique hash to discern whether this token is a bracket.
+         * If it is not, this is set to 0.
+         *
+         * The LSB is 0 for open brackets and 1 for close brackets.
+         *
+         * To derive the open or close form if this token is a bracket, apply a bitwise NOT. */
+        readonly bracketHash: number,
     ) {
         super(begin, end)
     }
@@ -144,14 +153,79 @@ export class Token extends Span {
     static readonly UNKNOWN_KIND: TokenKind = 'UNKNOWN' as TokenKind
     static readonly UNKNOWN_TAG = -1 as Tag
 
+    /**
+     * Searches the array linearly starting at the given index
+     * for the matching close bracket.
+     *
+     * Returns the token, or `undefined` if none is found or this is not an open bracket.
+     */
+    findCloseBracket(tokens: Token[], start: number): Token | undefined {
+        if (!this.isOpenBracket()) {
+            return undefined
+        }
+        const closeHash = ~this
+        let depth = 0
+        for (let idx = start; idx < tokens.length; ++idx) {
+            const token = tokens[idx]
+            if (depth === 0 && token.bracketHash === closeHash) {
+                return token
+            }
+            if (token.isOpenBracket()) {
+                depth += 1
+            } else if (token.isCloseBracket()) {
+                depth -= 1
+            }
+        }
+        return undefined
+    }
+
+    /**
+     * Searches the array linearly backwards starting at the given index
+     * for the matching open bracket.
+     *
+     * Returns the token, or `undefined` if none is found or this is not a close bracket.
+     */
+    findOpenBracket(tokens: Token[], start: number): Token | undefined {
+        if (!this.isCloseBracket()) {
+            return undefined
+        }
+        const openHash = ~this.bracketHash
+        let depth = 0
+        for (let idx = start; idx >= 0; --idx) {
+            const token = tokens[idx]
+            if (depth === 0 && token.bracketHash === openHash) {
+                return token
+            }
+            if (token.isCloseBracket()) {
+                depth += 1
+            } else if (token.isOpenBracket()) {
+                depth -= 1
+            }
+        }
+        return undefined
+    }
+
     static newInstance(begin: number, length: number, tag: Tag, kind: TokenKind) {
-        return new this(begin, begin + length, tag, kind)
+        let bracketHash: number
+        if (kind.startsWith('OPEN_')) {
+            bracketHash = hashCode(kind.slice('OPEN_'.length)) << 1
+        } else if (kind.startsWith('CLOSE_')) {
+            bracketHash = ~(hashCode(kind.slice('CLOSE_'.length)) << 1)
+        } else {
+            bracketHash = 0
+        }
+        return new this(begin, begin + length, tag, kind, bracketHash)
     }
 
     static unknown(begin: number, length: number): Token {
-        return new Token(begin, begin + length, Token.UNKNOWN_TAG, Token.UNKNOWN_KIND)
+        return new this(begin, begin + length, Token.UNKNOWN_TAG, Token.UNKNOWN_KIND, 0)
     }
 
+    /**
+     * Returns true if the token is editable per character.
+     *
+     * This attribute is purposely left uncached to reduce overhead during tokenization.
+     */
     static isEditable(kind: TokenKind): boolean {
         return kind === 'ID' || kind.endsWith('COMMENT')
     }
@@ -207,6 +281,18 @@ export class Token extends Span {
             return tokens.length - 1
         }
         return bias === 'left' ? high : low
+    }
+
+    isBracket(): boolean {
+        return this.bracketHash !== 0
+    }
+
+    isOpenBracket(): boolean {
+        return this.isBracket() && (this.bracketHash & 1) === 0
+    }
+
+    isCloseBracket(): boolean {
+        return this.isBracket() && (this.bracketHash & 1) === 1
     }
 }
 
@@ -399,7 +485,7 @@ export class Language {
             new Map(kwords.map(e => [e.value.toUpperCase() as TokenKind, e])),
             rebindToMap(
                 strings,
-                sortBy(prop => -prop[1].value.length), // parse longer tokens first
+                compareBy(prop => -prop[1].value.length), // parse longer tokens first
             ),
             rebindToMap(patterns),
             rebindToMap(resolvers),

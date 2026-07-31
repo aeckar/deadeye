@@ -59,7 +59,7 @@ class TextDeletionService {
             const overlaps = token.begin < selectionEnd && token.end > selectionBegin
             if (overlaps) {
                 foundOverlap = true
-                if (token.kind !== 'ID') {
+                if (!Token.isEditable(token.kind)) {
                     if (token.begin < minBegin) {
                         minBegin = token.begin
                     }
@@ -119,34 +119,55 @@ class TextDeletionService {
             this.applyCaretDelete(editor, direction)
             return
         }
-
         // between tokens; perform deletion between lines also
         if (direction === 'left') {
             // preserve leading whitespace for indentation
+            if (token.isOpenBracket()) {
+                const close = token.findCloseBracket(tokens, idx + 1)
+                if (close) {
+                    await rel.delete(token.begin, close.end, editor)
+                    return
+                }
+            }
+            if (token.isCloseBracket()) {
+                const open = token.findOpenBracket(tokens, idx - 1)
+                if (open) {
+                    await rel.delete(open.begin, cursor, editor)
+                    return
+                }
+            }
             const tape = Tape.over(text, cursor)
             const ws = tape.consumeWs().length
             if (tape.isAtLineSep()) {
                 // no tokens right of cursor in current line; delete trailing whitespace
                 await rel.delete(token.begin, cursor + ws, editor)
-            } else {
-                await rel.delete(token.begin, cursor, editor)
+                return
             }
-        } else {
-            //todo create snippets on the fly!
-
-            //todo fix indentation delete
-            //todo if last in line is OPEN_ (or COLON and langId == 'python'),
-            //todo  then find next non blank line, extract indent, then delete such
-            //todo  that the current line is now 1 indent less than that
-            const tape = Tape.over(text, token.end)
-            const ws = tape.consumeWs().length
-            if (tape.isAtLineSep()) {
-                // deleting token leaves cursor at end of line; strip leading whitespace
-                await rel.delete(cursor, token.end + ws, editor)
-            } else {
-                await rel.delete(cursor, token.end, editor)
+            await rel.delete(token.begin, cursor, editor)
+            return
+        }
+        if (token.isOpenBracket()) {
+            const close = token.findCloseBracket(tokens, idx + 1)
+            if (close) {
+                await rel.delete(cursor, close.end, editor)
+                return
             }
         }
+        if (token.isCloseBracket()) {
+            const open = token.findOpenBracket(tokens, idx - 1)
+            if (open) {
+                await rel.delete(open.begin, token.end, editor)
+                return
+            }
+        }
+        const tape = Tape.over(text, token.end)
+        const ws = tape.consumeWs().length
+        if (tape.isAtLineSep()) {
+            // deleting token leaves cursor at end of line; strip leading whitespace
+            await rel.delete(cursor, token.end + ws, editor)
+            return
+        }
+        await rel.delete(cursor, token.end, editor)
     }
 
     /**

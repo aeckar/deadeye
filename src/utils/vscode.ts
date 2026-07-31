@@ -36,6 +36,10 @@ export class DocumentContext {
 
     /** Returns the absolute `Selection` for the given offsets. */
     selection(begin: number, end: number = begin): Selection {
+        if (begin === end) {
+            const pos = this.pos(begin) // resolve once
+            return new Selection(pos, pos)
+        }
         return new Selection(this.pos(begin), this.pos(end))
     }
 

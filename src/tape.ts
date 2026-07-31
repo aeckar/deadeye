@@ -100,9 +100,25 @@ export default class Tape {
         return new Tape(this.raw, this.pos, this.isReversed, this.idRule)
     }
 
-    /** Returns a new instance over the remaining string, reversed. */
+    /**
+     * Returns a new instance over the original string,
+     * reversed and with the position reset to zero (the last position in the original sequence).
+     * 
+     * @see {@link pinReversed}
+     */
     reversed(): Tape {
-        return new Tape(reverse(this.rest()), 0, true, this.idRule)
+        return new Tape(reverse(this.raw), this.raw.length - this.pos, true, this.idRule)
+    }
+
+    /**
+     * Returns a new instance over the remaining string, reversed.
+     * 
+     * Preserves the character pointed to in the returned instance.
+     * 
+     * @see {@link reversed}
+     */
+    pinReversed(): Tape {
+        return new Tape(reverse(this.raw), this.raw.length - this.pos - 1, true, this.idRule)
     }
 
     // =========================================================================================

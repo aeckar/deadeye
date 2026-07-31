@@ -17,6 +17,8 @@ const processDocument = (text: string): Tokens => { ... };
 - **Arrow Functions:** Reserve arrow functions for closures capturing scope variables, callback parameters, or implementing inline closure types
 - **Internal Helper Functions:** Place inner/nested helper functions at the very end of the containing function body to keep the primary logic prominent for readability
 - **Closure Arguments:** Arguments passed to closures for basic functional operations (e.g. `map`, `find`, `filter`) should be named a single letter. This includes destructured arguments, but does not apply when arguments are of different types
+- **Return Types:** All functions should have an explicit return type, except for `void`
+- **Unbound Closures:** Class methods should never be passed as closures, to prevent bugs where the closure expects a `this` argument
 
 ## 2. Object-Oriented Patterns & Types
 
@@ -76,3 +78,13 @@ const processDocument = (text: string): Tokens => { ... };
 ++idx // Prefer
 idx++ // Avoid
 ```
+
+## 7. Comments
+
+- Comments are divided into five groups
+
+region dividers
+region headers
+inline comments -- can be capitalized for multi-line
+footnotes
+doc comments

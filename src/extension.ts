@@ -9,7 +9,7 @@ import TextDeletionService from '@/services/text_deletion_service'
 import TextInsertionService from '@/services/text_insertion_service'
 import TokenExplorerService from '@/services/token_explorer_service'
 
-const logger = window.createOutputChannel('Your Extension Name')
+export const logger = window.createOutputChannel('Your Extension Name')
 
 /**
  * Extension initializer.

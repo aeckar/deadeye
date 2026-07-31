@@ -105,13 +105,15 @@ class TokenTreeDataProvider implements TreeDataProvider<TokenTreeItem> {
             const token = this.items[mid].token
             if (offset < token.begin) {
                 hi = mid - 1
-            } else if (offset >= token.end) {
-                lo = mid + 1
-            } else {
-                return this.items[mid]
+                continue
             }
+            if (offset >= token.end) {
+                lo = mid + 1
+                continue
+            }
+            return this.items[mid]
         }
-        return undefined
+        return hi >= 0 ? this.items[hi] : undefined // fallback to closest to the left
     }
 }
 

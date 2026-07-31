@@ -3,7 +3,7 @@ import { ScopeRegistry } from '@/api/scope_api'
 import Scope from '@/scope'
 import Tape from '@/tape'
 import { ExtensionContext, TextDocument, TextDocumentContentChangeEvent, workspace } from 'vscode'
-import IntervalTreeService, { IntervalTree, itemsAt } from './interval_tree_service'
+import IntervalTreeService, { IntervalTree } from './interval_tree_service'
 import LanguageInfoService from './language_info_service'
 
 /** Contains a cache of useful information for a given text document. */
@@ -78,10 +78,9 @@ export class DocumentInfo<ScopeKind extends string> {
         lang.tokenize(Tape.over(text, resumeOffset, lang.idRule), tokens)
     }
 
-    getScopeBreadcrumbs(offset: number): string[] {
-        const activeScopes = itemsAt(this.scopes, offset)
-        activeScopes.sort((a, b) => a.begin - b.begin)
-        return activeScopes.map(scope => scope.kind)
+    /** Returns an array of scopes at this offset, sorted by their begin index. */
+    selectScopes(offset: number): Scope<ScopeKind>[] {
+        return this.scopes.search([offset, offset + 1]).sort((a, b) => a.begin - b.begin)
     }
 }
 

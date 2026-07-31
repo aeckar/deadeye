@@ -1,4 +1,4 @@
-import { RecordSubset, JsKey } from './types'
+import { JsKey, RecordSubset } from './types'
 
 /**
  * Collects each key-value pair in the given object and yields each preceded by its index.
@@ -85,6 +85,6 @@ export function rebindToMap<K extends JsKey, V>(
  *
  * @see {@link rebindToMap}
  */
-export function sortBy<T>(keyMap: (entry: T) => number): Comparator<T> {
+export function compareBy<T>(keyMap: (entry: T) => number): Comparator<T> {
     return (cur, next) => keyMap(cur) - keyMap(next)
 }

@@ -41,7 +41,9 @@ export class ScopeBreadcrumbsService {
             return
         }
         const offset = document.offsetAt(editor.selection.active)
-        const breadcrumbs = DocumentInfoService.get(document).getScopeBreadcrumbs(offset)
+        const breadcrumbs = DocumentInfoService.get(document)
+            .selectScopes(offset)
+            .map(e => e.kind)
         if (breadcrumbs.length === 0) {
             this.statusBarItem.hide()
             return

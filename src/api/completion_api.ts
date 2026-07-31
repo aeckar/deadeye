@@ -5,7 +5,6 @@ import { MarkdownString, Position, Range, TextDocument, window } from 'vscode'
 
 import Scope from '@/scope'
 import DocumentInfoService, { DocumentInfo } from '@/services/document_info_service'
-import { itemsAt } from '@/services/interval_tree_service'
 import Tape from '@/tape'
 import { md } from '@/utils/diagnostics'
 import { reverse } from '@/utils/strings'
@@ -387,18 +386,24 @@ export class CompletionContext<ScopeKind extends string> {
     readonly docInfo: DocumentInfo<ScopeKind>
     readonly tokenPos: number
 
-    constructor(
+    private constructor(
         document: TextDocument,
         protected readonly keyIn: string,
         readonly cursor: Position,
     ) {
-        const idx = document.offsetAt(this.cursor)
-        this._line = this.newLineBuffer()
+        const offset = document.offsetAt(this.cursor)
         this.docInfo = DocumentInfoService.get(document)
-        this.scopesAtCursor = (itemsAt(this.docInfo.scopes, idx) as Scope<ScopeKind>[]).sort(
-            (a, b) => a.begin - b.begin,
-        )
-        this.tokenPos = Token.findNearest(this.docInfo.tokens, idx, 'right')
+        this.scopesAtCursor = this.docInfo.selectScopes(offset)
+        this.tokenPos = Token.findNearest(this.docInfo.tokens, offset, 'right')
+        this._line = this.newLineBuffer() // initialize last
+    }
+
+    static newInstance(
+        document: TextDocument,
+        keyIn: string,
+        cursor: Position,
+    ): CompletionContext<string> {
+        return new this(document, keyIn, cursor)
     }
 
     get line(): Tape {
@@ -410,7 +415,7 @@ export class CompletionContext<ScopeKind extends string> {
     }
 
     resetLine() {
-        this.newLineBuffer()
+        this._line = this.newLineBuffer()
     }
 
     private newLineBuffer(): Tape {
@@ -450,7 +455,7 @@ export class CompletionContext<ScopeKind extends string> {
      */
     isNearestScope(kind: ScopeKind | readonly ScopeKind[]): boolean {
         if (typeof kind !== 'string') {
-            return kind.some(this.isNearestScope)
+            return kind.some(e => this.isNearestScope(e))
         }
         return this.scopesAtCursor.at(-1)?.kind === kind
     }
@@ -458,7 +463,7 @@ export class CompletionContext<ScopeKind extends string> {
 
 /** Created and stored after a shorthand is matched, and recalled once the trigger is pressed. */
 export class CompletionStrategy {
-    constructor(
+    private constructor(
         readonly family: CompletionFamily<string>,
         readonly trigger: Trigger,
         readonly completion: Completion,
@@ -466,6 +471,15 @@ export class CompletionStrategy {
         /** The position of the cursor the instance this object was created. */
         readonly pos: Position,
     ) {}
+
+    static newInstance(
+        family: CompletionFamily<string>,
+        trigger: Trigger,
+        completion: Completion,
+        pos: Position,
+    ): CompletionStrategy {
+        return new this(family, trigger, completion, pos)
+    }
 
     /** Returns the Markdown string for the completion preview, with placeholders made fancy. */
     preview(): MarkdownString {

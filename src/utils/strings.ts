@@ -44,3 +44,14 @@ export class Span {
         return idx >= this.begin && idx < this.end
     }
 }
+
+/** Returns a hash of the string using the FNV-1a 32-bit algorithm.  */
+export function hashCode(s: string): number {
+    let hash = 0x811c9dc5 // FNV-1a 32-bit offset basis
+    for (let i = 0; i < s.length; i++) {
+        hash ^= s.charCodeAt(i)
+        // multiply by FNV-1a 32-bit prime (0x01000193) using bitwise shifts
+        hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24)
+    }
+    return hash >>> 0 // convert to unsigned 32-bit integer
+}

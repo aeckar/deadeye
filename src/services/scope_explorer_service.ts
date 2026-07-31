@@ -118,6 +118,12 @@ class ScopeTreeDataProvider implements TreeDataProvider<ScopeTreeItem> {
                 return this.findDeepestItem(item.children, offset) ?? item
             }
         }
+        for (const item of items) {
+            // fallback to closest to the left (captures last index)
+            if (offset >= item.scope.begin && offset <= item.scope.end) {
+                return this.findDeepestItem(item.children, offset) ?? item
+            }
+        }
         return undefined
     }
 
