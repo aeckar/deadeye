@@ -183,7 +183,7 @@ class TextInsertionService {
                     try {
                         completion = family.resolver(ctx)
                     } catch (e) {
-                        logger.appendLine(`[Error] Exception while resolving completion: ${e}`)
+                        logger.error(`Exception while resolving completion: ${e}`)
                     }
                     if (!completion) {
                         continue
@@ -198,7 +198,7 @@ class TextInsertionService {
                 }
             }
         } catch (e) {
-            logger.appendLine(`[Error] Exception while updating strategy: ${e}`)
+            logger.error(`Exception while updating strategy: ${e}`)
         }
         return false
     }

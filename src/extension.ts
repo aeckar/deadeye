@@ -1,10 +1,6 @@
 //! Extension entry point.
 import { ExtensionContext, window } from 'vscode'
 
-import rustCompletions from '@/lang/rust/completion_registry'
-import rustLanguage from '@/lang/rust/language'
-import rustScopes from '@/lang/rust/scope_registry'
-import LanguageInfo from '@/language_info'
 import { logger } from '@/logger'
 import IntervalTreeService from '@/services/interval_tree_service'
 import LanguageInfoService from '@/services/language_info_service'
@@ -13,6 +9,7 @@ import ScopeExplorerService from '@/services/scope_explorer_service'
 import TextDeletionService from '@/services/text_deletion_service'
 import TextInsertionService from '@/services/text_insertion_service'
 import TokenExplorerService from '@/services/token_explorer_service'
+import { EXTENSION_NAME } from '@/utils/constants'
 
 /**
  * Extension initializer.
@@ -31,16 +28,12 @@ export async function activate(context: ExtensionContext) {
             TokenExplorerService.start(context),
             ScopeExplorerService.start(context),
         ])
-        LanguageInfoService.set(
-            'rust',
-            LanguageInfo.newInstance(rustCompletions, rustLanguage, rustScopes),
-        )
-        logger.appendLine('[Info] Extension activated successfully.')
+        logger.info('Extension activated successfully.')
     } catch (e) {
         console.error('Activation Error:', e)
-        logger.appendLine(`[Error] Activation failed: ${e}`)
+        logger.error(`Activation failed: ${e}`)
         const choice = await window.showErrorMessage(
-            'Failed to initialize Deadeye. Check Output logs for details.',
+            `Failed to initialize ${EXTENSION_NAME}. Check Output logs for details.`,
             'Show Logs',
         )
         if (choice === 'Show Logs') {
@@ -51,5 +44,5 @@ export async function activate(context: ExtensionContext) {
 
 /** Extension cleanup. */
 export function deactivate() {
-    logger.appendLine('[Info] Extension deactivated successfully.')
+    logger.info('Extension deactivated successfully.')
 }

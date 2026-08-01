@@ -1,6 +1,7 @@
 import eslint from '@eslint/js'
-import tseslint from 'typescript-eslint'
 import eslintConfigPrettier from 'eslint-config-prettier'
+import tsimport from 'eslint-plugin-import-typescript'
+import tseslint from 'typescript-eslint'
 
 export default [
     eslint.configs.recommended,
@@ -8,6 +9,7 @@ export default [
     {
         files: ['**/*.ts'],
         plugins: {
+            '@import-typescript': tsimport,
             '@typescript-eslint': tseslint.plugin,
         },
         languageOptions: {
@@ -38,6 +40,8 @@ export default [
                     format: ['camelCase', 'PascalCase'],
                 },
             ],
+
+            '@import-typescript/no-relative-import': ['error', { onlyPathAliases: false }],
 
             // Does not support exception for `void`
             // '@typescript-eslint/explicit-function-return-type': 'warn',

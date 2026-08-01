@@ -2,6 +2,9 @@ import { select } from '@/utils/collections'
 import { escapeRegex } from '@/utils/strings'
 import LanguageInfo from '@/language_info'
 import { logger } from '@/logger'
+import rustCompletions from '@/lang/rust/completion_registry'
+import rustLanguage from '@/lang/rust/language'
+import rustScopes from '@/lang/rust/scope_registry'
 
 class LanguageInfoService {
     /** Must be populated in service initializer */
@@ -9,12 +12,18 @@ class LanguageInfoService {
 
     private constructor() {}
 
-    static async start() {}
+    /**
+     * Supported languages must be declared here so that the explorer services
+     * can perform an initial run.
+     */
+    static async start() {
+        this.set('rust', LanguageInfo.newInstance(rustCompletions, rustLanguage, rustScopes))
+    }
 
     /** Declares a supported language. */
-    static set(langId: string, info: LanguageInfo) {
+    private static set(langId: string, info: LanguageInfo) {
         if (this._languages.has(langId)) {
-            logger.appendLine(`[Warn] Support for language '${langId}' declared again`)
+            logger.warn(`Support for language '${langId}' declared again`)
         }
         this._languages.set(langId, info)
     }

@@ -27,7 +27,7 @@ import { Token } from '@/api/language_api'
 import rustLanguage from '@/lang/rust/language'
 import rustScopes from '@/lang/rust/scope_registry'
 import { Scope } from '@/scope'
-import { itemsAt } from '@/services/interval_tree_service'
+import IntervalTreeService, { itemsAt } from '@/services/interval_tree_service'
 import * as assert from 'assert'
 
 /** Collect all tokens from the stream into a plain array of kind strings. */
@@ -296,6 +296,10 @@ suite('Rust Tokenizer', () => {
 })
 
 suite('Rust Scope Stream', () => {
+    suiteSetup(async () => {
+        await IntervalTreeService.start()
+    })
+
     async function parse(src: string) {
         return rustScopes.extractScopes(rustLanguage.tokenize(src))
     }

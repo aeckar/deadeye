@@ -147,7 +147,7 @@ export class Boundaries {
                 try {
                     tag = lang.tagForKind(entry)!
                 } catch (e) {
-                    logger.appendLine(`[Error] Language does not contain token '${entry}'`)
+                    logger.error(`Language does not contain token '${entry}'`)
                     throw e
                 }
                 boundaryMarkers.push(new Boundaries(tag, tag))
@@ -325,7 +325,7 @@ export class ScopeRegistry<ScopeKind extends string> {
      * checked for a match to a scope marker.
      */
     extractScopes(tokens: readonly Token[]): IntervalTree<Scope<ScopeKind>> {
-        const stream = new ScopeStream<ScopeKind>(tokens)
+        const stream = ScopeStream.newInstance<ScopeKind>(tokens)
         while (!stream.isExhausted()) {
             for (const query of this.entries) {
                 if (stream.parse(query)) break
@@ -438,9 +438,13 @@ export class ScopeStream<ScopeKind extends string> {
     /** Permitted to be mutable when passed to predicates. */
     readonly unclosed: UnclosedScope<ScopeKind>[]
 
-    constructor(readonly tokens: readonly Token[]) {
+    private constructor(readonly tokens: readonly Token[]) {
         this.closed = IntervalTreeService.newInstance<Scope<ScopeKind>>()
         this.unclosed = []
+    }
+
+    static newInstance<ScopeKind extends string>(tokens: readonly Token[]): ScopeStream<ScopeKind> {
+        return new this<ScopeKind>(tokens)
     }
 
     toString(): string {
