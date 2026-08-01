@@ -296,10 +296,11 @@ export class CompletionContext<ScopeKind extends string> {
     }
 
     private newLineBuffer(): Tape {
+        const { document, langInfo } = this.docInfo
         return Tape.over(
-            this.docInfo.document.lineAt(this.cursor.line).text + this.keyIn,
+            document.lineAt(this.cursor.line).text + this.keyIn,
             0,
-            this.docInfo.language.idRule,
+            langInfo.language.idRule,
         )
     }
 

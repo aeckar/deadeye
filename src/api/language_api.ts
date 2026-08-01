@@ -348,18 +348,7 @@ export class Language {
             this.idRule,
         )
     }
-
-    /**
-     * Returns true if the language for the given ID has all of the following:
-     *
-     * - Completion registry
-     * - Scope registry
-     * - `Language` implementation
-     */
-    static isSupported(langId: string): boolean {
-        return langId === 'rust'
-    }
-
+    
     /**
      * Returns a map of name-capture entries for each token.
      *

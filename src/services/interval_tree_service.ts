@@ -81,9 +81,9 @@ class IntervalTreeService {
         if (this.isActive) {
             return
         }
+        this.isActive = true
         const module = await import('@flatten-js/interval-tree')
         IntervalTreeService.CLASS = module.default
-        this.isActive = true
     }
 
     public static newInstance<V>(): IntervalTree<V> {

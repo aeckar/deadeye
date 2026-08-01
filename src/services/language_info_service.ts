@@ -7,10 +7,10 @@ import rustLanguage from '@/lang/rust/language'
 import rustScopes from '@/lang/rust/scope_registry'
 
 class LanguageInfoService {
-    private static isActive: boolean = false
+    private static isActive = false
 
     /** Must be populated in service initializer */
-    private static _languages: Map<string, LanguageInfo> = new Map()
+    private static _languages: Map<string, LanguageInfo<string>> = new Map()
 
     private constructor() {}
 
@@ -22,25 +22,38 @@ class LanguageInfoService {
         if (this.isActive) {
             return
         }
-        this.set('rust', LanguageInfo.newInstance(rustCompletions, rustLanguage, rustScopes))
         this.isActive = true
+        this.set(
+            'rust',
+            LanguageInfo.newInstance(
+                rustCompletions,
+                rustLanguage,
+                rustScopes,
+            ) as LanguageInfo<string>,
+        )
     }
 
     /** Declares a supported language. */
-    private static set(langId: string, info: LanguageInfo) {
+    private static set(langId: string, info: LanguageInfo<string>) {
         if (this._languages.has(langId)) {
             logger.warn(`Support for language '${langId}' declared again`)
         }
         this._languages.set(langId, info)
     }
 
-    /** Returns information pertaining to all supported languages. */
-    static get(langId: string): LanguageInfo {
+    /**
+     * Returns information about the given language.
+     *
+     * It is the responsibility of the caller to ensure the correct type for `ScopeKind`.
+     *
+     * Returns `undefined` if the language of the active document is unsupported.
+     */
+    static get<ScopeKind extends string>(langId: string): LanguageInfo<ScopeKind> | undefined {
         const langInfo = this._languages.get(langId)
         if (!langInfo) {
-            throw new Error(`'${langId}' is not a supported language`)
+            return undefined
         }
-        return langInfo
+        return langInfo as unknown as LanguageInfo<ScopeKind>
     }
 
     static *select(pattern: string | RegExp) {

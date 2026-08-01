@@ -1,10 +1,12 @@
 import { Language, Token } from '@/api/language_api'
 import { ScopeRegistry } from '@/api/scope_api'
+import { logger } from '@/logger'
 import Scope from '@/scope'
 import { IntervalTree } from '@/services/interval_tree_service'
 import Tape from '@/tape'
+import { DocumentContext } from '@/utils/vscode'
 import { LogLevel, TextDocument, TextDocumentContentChangeEvent } from 'vscode'
-import { logger } from '@/logger'
+import LanguageInfo from '@/language_info'
 
 export type AsiResolver = (tokens: Token[]) => void
 
@@ -15,22 +17,22 @@ class DocumentInfo<ScopeKind extends string> {
     private _text?: string
     private _version: number
 
+    /** Persistent document context object, cached to reduce garbage collection. */
+    readonly context: DocumentContext
+
     private constructor(
         readonly document: TextDocument,
-        readonly language: Language,
-        readonly scopeRegistry: ScopeRegistry<ScopeKind>,
-        private readonly asi: AsiResolver | undefined,
+        readonly langInfo: LanguageInfo<ScopeKind>,
     ) {
         this._version = document.version
+        this.context = DocumentContext.newInstance(document)
     }
 
     static newInstance<ScopeKind extends string>(
         document: TextDocument,
-        language: Language,
-        scopeRegistry: ScopeRegistry<ScopeKind>,
-        asi: AsiResolver | undefined,
+        langInfo: LanguageInfo<ScopeKind>,
     ): DocumentInfo<ScopeKind> {
-        return new this<ScopeKind>(document, language, scopeRegistry, asi)
+        return new this<ScopeKind>(document, langInfo)
     }
 
     /** The exact version of the content buffer, including undo/redo. */
@@ -48,35 +50,38 @@ class DocumentInfo<ScopeKind extends string> {
 
     /** Returns an array of every token in this file. */
     get tokens(): readonly Token[] {
-        const start = performance.now()
         if (!this._tokens) {
-            this._tokens = this.language.tokenize(this.text)
-            if (this.asi) {
-                this.asi(this._tokens)
+            const text = this.text // rehydrated
+            const start = performance.now()
+            const { language, asi } = this.langInfo
+            this._tokens = language.tokenize(text)
+            const t = (performance.now() - start).toFixed(2)
+            if (logger.logLevel === LogLevel.Info) {
+                logger.info(
+                    `${this.document.fileName}: Parsed ${this._tokens.length} tokens in ${t}ms `,
+                )
+            }
+            if (asi) {
+                asi(this._tokens)
             }
         }
-        const tokens = this._tokens!
-        if (logger.logLevel === LogLevel.Info) {
-            const t = (performance.now() - start).toFixed(2)
-            logger.info(`${this.document.fileName}: Parsed ${tokens.length} tokens in ${t}ms `)
-        }
-        return tokens
+        return this._tokens!
     }
 
     /** Returns an interval tree of every found scope in this file. */
     get scopes(): IntervalTree<Scope<ScopeKind>> {
-        const start = performance.now()
         if (!this._scopes) {
-            this._scopes = this.scopeRegistry.extractScopes(this.tokens)
-        }
-        const scopes = this._scopes!
-        if (logger.logLevel === LogLevel.Info) {
+            const tokens = this.tokens // rehydrated
+            const start = performance.now()
+            this._scopes = this.langInfo.scopes.extractScopes(tokens)
             const t = (performance.now() - start).toFixed(2)
-            logger.info(
-                `${this.document.fileName}: Parsed ${scopes.items.length} scopes in ${t}ms `,
-            )
+            if (logger.logLevel === LogLevel.Info) {
+                logger.info(
+                    `${this.document.fileName}: Parsed ${this._scopes.items.length} scopes in ${t}ms `,
+                )
+            }
         }
-        return scopes
+        return this._scopes!
     }
 
     registerChanges(changes: readonly TextDocumentContentChangeEvent[]) {
@@ -103,8 +108,15 @@ class DocumentInfo<ScopeKind extends string> {
             }
         }
         tokens.length = resumeIdx
-        const lang = this.language
+        const lang = this.langInfo.language
+        const start = performance.now()
         lang.tokenize(Tape.over(text, resumeOffset, lang.idRule), tokens)
+        const t = (performance.now() - start).toFixed(2)
+        if (logger.logLevel === LogLevel.Info) {
+            logger.info(
+                `${this.document.fileName}: Parsed ${tokens.length - resumeIdx} tokens in ${t}ms `,
+            )
+        }
     }
 
     /** Returns an array of scopes at this offset, sorted by their begin index. */

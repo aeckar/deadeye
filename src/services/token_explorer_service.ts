@@ -94,6 +94,9 @@ class TokenTreeDataProvider implements TreeDataProvider<TokenTreeItem> {
             return []
         }
         const docInfo = DocumentInfoService.get(document)
+        if (!docInfo) {
+            return []
+        }
         return docInfo.tokens.map(e => TokenTreeItem.newInstance(e, docInfo))
     }
 
@@ -128,13 +131,14 @@ class TokenExplorerService {
         if (this.isActive) {
             return
         }
+        this.isActive = true
         await DocumentInfoService.start(ctx)
         const treeView = window.createTreeView('tokenExplorer', {
             treeDataProvider: this.treeDataProvider,
         })
         this.treeDataProvider.treeView = treeView
-
         ctx.subscriptions.push(
+            // Derive tree data from tree view
             treeView,
 
             // Jump to token in active document
@@ -143,9 +147,9 @@ class TokenExplorerService {
                 if (!editor) {
                     return
                 }
-                const rel = DocumentContext.newInstance(editor.document)
-                const begin = rel.pos(token.begin)
-                const end = rel.pos(token.end)
+                const ctx = DocumentContext.newInstance(editor.document)
+                const begin = ctx.pos(token.begin)
+                const end = ctx.pos(token.end)
                 editor.selection = new Selection(begin, end)
                 editor.revealRange(new Range(begin, end))
             }),
@@ -165,7 +169,6 @@ class TokenExplorerService {
                 this.treeDataProvider.revealActiveItem(event.textEditor),
             ),
         )
-        this.isActive = true
     }
 }
 

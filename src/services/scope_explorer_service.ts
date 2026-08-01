@@ -1,4 +1,3 @@
-import { Language } from '@/api/language_api'
 import DocumentInfo from '@/document_info'
 import { Scope } from '@/scope'
 import DocumentInfoService from '@/services/document_info_service'
@@ -91,7 +90,7 @@ class ScopeTreeDataProvider implements TreeDataProvider<ScopeTreeItem> {
     }
 
     revealActiveItem(editor: TextEditor) {
-        if (!this.treeView || !Language.isSupported(editor.document.languageId)) {
+        if (!this.treeView || !DocumentInfoService.get(editor.document)) {
             return
         }
         const offset = editor.document.offsetAt(editor.selection.active)
@@ -106,10 +105,13 @@ class ScopeTreeDataProvider implements TreeDataProvider<ScopeTreeItem> {
     }
 
     private getRootItems(document: TextDocument | undefined): ScopeTreeItem[] {
-        if (!document || !Language.isSupported(document.languageId)) {
+        if (!document) {
             return []
         }
         const docInfo = DocumentInfoService.get(document)
+        if (!docInfo) {
+            return []
+        }
         return ScopeTreeDataProvider.buildItemTree(docInfo.scopes.items.map(e => e.value))
     }
 
@@ -133,8 +135,14 @@ class ScopeTreeDataProvider implements TreeDataProvider<ScopeTreeItem> {
         const sorted = [...scopes].sort((a, b) => a.begin - b.begin || b.end - a.end)
         const roots: ScopeTreeItem[] = []
         const stack: ScopeTreeItem[] = []
-        const document = window.activeTextEditor!.document
+        const document = window.activeTextEditor?.document
+        if (!document) {
+            return []
+        }
         const docInfo = DocumentInfoService.get(document)
+        if (!docInfo) {
+            return []
+        }
         for (const scope of sorted) {
             while (stack.length && stack[stack.length - 1].scope.end <= scope.begin) {
                 stack.pop()
@@ -171,12 +179,12 @@ class ScopeExplorerService {
         if (this.isActive) {
             return
         }
+        this.isActive = true
         await DocumentInfoService.start(ctx)
         const treeView = window.createTreeView('scopeExplorer', {
             treeDataProvider: this.treeDataProvider,
         })
         this.treeDataProvider.treeView = treeView
-
         ctx.subscriptions.push(
             // Derive tree data from tree view
             treeView,
@@ -187,9 +195,9 @@ class ScopeExplorerService {
                 if (!editor) {
                     return
                 }
-                const rel = DocumentContext.newInstance(editor.document)
-                const begin = rel.pos(scope.begin)
-                const end = rel.pos(scope.end)
+                const ctx = DocumentContext.newInstance(editor.document)
+                const begin = ctx.pos(scope.begin)
+                const end = ctx.pos(scope.end)
                 editor.selection = new Selection(begin, end)
                 editor.revealRange(new Range(begin, end))
             }),
@@ -209,7 +217,6 @@ class ScopeExplorerService {
                 this.treeDataProvider.revealActiveItem(event.textEditor),
             ),
         )
-        this.isActive = true
     }
 }
 

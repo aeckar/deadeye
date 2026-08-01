@@ -1,4 +1,3 @@
-import { Language } from '@/api/language_api'
 import DocumentInfoService from '@/services/document_info_service'
 import { BREADCRUMB_SEP } from '@/utils/constants'
 import { ExtensionContext, StatusBarAlignment, TextEditor, window } from 'vscode'
@@ -11,6 +10,7 @@ class ScopeBreadcrumbsService {
         if (this.isActive) {
             return
         }
+        this.isActive = true
         await DocumentInfoService.start(ctx)
         this.updateBreadcrumbs(window.activeTextEditor)
         ctx.subscriptions.push(
@@ -27,22 +27,24 @@ class ScopeBreadcrumbsService {
                 this.updateBreadcrumbs(editor)
             }),
         )
-        this.isActive = true
+        this.statusBarItem.tooltip = 'Current Scope Hierarchy'
     }
 
     private static updateBreadcrumbs(editor: TextEditor | undefined) {
         if (!editor) {
+            // no active editor
             this.statusBarItem.hide()
             return
         }
         const { document } = editor
-        if (!Language.isSupported(document.languageId)) {
+        const offset = document.offsetAt(editor.selection.active)
+        const docInfo = DocumentInfoService.get(document)
+        if (!docInfo) {
             // unsupported language
             this.statusBarItem.hide()
             return
         }
-        const offset = document.offsetAt(editor.selection.active)
-        const breadcrumbs = DocumentInfoService.get(document)
+        const breadcrumbs = docInfo
             .selectScopes(offset)
             .map(e => e.kind)
         if (breadcrumbs.length === 0) {
@@ -50,7 +52,6 @@ class ScopeBreadcrumbsService {
             return
         }
         this.statusBarItem.text = `$(symbol-class) ${breadcrumbs.join(` ${BREADCRUMB_SEP} `)}`
-        this.statusBarItem.tooltip = 'Current Scope Hierarchy'
         this.statusBarItem.show()
     }
 }

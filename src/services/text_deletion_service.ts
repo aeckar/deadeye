@@ -22,6 +22,7 @@ class TextDeletionService {
         if (this.isActive) {
             return
         }
+        this.isActive = true
         await DocumentInfoService.start(ctx)
         ctx.subscriptions.push(
             // Smart backspace key
@@ -34,7 +35,6 @@ class TextDeletionService {
                 this.applySmartDelete(editor, 'right')
             }),
         )
-        this.isActive = true
     }
 
     static async applySmartDelete(editor: TextEditor, direction: Direction) {
@@ -47,18 +47,26 @@ class TextDeletionService {
 
     static async applySmartSelectionDelete(editor: TextEditor) {
         const { document, selection } = editor
-        const { tokens } = DocumentInfoService.get(document)
+        const docInfo = DocumentInfoService.get(document)
+        if (!docInfo) {
+            await editor.edit(editBuilder => {
+                editBuilder.delete(selection)
+            })
+            return
+        }
+        const { tokens, context } = docInfo
         const selectionBegin = document.offsetAt(selection.start)
+        const begin = Token.findNearest(tokens, selectionBegin, 'right')
+        if (begin === -1) {
+            await editor.edit(editBuilder => {
+                editBuilder.delete(selection)
+            })
+            return
+        }
         const selectionEnd = document.offsetAt(selection.end)
         let minBegin = selectionBegin
         let maxEnd = selectionEnd
         let foundOverlap = false
-        const begin = Token.findNearest(tokens, selectionBegin, 'right')
-        const rel = DocumentContext.newInstance(document)
-        if (begin === -1) {
-            await rel.delete(minBegin, maxEnd, editor)
-            return
-        }
         for (let idx = begin; idx < tokens.length; ++idx) {
             const tok = tokens[idx]
             const overlaps = tok.begin < selectionEnd && tok.end > selectionBegin
@@ -84,18 +92,22 @@ class TextDeletionService {
                 break
             }
         }
-        await rel.delete(minBegin, maxEnd, editor)
+        await context.delete(minBegin, maxEnd, editor)
     }
 
     static async applySmartCaretDelete(editor: TextEditor, direction: Direction) {
         const { document, selection } = editor
         const offset = document.offsetAt(selection.active)
-        const rel = DocumentContext.newInstance(document)
-        const { tokens, text } = DocumentInfoService.get(document)
+        const docInfo = DocumentInfoService.get(document)
+        if (!docInfo) {
+            this.applyCaretDelete(editor, direction, DocumentContext.newInstance(document))
+            return
+        }
+        const { tokens, text, context } = docInfo
         let idx = Token.findNearest(tokens, offset, direction)
         if (idx === -1) {
             // no tokens; delete all whitespace
-            await rel.delete(0, text.length, editor)
+            await context.delete(0, text.length, editor)
             return
         }
         let tok = tokens[idx]
@@ -109,18 +121,18 @@ class TextDeletionService {
             // no tokens right of cursor; delete trailing whitespace
             const tape = Tape.over(text, offset)
             tape.putBack(ch => ch === '\n' || ch === '\r' || Tape.isWs(ch))
-            await rel.delete(tape.pos + 1, text.length, editor)
+            await context.delete(tape.pos + 1, text.length, editor)
             return
         }
         if (direction === 'left' && tok.begin > offset) {
             // no tokens left of cursor; delete leading whitespace
             const tape = Tape.over(text, offset)
             tape.consume(ch => ch === '\n' || ch === '\r' || Tape.isWs(ch))
-            await rel.delete(0, tape.pos, editor)
+            await context.delete(0, tape.pos, editor)
             return
         }
         if (Token.isEditable(tok.kind)) {
-            this.applyCaretDelete(editor, direction)
+            this.applyCaretDelete(editor, direction, context)
             return
         }
         // between tokens; perform deletion between lines also
@@ -129,14 +141,14 @@ class TextDeletionService {
             if (tok.isOpenBracket()) {
                 const close = tokens[tok.findCloseBracket(tokens, idx + 1)]
                 if (close) {
-                    await rel.delete(tok.begin, close.end, editor)
+                    await context.delete(tok.begin, close.end, editor)
                     return
                 }
             }
             if (tok.isCloseBracket()) {
                 const open = tokens[tok.findOpenBracket(tokens, idx - 1)]
                 if (open) {
-                    await rel.delete(open.begin, offset, editor)
+                    await context.delete(open.begin, offset, editor)
                     return
                 }
             }
@@ -144,23 +156,23 @@ class TextDeletionService {
             const ws = tape.consumeWs().length
             if (tape.isAtLineSep()) {
                 // no tokens right of cursor in current line; delete trailing whitespace
-                await rel.delete(tok.begin, offset + ws, editor)
+                await context.delete(tok.begin, offset + ws, editor)
                 return
             }
-            await rel.delete(tok.begin, offset, editor)
+            await context.delete(tok.begin, offset, editor)
             return
         }
         if (tok.isOpenBracket()) {
             const close = tokens[tok.findCloseBracket(tokens, idx + 1)]
             if (close) {
-                await rel.delete(offset, close.end, editor)
+                await context.delete(offset, close.end, editor)
                 return
             }
         }
         if (tok.isCloseBracket()) {
             const open = tokens[tok.findOpenBracket(tokens, idx - 1)]
             if (open) {
-                await rel.delete(open.begin, tok.end, editor)
+                await context.delete(open.begin, tok.end, editor)
                 return
             }
         }
@@ -168,20 +180,19 @@ class TextDeletionService {
         const ws = tape.consumeWs().length
         if (tape.isAtLineSep()) {
             // deleting token leaves cursor at end of line; strip leading whitespace
-            await rel.delete(offset, tok.end + ws, editor)
+            await context.delete(offset, tok.end + ws, editor)
             return
         }
-        await rel.delete(offset, tok.end, editor)
+        await context.delete(offset, tok.end, editor)
     }
 
     /**
      * Since we have overriden the default `deleteLeft` and `deleteRight`
      * commands, we must re-implement deleting a single character.
      */
-    static applyCaretDelete(editor: TextEditor, direction: Direction) {
+    static applyCaretDelete(editor: TextEditor, direction: Direction, rel: DocumentContext) {
         const { document, selection } = editor
         const cursor = document.offsetAt(selection.active)
-        const rel = DocumentContext.newInstance(document)
         if (direction === 'left') {
             rel.delete(cursor - 1, cursor, editor)
         } else {

@@ -40,6 +40,7 @@ class TextInsertionService {
         if (this.isActive) {
             return
         }
+        this.isActive = true
         await DocumentInfoService.start(ctx)
         await LanguageInfoService.start()
         ctx.subscriptions.push(
@@ -89,17 +90,21 @@ class TextInsertionService {
                 },
             }),
         )
-        this.isActive = true
     }
 
     static async insertText(editor: TextEditor, keyIn: string) {
         const { document } = editor
-        const tok = LanguageInfoService.get(document.languageId).openBrackets.tokenize(keyIn).at(0)
+        const tok = LanguageInfoService.get(document.languageId)?.openBrackets.tokenize(keyIn).at(0)
         if (!tok || !tok.isOpenBracket()) {
             await insertRawText()
             return
         }
         const docInfo = DocumentInfoService.get(document)
+        if (!docInfo) {
+            // avoid expensive offset resolution
+            await insertRawText()
+            return
+        }
         let offset = document.offsetAt(editor.selection.active)
         const nearestScope = docInfo.selectScopes(offset).at(-1)
         if (!nearestScope) {
@@ -151,15 +156,14 @@ class TextInsertionService {
     static updateStrategy(editor: TextEditor, keyIn: string): boolean {
         try {
             const { document } = editor
+            const docInfo = DocumentInfoService.get(document)
+            if (!docInfo) {
+                return false
+            }
             const active = editor.selection.active
             const cursor = new Position(active.line, active.character + 1) // adjust for key-in
-            const ctx = CompletionContext.newInstance(
-                document,
-                keyIn,
-                cursor,
-                DocumentInfoService.get(document),
-            )
-            const { completions } = LanguageInfoService.get(document.languageId)
+            const ctx = CompletionContext.newInstance(document, keyIn, cursor, docInfo)
+            const { completions } = LanguageInfoService.get(document.languageId)!
             for (const [trigger, families] of completions) {
                 for (const family of families) {
                     ctx.resetLine()

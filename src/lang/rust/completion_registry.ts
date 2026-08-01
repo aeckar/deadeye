@@ -289,7 +289,7 @@ const rustCompletions = CompletionRegistry.newInstance<ScopeKind<typeof rustScop
             if (!tape.consumeAt(' ')) {
                 return undefined
             }
-            const { language } = ctx.docInfo
+            const { language } = ctx.docInfo.langInfo
             const chunks = tape.consumeChunks(language.idRule.isPart).map(reverse)
             if (chunks.length === 0) {
                 return undefined
@@ -321,7 +321,8 @@ const rustCompletions = CompletionRegistry.newInstance<ScopeKind<typeof rustScop
                 return undefined
             }
             const tape = ctx.left().reversed()
-            const { language, tokens } = ctx.docInfo
+            const { language } = ctx.docInfo.langInfo
+            const { tokens } = ctx.docInfo
             const chunks = tape.consumeChunks(language.idRule.isPart).map(reverse)
             if (chunks.length === 0) {
                 return undefined
@@ -361,7 +362,8 @@ const rustCompletions = CompletionRegistry.newInstance<ScopeKind<typeof rustScop
                 return undefined
             }
             const tape = ctx.left().reversed()
-            const { language, tokens } = ctx.docInfo
+            const { language } = ctx.docInfo.langInfo
+            const { tokens } = ctx.docInfo
             const chunks = tape.consumeChunks(language.idRule.isPart).map(reverse)
             if (chunks.length === 0 || chunks.at(-1)!.toLowerCase() !== 'is') {
                 return undefined

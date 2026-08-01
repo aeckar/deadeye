@@ -512,9 +512,12 @@ export class ScopeStream<ScopeKind extends string> {
         return true
     }
 
-    /**  Closes all opened scopes and discards all primed scopes. */
+    /** Closes all opened scopes and discards all primed scopes. */
     finish() {
-        const end = this.tokens[this.pos - 1].end
+        if (this._pos - 1 >= this.tokens.length) {
+            return
+        }
+        const end = this.tokens[this._pos - 1].end
         for (const scope of this.unclosed) {
             if (scope.isOpen) {
                 const s = scope.close(end)
@@ -545,6 +548,9 @@ export class ScopeStream<ScopeKind extends string> {
 
     /** Returns `true` if any element in `unclosed` was modified. */
     private _collect(): boolean {
+        if (this.isExhausted()) {
+            return false
+        }
         const start = this.tokens[this.pos]
         const { unclosed, closed } = this
         if (unclosed.length === 0) {

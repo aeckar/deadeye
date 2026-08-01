@@ -160,11 +160,16 @@ graph TD
 
 ```ts
 class BasicService {
+    private static isActive = false
     // No public properties
 
     private constructor() {}
 
     static start(ctx: ExtensionContext) {
+        if (this.isActive) {
+            return
+        }
+        this.isActive = true // Guard must precede other service dependencies!
         // Initialization logic, such as pushing subscriptions
     }
 }

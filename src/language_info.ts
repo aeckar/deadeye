@@ -4,13 +4,13 @@ import { Language } from '@/api/language_api'
 import { ScopeRegistry } from '@/api/scope_api'
 import { AsiResolver } from '@/document_info'
 
-class LanguageInfo {
+class LanguageInfo<ScopeKind extends string> {
     private _openBrackets: Language | undefined
 
     private constructor(
-        readonly completions: CompletionRegistry<string>,
+        readonly completions: CompletionRegistry<ScopeKind>,
         readonly language: Language,
-        readonly scopes: ScopeRegistry<string>,
+        readonly scopes: ScopeRegistry<ScopeKind>,
         readonly asi: AsiResolver | undefined,
     ) {}
 
@@ -26,8 +26,8 @@ class LanguageInfo {
         language: Language,
         scopes: ScopeRegistry<ScopeKind>,
         asi?: AsiResolver,
-    ): LanguageInfo {
-        return new this(completions as CompletionRegistry<string>, language, scopes, asi)
+    ): LanguageInfo<ScopeKind> {
+        return new this<ScopeKind>(completions, language, scopes, asi)
     }
 }
 

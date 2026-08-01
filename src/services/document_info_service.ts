@@ -13,6 +13,7 @@ class DocumentInfoService {
         if (this.isActive) {
             return
         }
+        this.isActive = true
         await IntervalTreeService.start()
         await LanguageInfoService.start()
         ctx.subscriptions.push(
@@ -22,7 +23,7 @@ class DocumentInfoService {
                 if (event.contentChanges.length === 0 || document.uri.scheme !== 'file') {
                     return
                 }
-                this.get(document).registerChanges(event.contentChanges)
+                this.get(document)?.registerChanges(event.contentChanges)
             }),
 
             // Clear cache when a file is closed to free up memory
@@ -30,7 +31,6 @@ class DocumentInfoService {
                 this.files.delete(document.uri.toString())
             }),
         )
-        this.isActive = true
     }
 
     /**
@@ -38,16 +38,23 @@ class DocumentInfoService {
      * Tokenizes the file if not done so yet.
      *
      * It is the responsibility of the caller to ensure the correct type for `ScopeKind`.
+     *
+     * Returns `undefined` if the language of the active document is unsupported.
      */
-    static get<ScopeKind extends string>(document: TextDocument): DocumentInfo<ScopeKind> {
+    static get<ScopeKind extends string>(
+        document: TextDocument,
+    ): DocumentInfo<ScopeKind> | undefined {
         const uri = document.uri.toString()
         if (!this.files.has(uri)) {
-            const { language, scopes, asi } = LanguageInfoService.get(document.languageId)
-            const file = DocumentInfo.newInstance(document, language, scopes, asi)
-            this.files.set(uri, file)
-            return file as DocumentInfo<ScopeKind>
+            const langInfo = LanguageInfoService.get<ScopeKind>(document.languageId)
+            if (!langInfo) {
+                return undefined
+            }
+            const file = DocumentInfo.newInstance<ScopeKind>(document, langInfo)
+            this.files.set(uri, file as unknown as DocumentInfo<string>)
+            return file
         }
-        return this.files.get(uri)! as DocumentInfo<ScopeKind>
+        return this.files.get(uri)! as unknown as DocumentInfo<ScopeKind>
     }
 }
 
