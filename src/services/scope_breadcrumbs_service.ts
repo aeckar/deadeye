@@ -27,6 +27,7 @@ class ScopeBreadcrumbsService {
                 this.updateBreadcrumbs(editor)
             }),
         )
+        this.isActive = true
     }
 
     private static updateBreadcrumbs(editor: TextEditor | undefined) {

@@ -2,6 +2,12 @@ import * as fs from 'fs'
 import Mocha from 'mocha'
 import * as path from 'path'
 
+/**
+ * Mocha test runner.
+ * 
+ * Mocha is preferred over Vitest for being an unbundled testing framework that may
+ * work better with VS Code Extension Host.
+ */
 export async function run(): Promise<void> {
     const mocha = new Mocha({ ui: 'tdd', timeout: 10000, color: true })
     const testsRoot = __dirname

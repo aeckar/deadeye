@@ -30,6 +30,7 @@ class DocumentInfoService {
                 this.files.delete(document.uri.toString())
             }),
         )
+        this.isActive = true
     }
 
     /**

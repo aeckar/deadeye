@@ -16,6 +16,9 @@ import { EXTENSION_NAME } from '@/utils/constants'
  *
  * Codicon reference:
  * https://code.visualstudio.com/api/references/icons-in-labels
+ * 
+ * Extension API reference:
+ * https://code.visualstudio.com/api
  */
 export async function activate(context: ExtensionContext) {
     try {
@@ -33,7 +36,7 @@ export async function activate(context: ExtensionContext) {
         console.error('Activation Error:', e)
         logger.error(`Activation failed: ${e}`)
         const choice = await window.showErrorMessage(
-            `Failed to initialize ${EXTENSION_NAME}. Check Output logs for details.`,
+            `Failed to initialize ${EXTENSION_NAME}. Check output logs for details.`,
             'Show Logs',
         )
         if (choice === 'Show Logs') {

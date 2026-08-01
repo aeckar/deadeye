@@ -3,7 +3,8 @@ import { ScopeRegistry } from '@/api/scope_api'
 import Scope from '@/scope'
 import { IntervalTree } from '@/services/interval_tree_service'
 import Tape from '@/tape'
-import { TextDocument, TextDocumentContentChangeEvent } from 'vscode'
+import { LogLevel, TextDocument, TextDocumentContentChangeEvent } from 'vscode'
+import { logger } from '@/logger'
 
 export type AsiResolver = (tokens: Token[]) => void
 
@@ -47,21 +48,35 @@ class DocumentInfo<ScopeKind extends string> {
 
     /** Returns an array of every token in this file. */
     get tokens(): readonly Token[] {
+        const start = performance.now()
         if (!this._tokens) {
             this._tokens = this.language.tokenize(this.text)
             if (this.asi) {
                 this.asi(this._tokens)
             }
         }
-        return this._tokens!
+        const tokens = this._tokens!
+        if (logger.logLevel === LogLevel.Info) {
+            const t = (performance.now() - start).toFixed(2)
+            logger.info(`${this.document.fileName}: Parsed ${tokens.length} tokens in ${t}ms `)
+        }
+        return tokens
     }
 
     /** Returns an interval tree of every found scope in this file. */
     get scopes(): IntervalTree<Scope<ScopeKind>> {
+        const start = performance.now()
         if (!this._scopes) {
             this._scopes = this.scopeRegistry.extractScopes(this.tokens)
         }
-        return this._scopes!
+        const scopes = this._scopes!
+        if (logger.logLevel === LogLevel.Info) {
+            const t = (performance.now() - start).toFixed(2)
+            logger.info(
+                `${this.document.fileName}: Parsed ${scopes.items.length} scopes in ${t}ms `,
+            )
+        }
+        return scopes
     }
 
     registerChanges(changes: readonly TextDocumentContentChangeEvent[]) {

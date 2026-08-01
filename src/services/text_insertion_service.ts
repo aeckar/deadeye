@@ -78,34 +78,18 @@ class TextInsertionService {
                     editor.setDecorations(this.targetDecoration, [this.strategy.completion.target])
                 }
             }),
+            languages.registerHoverProvider('*', {
+                provideHover(_, position) {
+                    const strategy = TextInsertionService._strategy
+                    if (!strategy?.completion.target.contains(position)) {
+                        return null
+                    }
+
+                    return new Hover([strategy.family.docs, strategy.preview()])
+                },
+            }),
         )
-
-        for (const [langId] of LanguageInfoService.select(/.*/g)) {
-            ctx.subscriptions.push(
-                // Show documentation on hover
-                languages.registerHoverProvider(langId, {
-                    provideHover(_, position) {
-                        const strategy = TextInsertionService._strategy
-                        if (!strategy || !strategy.completion.target.contains(position)) {
-                            return null
-                        }
-                        return new Hover(strategy.family.docs)
-                    },
-                }),
-
-                // Show preview on hover
-                languages.registerHoverProvider(langId, {
-                    provideHover(_, position) {
-                        const strategy = TextInsertionService._strategy
-                        const target = strategy?.completion.target
-                        if (!strategy || !target?.contains(position)) {
-                            return null
-                        }
-                        return new Hover(strategy.preview())
-                    },
-                }),
-            )
-        }
+        this.isActive = true
     }
 
     static async insertText(editor: TextEditor, keyIn: string) {

@@ -7,6 +7,8 @@ import rustLanguage from '@/lang/rust/language'
 import rustScopes from '@/lang/rust/scope_registry'
 
 class LanguageInfoService {
+    private static isActive: boolean = false
+
     /** Must be populated in service initializer */
     private static _languages: Map<string, LanguageInfo> = new Map()
 
@@ -17,7 +19,11 @@ class LanguageInfoService {
      * can perform an initial run.
      */
     static async start() {
+        if (this.isActive) {
+            return
+        }
         this.set('rust', LanguageInfo.newInstance(rustCompletions, rustLanguage, rustScopes))
+        this.isActive = true
     }
 
     /** Declares a supported language. */

@@ -34,6 +34,7 @@ class TextDeletionService {
                 this.applySmartDelete(editor, 'right')
             }),
         )
+        this.isActive = true
     }
 
     static async applySmartDelete(editor: TextEditor, direction: Direction) {

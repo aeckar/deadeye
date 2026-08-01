@@ -165,6 +165,7 @@ class TokenExplorerService {
                 this.treeDataProvider.revealActiveItem(event.textEditor),
             ),
         )
+        this.isActive = true
     }
 }
 
