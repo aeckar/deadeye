@@ -1,4 +1,4 @@
-import { at, before, open, ScopeRegistry } from '@/api/scope_api'
+import { at, before, excludeOpen, open, parent, ScopeRegistry } from '@/api/scope_api'
 import tsLanguage from '@/lang/ts/language'
 import { CURLIES } from '@/utils/constants'
 
@@ -19,10 +19,6 @@ const tsScopes = ScopeRegistry.newInstance(() => tsLanguage, {
         require: [at('KW_INTERFACE')],
         boundaries: [CURLIES],
     },
-    // colon = label
-    // default scope (lowest) -> colon = assignment
-    // in assignment before = -> colon = typeAnno
-    // in assignment after = -> colon = assignment
     class: {
         require: [at('KW_CLASS')],
         boundaries: [CURLIES],
@@ -54,24 +50,32 @@ const tsScopes = ScopeRegistry.newInstance(() => tsLanguage, {
         require: [at('COLON')],
         boundaries: ['CLOSE_PAREN', 'CLOSE_CURLY', 'CLOSE_ANGLE', 'COMMA', 'EQUALS', 'SEMICOLON'],
     },
-    objectType: {},
+    objectType: {
+        
+    },
     objectLiteral: {
-        require: [at('OPEN_CURLY')],
+        require: [
+            at('OPEN_CURLY'),
+            excludeOpen('type'),
+            parent('assignment', 'function', 'method', '*'),
+        ],
         boundaries: ['CLOSE_CURLY'],
-        openPool: ['!type'],
-        parentPool: ['assignment', 'function', 'method', '*'],
     },
     field: {
-        require: [at('ID')],
+        require: [
+            at('ID'),
+            before('COLON', 'SEMICOLON', 'EQUALS'),
+            parent('class', 'interface', 'objectLiteral'),
+        ],
         boundaries: ['SEMICOLON'],
-        parentPool: ['class', 'interface', 'objectLiteral'],
-        require: before('COLON', 'SEMICOLON', 'EQUALS'),
     },
     method: {
-        require: [at('ID')],
+        require: [
+            at('ID'),
+            before('OPEN_ANGLE', 'OPEN_PAREN'),
+            parent('class', 'interface', 'objectLiteral'),
+        ],
         boundaries: [CURLIES],
-        parentPool: ['class', 'interface', 'objectLiteral'],
-        require: before('OPEN_ANGLE', 'OPEN_PAREN'),
     },
     async: {
         require: [at('KW_ASYNC')],

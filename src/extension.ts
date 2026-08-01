@@ -1,7 +1,7 @@
 //! Extension entry point.
 import { ExtensionContext, window } from 'vscode'
 
-import { logger } from '@/logger'
+import  log  from '@/logger'
 import IntervalTreeService from '@/services/interval_tree_service'
 import LanguageInfoService from '@/services/language_info_service'
 import ScopeBreadcrumbsService from '@/services/scope_breadcrumbs_service'
@@ -16,36 +16,35 @@ import { EXTENSION_NAME } from '@/utils/constants'
  *
  * Codicon reference:
  * https://code.visualstudio.com/api/references/icons-in-labels
- * 
+ *
  * Extension API reference:
  * https://code.visualstudio.com/api
  */
 export async function activate(context: ExtensionContext) {
     try {
-        await Promise.all([
-            IntervalTreeService.start(),
-            LanguageInfoService.start(),
-            TextInsertionService.start(context),
-            TextDeletionService.start(context),
-            ScopeBreadcrumbsService.start(context),
-            TokenExplorerService.start(context),
-            ScopeExplorerService.start(context),
-        ])
-        logger.info('Extension activated successfully.')
+        // services must run sequentially for proper dependency resolution (no `Promise.all`)
+        await IntervalTreeService.start()
+        await LanguageInfoService.start()
+        await TextInsertionService.start(context)
+        await TextDeletionService.start(context)
+        await ScopeBreadcrumbsService.start(context)
+        await TokenExplorerService.start(context)
+        await ScopeExplorerService.start(context)
+        log.info('Extension activated successfully.')
     } catch (e) {
         console.error('Activation Error:', e)
-        logger.error(`Activation failed: ${e}`)
+        log.error(`Activation failed: ${e}`)
         const choice = await window.showErrorMessage(
             `Failed to initialize ${EXTENSION_NAME}. Check output logs for details.`,
             'Show Logs',
         )
         if (choice === 'Show Logs') {
-            logger.show()
+            log.show()
         }
     }
 }
 
 /** Extension cleanup. */
 export function deactivate() {
-    logger.info('Extension deactivated successfully.')
+    log.info('Extension deactivated successfully.')
 }

@@ -8,6 +8,7 @@ export const TRIVIA = Object.freeze(['LINE_COMMENT', 'BLOCK_COMMENT'] as const)
 export const ALPHA = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 export const DIGIT = '0123456789'
 export const EXTENSION_NAME = 'Deadeye'
+export const INDENT_SIZE = 4
 
 export const CLOSE_BRACKETS: Readonly<Record<string, string>> = Object.freeze({
     '(': ')',

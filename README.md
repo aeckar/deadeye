@@ -13,6 +13,10 @@ find circular module deps:
 resolve @ imports:
 `pnpm dlx relative-to-alias -s ./src -a '@' --ap ./src`
 
+
+changing log level in command pallette (ctrl-shift-p)
+`Developer: Set Log Level`
+
 remember to right click and press `debug tests` instead of `run tests`
 types if ai chats:
 research

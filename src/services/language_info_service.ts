@@ -1,10 +1,10 @@
-import { select } from '@/utils/collections'
-import { escapeRegex } from '@/utils/strings'
-import LanguageInfo from '@/language_info'
-import { logger } from '@/logger'
 import rustCompletions from '@/lang/rust/completion_registry'
 import rustLanguage from '@/lang/rust/language'
 import rustScopes from '@/lang/rust/scope_registry'
+import LanguageInfo from '@/language_info'
+import  log  from '@/logger'
+import { select } from '@/utils/collections'
+import { escapeRegex } from '@/utils/strings'
 
 class LanguageInfoService {
     private static isActive = false
@@ -36,7 +36,7 @@ class LanguageInfoService {
     /** Declares a supported language. */
     private static set(langId: string, info: LanguageInfo<string>) {
         if (this._languages.has(langId)) {
-            logger.warn(`Support for language '${langId}' declared again`)
+            log.warn(`Support for language '${langId}' declared again`)
         }
         this._languages.set(langId, info)
     }

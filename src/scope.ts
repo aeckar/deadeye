@@ -38,7 +38,7 @@ export class Scope<ScopeKind extends string> extends Span {
     }
 
     toString(): string {
-        return `${this.kind}(${this.markerPos},${super.toString()})`
+        return `${this.kind}(#${this.markerTokenPos},${this.markerPos},${super.toString()})`
     }
 
     static newInstance<ScopeKind extends string>(

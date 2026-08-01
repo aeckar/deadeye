@@ -169,6 +169,7 @@ class ScopeTreeDataProvider implements TreeDataProvider<ScopeTreeItem> {
     }
 }
 
+//fixme doesnt work for unsaved scratch files with inferred langId
 class ScopeExplorerService {
     private static isActive = false
     private static treeDataProvider = new ScopeTreeDataProvider()

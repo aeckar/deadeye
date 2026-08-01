@@ -2,11 +2,13 @@
 //!
 //! Unlike `scope_utils.ts`, contains logic for scope analysis.
 import { Language, Tag, Token, UnknownTokenKind } from '@/api/language_api'
-import { logger } from '@/logger'
+import log from '@/logger'
 import { Scope } from '@/scope'
 import IntervalTreeService, { IntervalTree } from '@/services/interval_tree_service'
 import { entries } from '@/utils/collections'
 import { TRIVIA } from '@/utils/constants'
+import { beautify, getCallerName } from '@/utils/diagnostics'
+import { LogLevel } from 'vscode'
 
 // =============================================================================================
 // Scope Predicates
@@ -147,7 +149,7 @@ export class Boundaries {
                 try {
                     tag = lang.tagForKind(entry)!
                 } catch (e) {
-                    logger.error(`Language does not contain token '${entry}'`)
+                    log.error(`Language does not contain token '${entry}'`)
                     throw e
                 }
                 boundaryMarkers.push(new Boundaries(tag, tag))
@@ -388,7 +390,7 @@ export class UnclosedScope<ScopeKind extends string> {
     }
 
     toString(): string {
-        return `${this.query.kind} ${this.isOpen ? '🟢' : '🔴'}`
+        return `${this.query.kind}(${this.isOpen ? '🟢' : '🔴'})`
     }
 
     deactivate(innerScope: ScopeKind) {
@@ -441,6 +443,7 @@ export class ScopeStream<ScopeKind extends string> {
     private constructor(readonly tokens: readonly Token[]) {
         this.closed = IntervalTreeService.newInstance<Scope<ScopeKind>>()
         this.unclosed = []
+        this.trace('Logging ready (🔴 = unopened, 🟢 = opened)')
     }
 
     static newInstance<ScopeKind extends string>(tokens: readonly Token[]): ScopeStream<ScopeKind> {
@@ -479,6 +482,35 @@ export class ScopeStream<ScopeKind extends string> {
     }
 
     /**
+     * Logs the trace message, interpolating shorthands as needed whenever `LogLevel === Trace`.
+     * Provides the caller and current position in every message.
+     *
+     * **Shorthands**
+     *
+     * - `$()`: Next positional format argument
+     * - `$(unclosed)`: Unclosed scope stack
+     * - `$(closed)`: Closed scopes
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private trace(msg: string, ...fmt: any[]) {
+        if (log.logLevel !== LogLevel.Trace) {
+            return
+        }
+        fmt = fmt.map(e => e.toString())
+        msg = msg.replace('$(unclosed)', `${beautify(this.unclosed.map(e => e.toString()))}`)
+        msg = msg.replace(
+            '$(closed)',
+            `${beautify(this.closed.items.map(e => e.value.toString()))}`,
+        )
+        for (let idx = 0; idx < fmt.length; ++idx) {
+            msg = msg.replace('$()', fmt[idx].toString())
+        }
+        const caller = `${getCallerName().replace('ScopeStream.', '')}:`.padEnd(10)
+        msg = msg.trimEnd() // `beautify` can append extra newline
+        log.trace(`ScopeStream(${this._pos}).${caller} ${msg}`)
+    }
+
+    /**
      * Parses the next scope signature (marker + attributes + sentinel) up to,
      * and including, the terminator (typically an open bracket).
      *
@@ -492,21 +524,29 @@ export class ScopeStream<ScopeKind extends string> {
      * @returns `true` if the scope signature was matched.
      */
     parse(info: ScopeInfo<ScopeKind>): boolean {
+        const { predicates, kind } = info
         if (this.isExhausted()) {
+            this.trace('[$()] Fail (stream is exhausted)', kind)
             return false
         }
-        const { predicates } = info
         const cur = this.tokens[this.pos]
-        for (const pred of predicates) {
+        for (const [idx, pred] of predicates.entries()) {
             if (!pred(this.tokens, this.pos, this, info)) {
+                this.trace('[$()] Fail (predicate $() failed)', kind, idx)
                 return false
             }
         }
         const scope = UnclosedScope.newInstance(info, cur, this.pos)
         this.unclosed.push(scope)
+        if (log.logLevel === LogLevel.Trace) {
+            // check once in production
+            this.trace('[$()] All predicates passed. Push to stack', kind)
+            this.trace('unclosed = $(unclosed)')
+        }
         if (info.once) {
             for (const target of this.deactivationQueue) {
-                target.deactivate(info.kind)
+                target.deactivate(kind)
+                this.trace('[$()] Deactivated for $()', kind, target)
             }
         }
         return true
@@ -515,16 +555,23 @@ export class ScopeStream<ScopeKind extends string> {
     /** Closes all opened scopes and discards all primed scopes. */
     finish() {
         if (this._pos - 1 >= this.tokens.length) {
+            this.trace('Fail (stream is exhausted)')
             return
         }
         const end = this.tokens[this._pos - 1].end
         for (const scope of this.unclosed) {
             if (scope.isOpen) {
+                this.trace('Close $()', scope)
                 const s = scope.close(end)
                 this.closed.insert(s.interval, s)
             }
         }
         this.unclosed.length = 0
+        if (log.logLevel === LogLevel.Trace) {
+            // check once in production
+            this.trace('unclosed = $(unclosed)')
+            this.trace('closed = $(closed)')
+        }
     }
 
     /**
@@ -540,20 +587,30 @@ export class ScopeStream<ScopeKind extends string> {
      * Advances the token stream before returning.
      */
     collect() {
+        let pass = 1
         do {
-            continue
+            this.trace('Pass $()', pass)
+            pass += 1
         } while (this._collect())
         this.adv()
+        if (log.logLevel === LogLevel.Trace) {
+            // check once in production
+            this.trace('Completed $() passes', pass - 1)
+            this.trace('unclosed = $(unclosed)')
+            this.trace('closed = $(closed)')
+        }
     }
 
     /** Returns `true` if any element in `unclosed` was modified. */
     private _collect(): boolean {
         if (this.isExhausted()) {
+            this.trace('Fail (stream is exhausted)')
             return false
         }
         const start = this.tokens[this.pos]
         const { unclosed, closed } = this
         if (unclosed.length === 0) {
+            this.trace('Fail (unclosed = $(unclosed))')
             return false
         }
         const tag = start.tag
@@ -562,7 +619,7 @@ export class ScopeStream<ScopeKind extends string> {
         // Attempt to close top scope by matching to any expected closer
         // Top scope was opened by previous call
         if (top.isOpen) {
-            if (top.expectedClose?.includes(tag!)) {
+            if (top.expectedClose?.includes(tag)) {
                 const s = unclosed.pop()!.close(start.begin)
                 closed.insert([s.begin, s.end], s)
                 while (unclosed.at(-1)?.query.flatten) {

@@ -1,6 +1,6 @@
 import { Completion, CompletionContext, CompletionStrategy } from '@/api/completion_api'
 import { Token } from '@/api/language_api'
-import { logger } from '@/logger'
+import  log  from '@/logger'
 import DocumentInfoService from '@/services/document_info_service'
 import LanguageInfoService from '@/services/language_info_service'
 import { CLOSE_BRACKETS } from '@/utils/constants'
@@ -171,7 +171,7 @@ class TextInsertionService {
                     try {
                         completion = family.resolver(ctx)
                     } catch (e) {
-                        logger.error(`Exception while resolving completion: ${e}`)
+                        log.error(`Exception while resolving completion: ${e}`)
                     }
                     if (!completion) {
                         continue
@@ -186,7 +186,7 @@ class TextInsertionService {
                 }
             }
         } catch (e) {
-            logger.error(`Exception while updating strategy: ${e}`)
+            log.error(`Exception while updating strategy: ${e}`)
         }
         return false
     }

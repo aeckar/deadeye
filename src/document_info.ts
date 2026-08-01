@@ -1,12 +1,11 @@
-import { Language, Token } from '@/api/language_api'
-import { ScopeRegistry } from '@/api/scope_api'
-import { logger } from '@/logger'
+import { Token } from '@/api/language_api'
+import LanguageInfo from '@/language_info'
+import  log  from '@/logger'
 import Scope from '@/scope'
 import { IntervalTree } from '@/services/interval_tree_service'
 import Tape from '@/tape'
 import { DocumentContext } from '@/utils/vscode'
 import { LogLevel, TextDocument, TextDocumentContentChangeEvent } from 'vscode'
-import LanguageInfo from '@/language_info'
 
 export type AsiResolver = (tokens: Token[]) => void
 
@@ -56,8 +55,8 @@ class DocumentInfo<ScopeKind extends string> {
             const { language, asi } = this.langInfo
             this._tokens = language.tokenize(text)
             const t = (performance.now() - start).toFixed(2)
-            if (logger.logLevel === LogLevel.Info) {
-                logger.info(
+            if (log.logLevel === LogLevel.Info) {
+                log.info(
                     `${this.document.fileName}: Parsed ${this._tokens.length} tokens in ${t}ms `,
                 )
             }
@@ -75,8 +74,8 @@ class DocumentInfo<ScopeKind extends string> {
             const start = performance.now()
             this._scopes = this.langInfo.scopes.extractScopes(tokens)
             const t = (performance.now() - start).toFixed(2)
-            if (logger.logLevel === LogLevel.Info) {
-                logger.info(
+            if (log.logLevel === LogLevel.Info) {
+                log.info(
                     `${this.document.fileName}: Parsed ${this._scopes.items.length} scopes in ${t}ms `,
                 )
             }
@@ -112,8 +111,8 @@ class DocumentInfo<ScopeKind extends string> {
         const start = performance.now()
         lang.tokenize(Tape.over(text, resumeOffset, lang.idRule), tokens)
         const t = (performance.now() - start).toFixed(2)
-        if (logger.logLevel === LogLevel.Info) {
-            logger.info(
+        if (log.logLevel === LogLevel.Info) {
+            log.info(
                 `${this.document.fileName}: Parsed ${tokens.length - resumeIdx} tokens in ${t}ms `,
             )
         }

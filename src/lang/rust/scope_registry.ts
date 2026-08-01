@@ -8,14 +8,14 @@ import {
     primed,
     ScopeRegistry,
 } from '@/api/scope_api'
-import rustVocab from '@/lang/rust/language'
+import rustLanguage from '@/lang/rust/language'
 import { ANGLES, CURLIES } from '@/utils/constants'
 
 /**
  * Completion resolvers must themselves check if in condition,
  * since rust conditionals lack parentheses and only one scope can be pushed at a time.
  */
-export const rustScopes = ScopeRegistry.newInstance(() => rustVocab, {
+export const rustScopes = ScopeRegistry.newInstance(() => rustLanguage, {
     // Item Declarations
     struct: {
         require: [at('STRUCT', 'UNION')],

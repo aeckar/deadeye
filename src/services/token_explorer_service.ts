@@ -29,10 +29,11 @@ class TokenTreeItem extends TreeItem {
     private constructor(
         readonly token: Token,
         docInfo: DocumentInfo<string>,
+        idx: number,
     ) {
         const slice = docInfo.text.slice(token.begin, token.end)
         super(slice, TreeItemCollapsibleState.None)
-        this.description = token.kind
+        this.description = `${idx}. ${token.kind}`
         this.tooltip = token.toString() // complete information
         this.command = {
             command: 'deadeye.tokenExplorer.jumpTo',
@@ -41,8 +42,8 @@ class TokenTreeItem extends TreeItem {
         }
     }
 
-    static newInstance(token: Token, docInfo: DocumentInfo<string>): TokenTreeItem {
-        return new this(token, docInfo)
+    static newInstance(token: Token, docInfo: DocumentInfo<string>, idx: number): TokenTreeItem {
+        return new this(token, docInfo, idx)
     }
 }
 
@@ -97,7 +98,7 @@ class TokenTreeDataProvider implements TreeDataProvider<TokenTreeItem> {
         if (!docInfo) {
             return []
         }
-        return docInfo.tokens.map(e => TokenTreeItem.newInstance(e, docInfo))
+        return docInfo.tokens.map((e, idx) => TokenTreeItem.newInstance(e, docInfo, idx))
     }
 
     /** Tokens are non-overlapping and sorted by `begin`, so binary search is safe. */
